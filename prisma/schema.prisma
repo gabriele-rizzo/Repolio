@@ -1,0 +1,48 @@
+generator client {
+    provider = "prisma-client"
+    output   = "../generated/prisma"
+}
+
+datasource db {
+    provider = "postgresql"
+}
+
+// APP SCHEMA
+
+model Client {
+    id         Int      @id @default(autoincrement())
+    account_id String   @unique
+    name       String
+    email      String
+    company    String?
+    active     Boolean  @default(true)
+    created_at DateTime @default(now())
+
+    snapshots Snapshot[]
+}
+
+model Snapshot {
+    id         Int       @id @default(autoincrement())
+    start_date DateTime
+    end_date   DateTime?
+    data       Json
+    created_at DateTime  @default(now())
+
+    client_id Int
+    client    Client @relation(fields: [client_id], references: [id])
+
+    analyses Analysis[]
+
+    @@unique([start_date, end_date, client_id])
+}
+
+model Analysis {
+    id         Int      @id @default(autoincrement())
+    data       Json
+    created_at DateTime @default(now())
+
+    snapshot_id Int
+    snapshot    Snapshot @relation(fields: [snapshot_id], references: [id])
+
+    @@unique([snapshot_id])
+}
