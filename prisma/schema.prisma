@@ -18,7 +18,11 @@ model Client {
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 
-    snapshots Snapshot[]
+    last_report DateTime?
+    next_report DateTime  @default(dbgenerated("(now() + interval '30 days')"))
+
+    snapshots  Snapshot[]
+    recurrence Recurrence?
 }
 
 model Snapshot {
@@ -31,12 +35,12 @@ model Snapshot {
     client_id Int
     client    Client @relation(fields: [client_id], references: [id])
 
-    analyses Analysis[]
+    reports Report[]
 
     @@unique([start_date, end_date, client_id])
 }
 
-model Analysis {
+model Report {
     id         Int      @id @default(autoincrement())
     data       Json
     created_at DateTime @default(now())
@@ -45,4 +49,11 @@ model Analysis {
     snapshot    Snapshot @relation(fields: [snapshot_id], references: [id])
 
     @@unique([snapshot_id])
+}
+
+model Recurrence {
+    client_id Int    @id
+    client    Client @relation(fields: [client_id], references: [id])
+
+    ndays Float @default(30)
 }

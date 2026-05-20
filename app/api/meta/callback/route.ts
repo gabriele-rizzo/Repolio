@@ -23,6 +23,7 @@ export async function GET(request: NextRequest) {
 
     const store = await cookies();
     const expectedState = store.get(META_STATE_COOKIE)?.value;
+
     store.delete(META_STATE_COOKIE);
 
     if (!code || !state || !expectedState || state !== expectedState) {

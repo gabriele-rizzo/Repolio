@@ -4,6 +4,8 @@ import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
     const user = await authorize();
+
+    console.log(user);
     if (user) redirect("/dashboard");
 
     return <LoginForm />;

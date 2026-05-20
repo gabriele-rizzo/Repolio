@@ -23,8 +23,8 @@ export function LoginForm() {
     return (
         <Card className="w-full max-w-md">
             <CardHeader>
-                <CardTitle>Admin Access</CardTitle>
-                <CardDescription>Access restricted areas to manage Repolio's resources.</CardDescription>
+                <CardTitle>Welcome Back</CardTitle>
+                <CardDescription>Log in into your account to continue.</CardDescription>
             </CardHeader>
 
             <CardContent>

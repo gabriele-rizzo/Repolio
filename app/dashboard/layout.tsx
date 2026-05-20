@@ -4,12 +4,12 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { redirect } from "next/navigation";
 
 export default async function DashboardLayout({ children }: React.PropsWithChildren) {
-    const user = await authorize();
-    if (!user) redirect("/auth/login");
+    const client = await authorize();
+    if (!client) redirect("/auth/login");
 
     return (
         <SidebarProvider>
-            <DashboardSidebar client={user} />
+            <DashboardSidebar client={client} />
 
             <SidebarInset>{children}</SidebarInset>
         </SidebarProvider>

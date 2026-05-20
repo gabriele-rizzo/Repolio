@@ -7,13 +7,11 @@ import { NextResponse } from "next/server";
 
 export async function GET() {
     const client = await authorize();
-    if (!client) {
-        return NextResponse.redirect(new URL("/auth/login", checkEnv("NEXT_PUBLIC_SITE_URL")));
-    }
+    if (!client) return NextResponse.redirect(new URL("/auth/login", checkEnv("NEXT_PUBLIC_SITE_URL")));
 
     const state = generateState();
-
     const store = await cookies();
+
     store.set(META_STATE_COOKIE, state, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production",
