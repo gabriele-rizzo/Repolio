@@ -1,7 +1,9 @@
 import { authorize } from "@/actions/auth/authorize";
 import { checkEnv } from "@/lib/env";
+import { encryptToken } from "@/lib/meta/crypto";
 import { exchangeCodeForToken, exchangeForLongLivedToken } from "@/lib/meta/oauth";
 import { META_STATE_COOKIE } from "@/lib/meta/state";
+import { prisma } from "@/lib/prisma";
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -36,9 +38,19 @@ export async function GET(request: NextRequest) {
     const short = await exchangeCodeForToken(code);
     const long = await exchangeForLongLivedToken(short.access_token);
 
-    console.log("[meta] connected client", client.id);
-    console.log("[meta] long-lived token expires_in (s):", long.expires_in);
-    console.log("[meta] long-lived access_token:", long.access_token);
+    await prisma.accountConnection.upsert({
+        where: { client_id_platform: { client_id: client.id, platform: "META" } },
+        create: {
+            client_id: client.id,
+            platform: "META",
+            access_token: encryptToken(long.access_token),
+            expires_at: new Date(Date.now() + long.expires_in * 1000),
+        },
+        update: {
+            access_token: encryptToken(long.access_token),
+            expires_at: new Date(Date.now() + long.expires_in * 1000),
+        },
+    });
 
     return NextResponse.redirect(siteUrl("/dashboard?meta_connected=1"));
 }
