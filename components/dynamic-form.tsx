@@ -13,13 +13,7 @@ import { Input } from "./ui/input";
 import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "./ui/input-otp";
 
 type Data<S extends z.ZodRawShape> = {
-    [k in keyof z.objectUtil.addQuestionMarks<z.baseObjectOutputType<S>, any>]: z.objectUtil.addQuestionMarks<
-        z.baseObjectOutputType<S>,
-        any
-    >[k];
-};
-
-type DefaultValues<S extends z.ZodRawShape> = {
+    /* eslint-disable @typescript-eslint/no-explicit-any */
     [k in keyof z.objectUtil.addQuestionMarks<z.baseObjectOutputType<S>, any>]: z.objectUtil.addQuestionMarks<
         z.baseObjectOutputType<S>,
         any
@@ -33,7 +27,7 @@ interface DynamicFormProps<S extends z.ZodRawShape> {
     schema: z.ZodObject<S>;
     onSuccess?: () => void;
     action: (data: Data<S>) => void | Promise<void>;
-    defaultValues: DefaultValues<S>;
+    defaultValues: Data<S>;
     inputs: Record<keyof S, React.ComponentProps<typeof Input> & { label: string; inputType?: "default" | "otp" }>;
     submitLabel: string;
 }
@@ -44,6 +38,7 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
 
     const form = useForm<z.infer<typeof props.schema>>({
         resolver: zodResolver(props.schema),
+        /* eslint-disable @typescript-eslint/no-explicit-any */
         defaultValues: props.defaultValues as any,
     });
 
