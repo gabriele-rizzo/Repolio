@@ -3,7 +3,7 @@ import { checkEnv } from "@/lib/env";
 export type TokenResponse = {
     access_token: string;
     token_type: string;
-    expires_in: number;
+    expires_in?: number;
 };
 
 function graphUrl(path: string) {

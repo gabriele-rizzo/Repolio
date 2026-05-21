@@ -38,17 +38,20 @@ export async function GET(request: NextRequest) {
     const short = await exchangeCodeForToken(code);
     const long = await exchangeForLongLivedToken(short.access_token);
 
+    const access_token = encryptToken(long.access_token);
+    const expires_at = long.expires_in ? new Date(Date.now() + long.expires_in * 1000) : undefined;
+
     await prisma.accountConnection.upsert({
         where: { client_id_platform: { client_id: client.id, platform: "META" } },
         create: {
             client_id: client.id,
             platform: "META",
-            access_token: encryptToken(long.access_token),
-            expires_at: new Date(Date.now() + long.expires_in * 1000),
+            access_token,
+            expires_at,
         },
         update: {
-            access_token: encryptToken(long.access_token),
-            expires_at: new Date(Date.now() + long.expires_in * 1000),
+            access_token,
+            expires_at,
         },
     });
 
