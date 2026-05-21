@@ -11,6 +11,8 @@ interface Page {
     icon: LucideIcon;
 }
 
+export const SIDEBAR_STATE_COOKIE = "sidebar_state";
+
 export const pages: Page[] = [
     {
         label: "Overview",

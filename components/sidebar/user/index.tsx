@@ -1,6 +1,7 @@
 "use client";
 
 import { logout } from "@/actions/auth/logout";
+import { cn } from "@/lib/utils";
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
 import Link from "next/link";
 import {
@@ -17,7 +18,7 @@ import type { WithClientProps } from "../config";
 import { DashboardSidebarUserInfos } from "./infos";
 
 export function DashboardSidebarUser({ client }: WithClientProps) {
-    const { isMobile } = useSidebar();
+    const { open, isMobile } = useSidebar();
     const infos = <DashboardSidebarUserInfos client={client} />;
 
     return (
@@ -26,10 +27,7 @@ export function DashboardSidebarUser({ client }: WithClientProps) {
                 <DropdownMenu>
                     <DropdownMenuTrigger
                         render={
-                            <SidebarMenuButton
-                                size="lg"
-                                className="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
-                            >
+                            <SidebarMenuButton size="lg" className={cn(!open && "hover:bg-transparent")}>
                                 {infos}
                                 <ChevronsUpDown className="ml-auto size-4" />
                             </SidebarMenuButton>

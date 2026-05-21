@@ -52,12 +52,19 @@ body {
     font-family: var(--font-geist-sans);
 }
 
-button {
-    cursor: pointer;
-}
-
 code {
     font-family: var(--font-geist-mono);
+}
+
+button {
+    &:not(:disabled) {
+        cursor: pointer;
+    }
+
+    &:disabled {
+        opacity: 50%;
+        cursor: not-allowed;
+    }
 }
 
 :root {

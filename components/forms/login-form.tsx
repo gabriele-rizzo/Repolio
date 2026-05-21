@@ -1,13 +1,8 @@
 "use client";
 
 import { login } from "@/actions/auth/login";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { Controller, useForm } from "react-hook-form";
 import * as z from "zod";
-import { Button } from "../ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "../ui/card";
-import { Field, FieldError, FieldGroup, FieldLabel } from "../ui/field";
-import { Input } from "../ui/input";
+import { DynamicForm } from "../dynamic-form";
 
 const schema = z.object({
     email: z.string().email(),
@@ -15,73 +10,31 @@ const schema = z.object({
 });
 
 export function LoginForm() {
-    const form = useForm<z.infer<typeof schema>>({
-        resolver: zodResolver(schema),
-        defaultValues: { email: "", password: "" },
-    });
-
     return (
-        <Card className="w-full max-w-md">
-            <CardHeader>
-                <CardTitle>Welcome Back</CardTitle>
-                <CardDescription>Log in into your account to continue.</CardDescription>
-            </CardHeader>
-
-            <CardContent>
-                <form id="login" onSubmit={form.handleSubmit(({ email, password }) => login(email, password))}>
-                    <FieldGroup>
-                        <Controller
-                            name="email"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="email">Email</FieldLabel>
-
-                                    <Input
-                                        id="email"
-                                        placeholder="m@example.com"
-                                        type="email"
-                                        autoComplete="email"
-                                        required
-                                        {...field}
-                                    />
-
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )}
-                        />
-
-                        <Controller
-                            name="password"
-                            control={form.control}
-                            render={({ field, fieldState }) => (
-                                <Field data-invalid={fieldState.invalid}>
-                                    <FieldLabel htmlFor="password">Password</FieldLabel>
-
-                                    <Input
-                                        id="password"
-                                        placeholder="••••••••"
-                                        type="password"
-                                        autoComplete="new-password"
-                                        required
-                                        {...field}
-                                    />
-
-                                    {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
-                                </Field>
-                            )}
-                        />
-                    </FieldGroup>
-                </form>
-            </CardContent>
-
-            <CardFooter>
-                <Field orientation="horizontal">
-                    <Button type="submit" form="login">
-                        Login
-                    </Button>
-                </Field>
-            </CardFooter>
-        </Card>
+        <DynamicForm
+            schema={schema}
+            id="login-form"
+            title="Welcome Back"
+            description="Log in into your account to continue"
+            action={async (data) => await login(data.email, data.password)}
+            defaultValues={{ email: "", password: "" }}
+            submitLabel="Login"
+            inputs={{
+                email: {
+                    label: "Email",
+                    placeholder: "m@example.com",
+                    type: "email",
+                    autoComplete: "email",
+                    required: true,
+                },
+                password: {
+                    label: "Password",
+                    placeholder: "••••••••",
+                    type: "password",
+                    autoComplete: "current-password",
+                    required: true,
+                },
+            }}
+        />
     );
 }

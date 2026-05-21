@@ -1,4 +1,5 @@
 import { checkEnv } from "@/lib/env";
+import { prisma } from "@/lib/prisma";
 import { NextResponse, type NextRequest } from "next/server";
 
 export async function POST(request: NextRequest) {
@@ -8,6 +9,8 @@ export async function POST(request: NextRequest) {
     if (secret && header !== `bearer ${secret}`) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const clients = await prisma.client.findMany({ where: { active: true } });
 
     // get snapshots for every client
 

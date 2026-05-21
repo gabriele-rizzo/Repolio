@@ -42,8 +42,18 @@ model Snapshot {
 
 model Report {
     id         Int      @id @default(autoincrement())
-    data       Json
     created_at DateTime @default(now())
+
+    spend       Float
+    revenue     Float
+    roas        Float
+    cpa         Float
+    conversions Float
+    ctr         Float
+    cpm         Float
+    cpc         Float
+    reach       Int
+    frequency   Int
 
     snapshot_id Int
     snapshot    Snapshot @relation(fields: [snapshot_id], references: [id])

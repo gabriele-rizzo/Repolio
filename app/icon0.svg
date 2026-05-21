@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><metadata><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#" xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Description><dc:creator>RealFaviconGenerator</dc:creator><dc:source>https://realfavicongenerator.net</dc:source></rdf:Description></rdf:RDF></metadata><style>
+    #light-icon {
+      display: inline;
+    }
+    #dark-icon {
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      #light-icon {
+        display: none;
+      }
+      #dark-icon {
+        display: inline;
+      }
+    }
+  </style><g id="light-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g><g transform="matrix(0.9765625,0,0,0.9765625,0,0)"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none"><path d="M512 0C794.77 0 1024 229.23 1024 512C1024 794.77 794.77 1024 512 1024C229.23 1024 0 794.77 0 512C0 229.23 229.23 0 512 0ZM512 128C299.923 128 128 299.923 128 512C128 724.077 299.923 896 512 896C724.077 896 896 724.077 896 512C896 299.923 724.077 128 512 128Z" fill="#1D1D1D"></path><path d="M512 512C701.512 512 866.974 614.963 955.501 768C931.609 809.302 902.114 846.956 868.054 879.924C811.069 739.237 673.125 640 512 640C350.875 640 212.93 739.237 155.945 879.924C121.886 846.956 92.3899 809.302 68.498 768C157.025 614.963 322.488 512 512 512ZM512 0C541.353 36.7215 564.562 77.4702 580.327 121.107C595.705 163.675 604 208.991 604 256C604 303.008 595.705 348.324 580.327 390.891C564.562 434.529 541.354 475.278 512 512C482.646 475.278 459.437 434.529 443.672 390.891C428.294 348.324 420 303.008 420 256C420 208.991 428.294 163.674 443.672 121.107C459.437 77.4701 482.647 36.7216 512 0Z" fill="url(#paint0_radial_0_1)"></path><defs>
+<radialGradient id="paint0_radial_0_1" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="translate(512 60) rotate(90) scale(820 826.597)">
+<stop stop-color="#000A3D"></stop>
+<stop offset="0.533654" stop-color="#7B87C5"></stop>
+<stop offset="1" stop-color="#1D1D1D"></stop>
+</radialGradient>
+</defs></svg></g></g></svg></g><g id="dark-icon"><svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" width="1000" height="1000"><g><g transform="matrix(0.9765625,0,0,0.9765625,0,0)"><svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none"><path d="M512 0c282.77 0 512 229.23 512 512s-229.23 512-512 512S0 794.77 0 512 229.23 0 512 0m0 128c-212.077 0-384 171.923-384 384s171.923 384 384 384 384-171.923 384-384-171.923-384-384-384" fill="#fff"></path><path d="M512 512c189.512 0 354.974 102.963 443.501 256-23.892 41.302-53.387 78.956-87.447 111.924C811.069 739.237 673.125 640 512 640s-299.07 99.237-356.055 239.924C121.886 846.956 92.39 809.302 68.498 768 157.025 614.963 322.488 512 512 512m0-512c29.353 36.722 52.562 77.47 68.327 121.107C595.705 163.675 604 208.991 604 256s-8.295 92.324-23.673 134.891C564.562 434.529 541.354 475.278 512 512c-29.354-36.722-52.563-77.471-68.328-121.109C428.294 348.324 420 303.008 420 256c0-47.009 8.294-92.326 23.672-134.893C459.437 77.47 482.647 36.722 512 0" fill="url(#a)"></path><defs><radialGradient id="a" cx="0" cy="0" r="1" gradientUnits="userSpaceOnUse" gradientTransform="matrix(0 820 -826.597 0 512 60)"><stop stop-color="#000a3d"></stop><stop offset=".534" stop-color="#7b87c5"></stop><stop offset="1" stop-color="#fff"></stop></radialGradient></defs></svg></g></g></svg></g></svg>
