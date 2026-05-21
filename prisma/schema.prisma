@@ -76,6 +76,7 @@ model AccountConnection {
     client    Client @relation(fields: [client_id], references: [id])
 
     platform     Platform
+    external_id  String
     access_token String
     expires_at   DateTime?
 

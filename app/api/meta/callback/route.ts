@@ -1,4 +1,5 @@
 import { authorize } from "@/actions/auth/authorize";
+import { metaListAdAccounts } from "@/actions/meta/list-ad-accounts";
 import { checkEnv } from "@/lib/env";
 import { encryptToken } from "@/lib/meta/crypto";
 import { exchangeCodeForToken, exchangeForLongLivedToken } from "@/lib/meta/oauth";
@@ -36,12 +37,16 @@ export async function GET(request: NextRequest) {
     if (!client) return NextResponse.redirect(siteUrl("/auth/login"));
 
     const short = await exchangeCodeForToken(code);
-    console.log(JSON.stringify(short, null, 2));
-
     const long = await exchangeForLongLivedToken(short.access_token);
 
     const access_token = encryptToken(long.access_token);
     const expires_at = long.expires_in ? new Date(Date.now() + long.expires_in * 1000) : undefined;
+
+    const accounts = await metaListAdAccounts(long.access_token);
+
+    if (accounts.length === 0) {
+        return NextResponse.redirect(siteUrl("/dashboard?meta_error=no_ad_accounts"));
+    }
 
     await prisma.accountConnection.upsert({
         where: { client_id_platform: { client_id: client.id, platform: "META" } },
@@ -49,7 +54,7 @@ export async function GET(request: NextRequest) {
             client_id: client.id,
             platform: "META",
             access_token,
-            expires_at,
+            external_id: accounts[0].account_id,
         },
         update: {
             access_token,
