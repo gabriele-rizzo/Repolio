@@ -36,6 +36,8 @@ export async function GET(request: NextRequest) {
     if (!client) return NextResponse.redirect(siteUrl("/auth/login"));
 
     const short = await exchangeCodeForToken(code);
+    console.log(JSON.stringify(short, null, 2));
+
     const long = await exchangeForLongLivedToken(short.access_token);
 
     const access_token = encryptToken(long.access_token);
