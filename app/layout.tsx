@@ -2,6 +2,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
+import { Toaster } from "sonner";
 
 import "./globals.css";
 
@@ -19,6 +20,7 @@ export default function RootLayout({ children }: React.PropsWithChildren) {
             <body className="min-h-full flex flex-col">
                 <ThemeProvider>
                     <TooltipProvider>{children}</TooltipProvider>
+                    <Toaster theme="system" />
                 </ThemeProvider>
             </body>
         </html>

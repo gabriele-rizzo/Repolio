@@ -1,11 +1,22 @@
-import { buttonVariants } from "@/components/ui/button";
+"use client";
 
-export default async function DashboardPage() {
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+
+export default function DashboardPage() {
+    // const client = await authorize();
+
     return (
-        <div className="p-6">
-            <a href="/api/meta/connect" className={buttonVariants()}>
-                Connect Facebook
-            </a>
+        <div>
+            {/* <pre>{JSON.stringify(client, null, 2)}</pre>
+
+            {!client.accounts.some((a) => a.platform === "META") && (
+                <a href="/api/meta/connect" className={buttonVariants()}>
+                    Connect Meta
+                </a>
+            )} */}
+
+            <Button onClick={() => toast("Event has been created.")}>Toast</Button>
         </div>
     );
 }

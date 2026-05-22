@@ -1,8 +1,8 @@
-import type { Client } from "@/generated/prisma/browser";
+import type { ConnectedClient } from "@/actions/auth/authorize";
 import { ChartPie, FileSpreadsheet, HardDrive, type LucideIcon } from "lucide-react";
 
 export interface WithClientProps {
-    client: Client;
+    client: ConnectedClient;
 }
 
 interface Page {

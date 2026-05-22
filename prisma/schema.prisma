@@ -18,9 +18,6 @@ model Client {
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 
-    last_report DateTime?
-    next_report DateTime  @default(dbgenerated("(now() + interval '30 days')"))
-
     snapshots   Snapshot[]
     recurrence  Recurrence?
     connections AccountConnection[]
