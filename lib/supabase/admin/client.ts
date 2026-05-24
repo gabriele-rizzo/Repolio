@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { checkEnv } from "../env";
+import { checkEnv } from "../../env";
 
 export function createAdminClient() {
     const url = checkEnv("NEXT_PUBLIC_SUPABASE_URL");

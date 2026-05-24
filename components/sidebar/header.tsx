@@ -17,7 +17,7 @@ export function DashboardSidebarHeader() {
 
                                 <div className="grid flex-1 text-left text-sm leading-tight">
                                     <span className="truncate font-medium">Repolio</span>
-                                    <span className="truncate text-xs">Dashboard</span>
+                                    <span className="truncate text-xs text-muted-foreground">Dashboard</span>
                                 </div>
                             </Link>
                         }

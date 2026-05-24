@@ -24,39 +24,94 @@ model Client {
 }
 
 model Snapshot {
-    id         Int       @id @default(autoincrement())
+    id         Int      @id @default(autoincrement())
     start_date DateTime
-    end_date   DateTime?
+    platform   Platform
     data       Json
-    created_at DateTime  @default(now())
+    created_at DateTime @default(now())
 
     client_id Int
     client    Client @relation(fields: [client_id], references: [id])
 
-    reports Report[]
+    report_id Int?
+    report    Report? @relation(fields: [report_id], references: [id])
 
-    @@unique([start_date, end_date, client_id])
+    @@unique([start_date, platform, client_id])
 }
 
 model Report {
     id         Int      @id @default(autoincrement())
     created_at DateTime @default(now())
 
-    spend       Float
-    revenue     Float
-    roas        Float
-    cpa         Float
-    conversions Float
-    ctr         Float
-    cpm         Float
-    cpc         Float
-    reach       Int
-    frequency   Int
+    snapshots Snapshot[]
 
-    snapshot_id Int
-    snapshot    Snapshot @relation(fields: [snapshot_id], references: [id])
+    // --- A: CORE KPIs (account-level, current period) ---
+    spend       Float // #1  RAW
+    revenue     Float? // #2  RAW (optional — null disables ROAS)
+    impressions Int // #3  RAW
+    clicks      Int // #4  RAW
+    conversions Int // #5  RAW (extracted from actions[])
+    reach       Int? // #6  RAW (optional)
+    frequency   Float? // #7  RAW (optional)
+    ctr         Float // #8  CALC  clicks / impressions × 100
+    cpm         Float // #9  CALC  spend / impressions × 1000
+    cpa         Float? // #10 CALC  null if conversions = 0
+    cpc         Float? // #11 CALC  null if clicks = 0
+    roas        Float? // #12 CALC  null if revenue is null
 
-    @@unique([snapshot_id])
+    // --- B: TIME SERIES & COMPARISON ---
+    daily_kpis      Json // #13 [{ date, spend, impressions, clicks, conversions, reach?, frequency?, revenue? }]
+    previous_period Json // #14 same shape as section A — aggregate of prior period
+    mom_delta       Json // #15 { spend, conversions, ctr, cpm, cpa, roas, reach } — Float | null each
+    trend_direction Json // #16 { spend, conversions, ctr, cpm, cpa, roas, reach } — "UP" | "DOWN" | "NEUTRAL"
+
+    // --- C: CAMPAIGN BREAKDOWN (#17–#24, #35 comment) ---
+    campaigns Json
+    // [{
+    //   external_id, name,
+    //   type: "performance" | "awareness" | "consideration" | "unknown",   // #28
+    //   spend, conversions,                                                 // #17, #18
+    //   roas: Float | null, cpa: Float | null,                              // #19, #20
+    //   budget_share: Float, conversion_share: Float | null,                // #21, #22
+    //   cpa_vs_avg: Float | null,                                           // #23
+    //   badge: "STRONG" | "MEDIUM" | "WEAK",                                // #24
+    //   comment: string                                                     // #35 (AI)
+    // }]
+
+    // --- D: PRE-PROCESSING / LOGIC ---
+    performance_score       Int // #25  0–100
+    performance_score_delta Int? // #26  vs. previous month
+    score_label             ScoreLabel // #27
+    anomalies               Json
+    // [{
+    //   severity: "LOW" | "MEDIUM" | "HIGH",
+    //   code: string,                  // e.g. "CPA_OVER_BENCHMARK", "ZERO_CONV_HIGH_SPEND"
+    //   campaign_external_id: string?, // null for account-level anomalies
+    //   message: string
+    // }]
+
+    // --- E: AI-GENERATED (Claude, single call) ---
+    executive_summary String // #31  80–120 words
+    recommendations   Json // #32
+    // [{
+    //   priority: "IMMEDIATE" | "THIS_WEEK" | "MONITOR",
+    //   category: "BUDGET" | "CREATIVE" | "TARGETING" | "BIDDING",
+    //   title: string,
+    //   body: string
+    // }]    1–4 items
+    trend_explanation String // #33
+    next_month_focus  String // #34
+
+    // --- F: USER INPUT (snapshotted at report time) ---
+    target_cpa      Float? // #36
+    target_roas     Float? // #37
+    context_comment String? // #38
+}
+
+enum ScoreLabel {
+    STRONG
+    MODERATE
+    NEEDS_IMPROVEMENT
 }
 
 model Recurrence {

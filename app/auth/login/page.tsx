@@ -1,9 +1,9 @@
-import { authorize } from "@/actions/auth/authorize";
+import { getCurrentClient } from "@/actions/auth/authorize";
 import { LoginForm } from "@/components/forms/login-form";
 import { redirect } from "next/navigation";
 
 export default async function LoginPage() {
-    const user = await authorize();
+    const user = await getCurrentClient();
     if (user) redirect("/dashboard");
 
     return <LoginForm />;

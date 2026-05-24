@@ -2,7 +2,7 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { checkEnv } from "../env";
 
-const PUBLIC_PATHS = ["/auth", "/privacy", "/terms-of-service", "/admin"];
+const PUBLIC_PATHS = ["/auth", "/privacy", "/terms-of-service", "/admin", "/api"];
 
 function requestNeedsAuth(request: NextRequest) {
     return !PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
