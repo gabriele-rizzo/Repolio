@@ -1,6 +1,7 @@
 "use client";
 
 import { dateFormatRelative } from "@/lib/date/format-relative";
+import { cn } from "@/lib/utils";
 import { CalendarIcon } from "lucide-react";
 import { useCallback, useId, useState } from "react";
 import { TimelineView } from "./timeline-view";
@@ -21,9 +22,10 @@ interface DatePickerProps {
     onChange: (date: Date) => void;
     minDate?: Date;
     maxDate?: Date;
+    className?: string;
 }
 
-export function DatePicker({ label, date, onChange, minDate, maxDate }: DatePickerProps) {
+export function DatePicker({ label, date, onChange, minDate, maxDate, className }: DatePickerProps) {
     const id = useId();
 
     const [open, setOpen] = useState(false);
@@ -43,7 +45,7 @@ export function DatePicker({ label, date, onChange, minDate, maxDate }: DatePick
     );
 
     return (
-        <Field className="mx-auto w-48">
+        <Field className={cn("mx-auto w-48", className)}>
             <FieldLabel htmlFor={id}>{label}</FieldLabel>
 
             <InputGroup>

@@ -146,18 +146,14 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
         cpc,
         roas,
 
-        // B: Time series / comparison — require additional API calls not yet in the snapshot
+        // B: Time series — requires additional API calls not yet in the snapshot
         daily_kpis: [],
-        previous_period: {},
-        mom_delta: {},
-        trend_direction: {},
 
         // C: Campaign breakdown — requires level=campaign insights not yet in the snapshot
         campaigns: [],
 
         // D: Logic
         performance_score,
-        performance_score_delta: null,
         score_label,
         anomalies,
 
@@ -165,7 +161,6 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
         executive_summary: "",
         recommendations: [],
         trend_explanation: "",
-        next_month_focus: "",
 
         // F: Inputs — set by agency via Supabase, joined in a later step
         target_cpa: null,

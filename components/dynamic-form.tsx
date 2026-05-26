@@ -47,7 +47,7 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
 
         form.reset();
         setError(null);
-    }, [form.reset, setError, loading]);
+    }, [form, setError, loading]);
 
     const onSubmit = form.handleSubmit(async (data) => {
         if (loading) return;

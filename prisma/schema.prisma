@@ -59,11 +59,8 @@ model Report {
     cpc         Float? // #11 CALC  null if clicks = 0
     roas        Float? // #12 CALC  null if revenue is null
 
-    // --- B: TIME SERIES & COMPARISON ---
-    daily_kpis      Json // #13 [{ date, spend, impressions, clicks, conversions, reach?, frequency?, revenue? }]
-    previous_period Json // #14 same shape as section A — aggregate of prior period
-    mom_delta       Json // #15 { spend, conversions, ctr, cpm, cpa, roas, reach } — Float | null each
-    trend_direction Json // #16 { spend, conversions, ctr, cpm, cpa, roas, reach } — "UP" | "DOWN" | "NEUTRAL"
+    // --- B: TIME SERIES (within this report's period) ---
+    daily_kpis Json // #13 [{ date, spend, impressions, clicks, conversions, reach?, frequency?, revenue? }]
 
     // --- C: CAMPAIGN BREAKDOWN (#17–#24, #35 comment) ---
     campaigns Json
@@ -79,10 +76,9 @@ model Report {
     // }]
 
     // --- D: PRE-PROCESSING / LOGIC ---
-    performance_score       Int // #25  0–100
-    performance_score_delta Int? // #26  vs. previous month
-    score_label             ScoreLabel // #27
-    anomalies               Json
+    performance_score Int // #25  0–100
+    score_label       ScoreLabel // #27
+    anomalies         Json
     // [{
     //   severity: "LOW" | "MEDIUM" | "HIGH",
     //   code: string,                  // e.g. "CPA_OVER_BENCHMARK", "ZERO_CONV_HIGH_SPEND"
@@ -100,7 +96,6 @@ model Report {
     //   body: string
     // }]    1–4 items
     trend_explanation String // #33
-    next_month_focus  String // #34
 
     // --- F: USER INPUT (snapshotted at report time) ---
     target_cpa      Float? // #36

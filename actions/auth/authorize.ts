@@ -5,9 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 
-export interface ConnectedClient extends Omit<Client, "account_id"> {
-    // accounts: Omit<AccountConnection, "client_id">[];
-}
+export type ConnectedClient = Omit<Client, "account_id">;
 
 export async function getCurrentClient(): Promise<ConnectedClient | null> {
     const supabase = await createClient();
@@ -24,6 +22,7 @@ export async function getCurrentClient(): Promise<ConnectedClient | null> {
 
 export async function authorize(): Promise<ConnectedClient> {
     const client = await getCurrentClient();
+
     if (!client) redirect("/auth/login");
     return client;
 }

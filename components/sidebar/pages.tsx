@@ -34,7 +34,7 @@ export function DashboardSidebarPages() {
                                         <SidebarMenuButton
                                             render={
                                                 active ? (
-                                                    <Button className="justify-start! pointer-events-none">
+                                                    <Button className="justify-start! cursor-default">
                                                         <Icon />
                                                         <span>{label}</span>
                                                     </Button>

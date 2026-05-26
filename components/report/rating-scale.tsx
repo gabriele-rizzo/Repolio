@@ -37,16 +37,18 @@ export function RatingScale({ report }: RatingScaleProps) {
                 </div>
             </div>
 
-            <div className="w-full h-4 relative flex flex-row">
-                <div className="absolute h-4 w-full bg-linear-to-r from-red-500 via-amber-500 to-green-500 opacity-25" />
+            <div className="relative w-full h-4">
+                <div className="absolute inset-0 h-4 bg-linear-to-r from-red-500 via-amber-500 to-green-500 opacity-50" />
 
-                {report && <div style={{ width: `${report.performance_score}%` }} />}
                 {report && (
                     <div
                         className={cn(
+                            "absolute top-1/2 size-4 -translate-y-1/2 -translate-x-1/2 border-2 border-foreground",
                             SCORE_COLORS[report.score_label],
-                            "-translate-x-1/2 size-4 border-2 border-foreground",
                         )}
+                        style={{
+                            left: `${report.performance_score}%`,
+                        }}
                     />
                 )}
             </div>

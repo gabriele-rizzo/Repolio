@@ -1,19 +1,32 @@
-import type { Report } from "@/generated/prisma/browser";
+import type { FetchedReport } from "@/actions/report/get-report";
 import { cn } from "@/lib/utils";
-import { TrendingDown, TrendingUp } from "lucide-react";
+import { Minus, TrendingDown, TrendingUp } from "lucide-react";
 import { Skeleton } from "../ui/skeleton";
 
 interface ReportTrendProps {
-    report?: Report;
+    report?: FetchedReport;
 }
 
 export function ReportTrend({ report }: ReportTrendProps) {
-    const delta = report?.performance_score_delta;
-    const trendUp = delta != null && delta >= 0;
-    const TrendIcon = trendUp ? TrendingUp : TrendingDown;
+    if (!report) return <Skeleton className="h-4 w-24" />;
 
-    if (!report) return <Skeleton className="h-4 w-10" />;
-    if (!delta) return <p>ciao</p>;
+    const previous = report.previous_score;
+    if (previous == null) {
+        return <span className="text-xs font-medium text-muted-foreground">No prior report</span>;
+    }
+
+    const delta = report.performance_score - previous;
+
+    if (delta === 0) {
+        return (
+            <span className="inline-flex items-center gap-0.5 text-xs font-medium tabular-nums text-muted-foreground">
+                <Minus className="size-3" />0 vs last report
+            </span>
+        );
+    }
+
+    const trendUp = delta > 0;
+    const TrendIcon = trendUp ? TrendingUp : TrendingDown;
 
     return (
         <span
@@ -24,7 +37,7 @@ export function ReportTrend({ report }: ReportTrendProps) {
         >
             <TrendIcon className="size-3" />
             {trendUp ? "+" : ""}
-            {delta}
+            {delta} vs last report
         </span>
     );
 }

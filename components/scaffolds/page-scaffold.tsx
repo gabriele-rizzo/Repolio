@@ -10,12 +10,12 @@ interface PageScaffoldProps extends React.PropsWithChildren {
     onShow?: (event: PageTransitionEvent) => void;
 }
 
-export function PageScaffold(props: PageScaffoldProps) {
+export function PageScaffold({ onShow, ...props }: PageScaffoldProps) {
     const onPageShow = useCallback(
         (e: PageTransitionEvent) => {
-            if (e.persisted) props.onShow?.(e);
+            if (e.persisted) onShow?.(e);
         },
-        [props.onShow],
+        [onShow],
     );
 
     useEffect(() => {
@@ -40,9 +40,7 @@ export function PageScaffold(props: PageScaffoldProps) {
                         ))}
                 </div>
 
-                {typeof props.actions !== "undefined" && (
-                    <div className="flex-row flex gap-2 *:w-36">{props.actions}</div>
-                )}
+                {typeof props.actions !== "undefined" && <div className="flex-row flex gap-2">{props.actions}</div>}
             </div>
 
             {props.children}

@@ -1,4 +1,4 @@
-import type { Report } from "@/generated/prisma/browser";
+import type { FetchedReport } from "@/actions/report/get-report";
 import { Sparkles } from "lucide-react";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
@@ -6,10 +6,11 @@ import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
 import { RatingScale } from "./rating-scale";
 import { ReportScoreBadge } from "./score-badge";
+import { ScoreTrend } from "./score-trend";
 import { ReportTrend } from "./trend";
 
 interface ReportOverview {
-    report?: Report;
+    report?: FetchedReport;
 }
 
 export function ReportOverview({ report }: ReportOverview) {
@@ -45,8 +46,7 @@ export function ReportOverview({ report }: ReportOverview) {
 
                 <div className="grow min-h-40 flex flex-col gap-4">
                     <RatingScale report={report} />
-
-                    <div className="grow bg-red-500 w-full"></div>
+                    <ScoreTrend history={report?.history} />
                 </div>
             </div>
 

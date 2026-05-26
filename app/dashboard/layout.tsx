@@ -26,7 +26,7 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
 
             <SidebarInset className="flex flex-col overflow-hidden shrink-0 h-[calc(100vh-var(--spacing)*4)]! overscroll-none relative">
                 <BreadcrumbProvider>
-                    <div className="w-full overflow-scroll overscroll-x-none">
+                    <div className="w-full overflow-y-auto overflow-x-hidden overscroll-x-none">
                         <div className="shrink-0 sticky top-0 z-10">
                             <DashboardHeader className="px-2">
                                 <Tooltip>
