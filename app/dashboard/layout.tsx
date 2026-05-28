@@ -9,6 +9,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { Bell } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
     title: "Dasboard | Repolio",
@@ -19,6 +20,11 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
     const store = await cookies();
 
     const open = store.get(SIDEBAR_STATE_COOKIE)?.value === "true";
+
+    // WORK IN PROGRESS ONLY. TODO: remove
+    if (process.env.NODE_ENV === "production" && client.email !== "gabrielerizzo.pers@gmail.com") {
+        redirect("/wip");
+    }
 
     return (
         <SidebarProvider defaultOpen={open} className="overscroll-none">

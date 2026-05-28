@@ -1,5 +1,5 @@
 import type { ConnectedClient } from "@/actions/auth/authorize";
-import { ChartPie, FileSpreadsheet, HardDrive, type LucideIcon } from "lucide-react";
+import { ChartPie, FileSpreadsheet, type LucideIcon } from "lucide-react";
 
 export interface WithClientProps {
     client: ConnectedClient;
@@ -23,10 +23,5 @@ export const pages: Page[] = [
         label: "Reports",
         href: "/dashboard/reports",
         icon: FileSpreadsheet,
-    },
-    {
-        label: "Snapshots",
-        href: "/dashboard/snapshots",
-        icon: HardDrive,
     },
 ];

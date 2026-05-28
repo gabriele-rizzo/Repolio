@@ -23,7 +23,6 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
 
     const periodStart = report.snapshots[0]?.start_date ?? report.created_at;
     const period = `${dateFormatRelative(periodStart)} - ${dateFormatRelative(report.created_at)}`;
-
     const platforms = [...new Set(report.snapshots.map((s) => s.platform))];
 
     return (

@@ -1,11 +1,8 @@
 "use client";
 
 import type { FetchedReport } from "@/actions/report/get-report";
-import { dateFormatRelative } from "@/lib/date/format-relative";
 import { ArrowRight } from "lucide-react";
-import { DynamicTable } from "../dynamic-table";
 import { MetricCard } from "../metric-card";
-import { PlatformBadge } from "../platform-badge";
 import { AIInsights } from "../report/ai-insights";
 import { ReportOverview } from "../report/overview";
 import { Typo } from "../typography";
@@ -115,39 +112,6 @@ export function ReportWrapper({ report }: ReportWrapperProps) {
                 </div>
 
                 <Textarea placeholder="Help the AI by giving more context to this reporting period. Holidays, creative changes, budget changes, campaign launches…" />
-            </div>
-
-            <div className="space-y-3">
-                <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                    Snapshots
-                </Typo>
-
-                <DynamicTable
-                    caption="Snapshots are the daily data checkpoints the report is constructed from."
-                    columns={["period", "platform"]}
-                    data={report?.snapshots}
-                    loading={typeof report === "undefined"}
-                    loadingHeight={100}
-                    className="border border-dashed"
-                    href={(snapshot) => `/dashboard/snapshots/${snapshot.id}`}
-                    render={(snapshot, column) => {
-                        if (column === "period") {
-                            const a = dateFormatRelative(snapshot.start_date);
-                            const b = dateFormatRelative(snapshot.created_at);
-                            return `${a} - ${b}`;
-                        }
-
-                        if (column === "platform") {
-                            return (
-                                <div className="flex justify-end">
-                                    <PlatformBadge platform={snapshot.platform} />
-                                </div>
-                            );
-                        }
-
-                        return "Unimplemented";
-                    }}
-                />
             </div>
         </div>
     );
