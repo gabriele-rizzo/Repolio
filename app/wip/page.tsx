@@ -6,7 +6,7 @@ import { Construction, Link2Off } from "lucide-react";
 
 export default async function WorkInProgressPage() {
     const client = await authorize();
-    const connections = await prisma.accountConnection.findMany({
+    const connections = await prisma.platformConnection.findMany({
         where: { client_id: client.id },
     });
 

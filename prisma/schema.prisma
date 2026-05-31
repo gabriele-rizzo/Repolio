@@ -18,9 +18,8 @@ model Client {
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 
-    snapshots   Snapshot[]
     recurrence  Recurrence?
-    connections AccountConnection[]
+    connections PlatformConnection[]
 }
 
 model Snapshot {
@@ -30,13 +29,13 @@ model Snapshot {
     data       Json
     created_at DateTime @default(now())
 
-    client_id Int
-    client    Client @relation(fields: [client_id], references: [id])
+    ad_account_id Int
+    ad_account    AdAccount @relation(fields: [ad_account_id], references: [id], onDelete: Cascade)
 
     report_id Int?
     report    Report? @relation(fields: [report_id], references: [id])
 
-    @@unique([start_date, platform, client_id])
+    @@unique([start_date, ad_account_id])
 }
 
 model Report {
@@ -116,21 +115,43 @@ model Recurrence {
     ndays Float @default(30)
 }
 
-model AccountConnection {
+// OAuth credential for a platform. One per (client, platform); a single
+// connection can expose many ad accounts.
+model PlatformConnection {
     id Int @id @default(autoincrement())
 
     client_id Int
     client    Client @relation(fields: [client_id], references: [id])
 
     platform     Platform
-    external_id  String
     access_token String
     expires_at   DateTime?
 
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
+    ad_accounts AdAccount[]
+
     @@unique([client_id, platform])
+}
+
+// A single ad account managed under a connection (e.g. a Meta `act_<id>`).
+model AdAccount {
+    id Int @id @default(autoincrement())
+
+    connection_id Int
+    connection    PlatformConnection @relation(fields: [connection_id], references: [id], onDelete: Cascade)
+
+    external_id String
+    name        String?
+    active      Boolean @default(true)
+
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    snapshots Snapshot[]
+
+    @@unique([connection_id, external_id])
 }
 
 enum Platform {

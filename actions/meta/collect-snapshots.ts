@@ -7,12 +7,13 @@ import { fetchSnapshot } from "./fetch-snapshot";
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
     const now = new Date();
-    const raw = await prisma.accountConnection.findMany({
-        where: { client_id: client.id },
+    const adAccounts = await prisma.adAccount.findMany({
+        where: { active: true, connection: { client_id: client.id } },
+        include: { connection: true },
     });
 
-    const connections = raw.filter((c) => (c.expires_at ? new Date(c.expires_at) > now : true));
-    const results = await Promise.all(connections.map((c) => fetchSnapshot(client, c)));
+    const usable = adAccounts.filter((a) => (a.connection.expires_at ? new Date(a.connection.expires_at) > now : true));
+    const results = await Promise.all(usable.map((a) => fetchSnapshot(a)));
     const [data, errors] = sink(results);
 
     if (errors.length > 0) {

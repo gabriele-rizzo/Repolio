@@ -15,15 +15,18 @@ export default async function AccountPage() {
     const client = await authorize();
     const [nreports, nsnapshots, connections] = await Promise.all([
         prisma.report.count({
-            where: { snapshots: { some: { client_id: client.id } } },
+            where: { snapshots: { some: { ad_account: { connection: { client_id: client.id } } } } },
         }),
         prisma.snapshot.count({
-            where: { client_id: client.id },
+            where: { ad_account: { connection: { client_id: client.id } } },
         }),
-        prisma.accountConnection.findMany({
+        prisma.platformConnection.findMany({
             where: { client_id: client.id },
+            include: { ad_accounts: { orderBy: { created_at: "asc" } } },
         }),
     ]);
+
+    const managedAccounts = connections.reduce((sum, connection) => sum + connection.ad_accounts.length, 0);
 
     return (
         <div className="space-y-4">
@@ -59,8 +62,8 @@ export default async function AccountPage() {
                     <Separator orientation="vertical" />
 
                     <div className="flex-1 flex p-4 justify-center flex-col">
-                        <Typo as="large">{1}</Typo>
-                        <Typo as="muted">{1 === 1 ? "Managed Account" : "Managed Accounts"}</Typo>
+                        <Typo as="large">{managedAccounts}</Typo>
+                        <Typo as="muted">{managedAccounts === 1 ? "Managed Account" : "Managed Accounts"}</Typo>
                     </div>
                 </div>
             </Card>
@@ -73,7 +76,7 @@ export default async function AccountPage() {
                 <div className="border">
                     {connections.map((connection, index, list) => (
                         <Fragment key={connection.id}>
-                            <div className="pl-4 pr-2.5 py-2.5 space-y-2 relative group">
+                            <div className="pl-4 pr-2.5 py-2.5 space-y-3 relative group">
                                 <Button
                                     variant="destructive"
                                     className="not-group-hover:hidden not-group-hover:pointer-events-none absolute top-2 right-2 size-6"
@@ -81,16 +84,9 @@ export default async function AccountPage() {
                                     <Trash />
                                 </Button>
 
-                                <PlatformBadge platform={connection.platform} />
-
-                                <div className="flex flex-row justify-between items-start">
+                                <div className="flex flex-row justify-between items-start gap-2">
                                     <div className="flex flex-col gap-1">
-                                        <div className="flex flex-row gap-1.5">
-                                            <Typo as="muted">Account ID:</Typo>
-                                            <Typo as="normal" className="text-sm">
-                                                {connection.external_id}
-                                            </Typo>
-                                        </div>
+                                        <PlatformBadge platform={connection.platform} />
 
                                         {connection.expires_at && (
                                             <div className="flex flex-row gap-1.5">
@@ -103,6 +99,28 @@ export default async function AccountPage() {
                                     </div>
 
                                     <Typo as="muted">{dateFormatRelative(connection.created_at)}</Typo>
+                                </div>
+
+                                <div className="space-y-1">
+                                    {connection.ad_accounts.length === 0 ? (
+                                        <Typo as="muted" className="text-sm">
+                                            No ad accounts found for this connection.
+                                        </Typo>
+                                    ) : (
+                                        connection.ad_accounts.map((account) => (
+                                            <div
+                                                key={account.id}
+                                                className="flex flex-row items-center justify-between gap-2 border bg-muted px-2.5 py-1.5"
+                                            >
+                                                <Typo as="normal" className="text-sm truncate">
+                                                    {account.name ?? "Unnamed account"}
+                                                </Typo>
+                                                <Typo as="muted" className="text-xs shrink-0">
+                                                    {account.external_id}
+                                                </Typo>
+                                            </div>
+                                        ))
+                                    )}
                                 </div>
                             </div>
 

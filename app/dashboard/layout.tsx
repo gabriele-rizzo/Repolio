@@ -6,6 +6,7 @@ import { SIDEBAR_STATE_COOKIE } from "@/components/sidebar/config";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { prisma } from "@/lib/prisma";
 import { Bell } from "lucide-react";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -21,6 +22,23 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
 
     const open = store.get(SIDEBAR_STATE_COOKIE)?.value === "true";
 
+    const connections = await prisma.platformConnection.findMany({
+        where: { client_id: client.id },
+        orderBy: { created_at: "asc" },
+        select: {
+            platform: true,
+            ad_accounts: {
+                orderBy: { created_at: "asc" },
+                select: { id: true, external_id: true, name: true },
+            },
+        },
+    });
+
+    const accountGroups = connections.map((connection) => ({
+        platform: connection.platform,
+        accounts: connection.ad_accounts,
+    }));
+
     // WORK IN PROGRESS ONLY. TODO: remove
     if (process.env.NODE_ENV === "production" && client.email !== "gabrielerizzo.pers@gmail.com") {
         redirect("/wip");
@@ -28,7 +46,7 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
 
     return (
         <SidebarProvider defaultOpen={open} className="overscroll-none">
-            <DashboardSidebar client={client} />
+            <DashboardSidebar client={client} accountGroups={accountGroups} />
 
             <SidebarInset className="flex flex-col overflow-hidden shrink-0 h-[calc(100vh-var(--spacing)*4)]! overscroll-none relative">
                 <BreadcrumbProvider>

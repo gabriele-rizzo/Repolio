@@ -49,14 +49,17 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
             dueClients.map((c) =>
                 limit(async () => {
                     const last = await prisma.report.findFirst({
-                        where: { snapshots: { some: { client_id: c.id } } },
+                        where: { snapshots: { some: { ad_account: { connection: { client_id: c.id } } } } },
                         orderBy: { created_at: "desc" },
                         select: { created_at: true },
                     });
 
                     const since = startOfDay(new Date(last?.created_at ?? c.created_at));
                     return prisma.snapshot.findMany({
-                        where: { client_id: c.id, created_at: { gt: since.toISOString() } },
+                        where: {
+                            ad_account: { connection: { client_id: c.id } },
+                            created_at: { gt: since.toISOString() },
+                        },
                     });
                 }),
             ),
@@ -65,12 +68,11 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
 
     if (periodSnapshots.length === 0) return new NextResponse(null, { status: 204 });
 
-    const groups = new Map<string, Snapshot[]>();
+    const groups = new Map<number, Snapshot[]>();
     for (const s of periodSnapshots) {
-        const key = `${s.client_id}:${s.platform}`;
-        const bucket = groups.get(key);
+        const bucket = groups.get(s.ad_account_id);
         if (bucket) bucket.push(s);
-        else groups.set(key, [s]);
+        else groups.set(s.ad_account_id, [s]);
     }
 
     const built = await Promise.all(

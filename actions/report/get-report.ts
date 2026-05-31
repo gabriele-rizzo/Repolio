@@ -9,7 +9,7 @@ export async function getReport(id: string, client_id: Client["id"]) {
     if (isNaN(+id)) return null;
 
     const report = await prisma.report.findFirst({
-        where: { id: parseInt(id), snapshots: { some: { client_id } } },
+        where: { id: parseInt(id), snapshots: { some: { ad_account: { connection: { client_id } } } } },
         include: {
             snapshots: {
                 orderBy: { start_date: "asc" },
@@ -24,7 +24,7 @@ export async function getReport(id: string, client_id: Client["id"]) {
     const recent = await prisma.report.findMany({
         where: {
             created_at: { lte: report.created_at },
-            snapshots: { some: { client_id } },
+            snapshots: { some: { ad_account: { connection: { client_id } } } },
         },
         orderBy: { created_at: "desc" },
         take: 6,

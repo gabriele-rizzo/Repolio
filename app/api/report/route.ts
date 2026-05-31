@@ -17,9 +17,8 @@ export async function GET(request: NextRequest): Promise<ReportRouteResponse> {
     if (!end_date) return NextResponse.json(err("'to' param is required"), { status: 400 });
 
     const start_date = getParam("from", request, (v) => new Date(v));
-    const snapshotMatch = start_date
-        ? { client_id: client.id, start_date: { gte: start_date } }
-        : { client_id: client.id };
+    const clientMatch = { ad_account: { connection: { client_id: client.id } } };
+    const snapshotMatch = start_date ? { ...clientMatch, start_date: { gte: start_date } } : clientMatch;
 
     const data = await prisma.report.findMany({
         where: { snapshots: { some: snapshotMatch }, created_at: { lte: end_date } },

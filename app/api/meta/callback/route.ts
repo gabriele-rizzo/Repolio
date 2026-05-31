@@ -48,19 +48,31 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(siteUrl("/dashboard?meta_error=no_ad_accounts"));
     }
 
-    await prisma.accountConnection.upsert({
+    const connection = await prisma.platformConnection.upsert({
         where: { client_id_platform: { client_id: client.id, platform: "META" } },
         create: {
             client_id: client.id,
             platform: "META",
             access_token,
-            external_id: accounts[0].account_id,
+            expires_at,
         },
         update: {
             access_token,
             expires_at,
         },
     });
+
+    await prisma.$transaction(
+        accounts.map((account) =>
+            prisma.adAccount.upsert({
+                where: {
+                    connection_id_external_id: { connection_id: connection.id, external_id: account.account_id },
+                },
+                create: { connection_id: connection.id, external_id: account.account_id, name: account.name ?? null },
+                update: { name: account.name ?? null },
+            }),
+        ),
+    );
 
     return NextResponse.redirect(siteUrl("/dashboard?meta_connected=1"));
 }

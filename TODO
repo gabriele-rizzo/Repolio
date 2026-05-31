@@ -8,9 +8,5 @@
             - implement "managed accounts" stat, showing how many ads accounts the client is managing (among all connected platforms)
       - overview page:
             - remove page completely
-      - sidebar:
-            - instead of section "pages" show section "accounts" with sub-sections titled with account platforms (eg. "Meta", etc.) (after modifying backend to include multiple accounts per-client)
-            - remove overview page
 - backend:
-      - implement multiple ads account handling (modify schema also)
       - implement notifications system
