@@ -14,7 +14,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-    title: "Dasboard | Repolio",
+    title: "Dashboard | Repolio",
 };
 
 export default async function DashboardLayout({ children }: React.PropsWithChildren) {
@@ -55,7 +55,7 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
             <SidebarInset className="flex flex-col overflow-hidden shrink-0 h-[calc(100vh-var(--spacing)*4)]! overscroll-none relative">
                 <BreadcrumbProvider>
                     <div className="w-full overflow-y-auto overflow-x-hidden overscroll-x-none">
-                        <div className="shrink-0 sticky top-0 z-10">
+                        <div className="shrink-0 sticky top-0 z-10 print:hidden">
                             <DashboardHeader className="px-2">
                                 <Tooltip>
                                     <Button

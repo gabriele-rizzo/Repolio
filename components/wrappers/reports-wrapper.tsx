@@ -5,7 +5,7 @@ import type { ScoreLabel } from "@/generated/prisma/browser";
 import { compareDate } from "@/lib/date/compare";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { cn } from "@/lib/utils";
-import { BookDashed, LineChart } from "lucide-react";
+import { BookDashed, LineChart, TriangleAlert } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -88,7 +88,7 @@ export function ReportsWrapper() {
     const fromIso = from?.toISOString() ?? null;
     const toIso = to.toISOString();
 
-    const { data, isLoading, mutate } = useSWR(["/api/report", fromIso, toIso] as const, fetchReports, {
+    const { data, isLoading, mutate, error } = useSWR(["/api/report", fromIso, toIso] as const, fetchReports, {
         keepPreviousData: true,
         revalidateOnFocus: false,
     });
@@ -130,7 +130,24 @@ export function ReportsWrapper() {
                 </>
             }
         >
-            {empty ? (
+            {error ? (
+                <Empty className="border border-dashed">
+                    <EmptyHeader>
+                        <EmptyMedia variant="icon">
+                            <TriangleAlert />
+                        </EmptyMedia>
+
+                        <EmptyTitle>Couldn&apos;t load reports</EmptyTitle>
+                        <EmptyDescription>
+                            Something went wrong fetching your reports. Please try again.
+                        </EmptyDescription>
+                    </EmptyHeader>
+
+                    <EmptyContent>
+                        <Button onClick={() => mutate()}>Retry</Button>
+                    </EmptyContent>
+                </Empty>
+            ) : empty ? (
                 <Empty className="border border-dashed">
                     <EmptyHeader>
                         <EmptyMedia variant="icon">
@@ -157,7 +174,7 @@ export function ReportsWrapper() {
                             Totals across selected period
                         </Typo>
 
-                        <div className="grid grid-cols-3 xl:grid-cols-6 gap-4 *:h-24">
+                        <div className="grid grid-cols-2 gap-4 *:h-24 md:grid-cols-3 xl:grid-cols-6">
                             <MetricCard
                                 title="Spend"
                                 value={aggregates?.spend}
@@ -234,9 +251,9 @@ export function ReportsWrapper() {
                             loading={isLoading}
                             href={rowHref}
                             render={(report, column) => {
-                                if (column === "spend") return `${report.spend} €`;
-                                if (column === "conversions") return report.conversions;
-                                if (column === "roas") return report.roas?.toFixed(2) ?? "—";
+                                if (column === "spend") return formatCurrency(report.spend);
+                                if (column === "conversions") return report.conversions.toLocaleString("en-US");
+                                if (column === "roas") return report.roas != null ? `${report.roas.toFixed(2)}x` : "—";
 
                                 if (column === "period") {
                                     const start = report.snapshots[0]?.start_date ?? report.created_at;

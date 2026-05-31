@@ -36,7 +36,13 @@ export function DynamicTable<T extends object, C>({ loadingHeight = "50vh", ...p
             </TableHeader>
 
             <TableBody>
-                {ready ? (
+                {ready && props.data!.length === 0 ? (
+                    <TableRow>
+                        <TableCell colSpan={props.columns.length} className="h-24 text-center text-muted-foreground">
+                            No results for this range.
+                        </TableCell>
+                    </TableRow>
+                ) : ready ? (
                     props.data!.map((row, index) => {
                         const href = props.href?.(row);
                         const content = props.columns.map((key, index, { length }) => (

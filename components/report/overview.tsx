@@ -61,7 +61,7 @@ export function ReportOverview({ report }: ReportOverview) {
 
                 {report ? (
                     <Typo as="muted" className="line-clamp-5">
-                        {report.trend_explanation}
+                        {report.trend_explanation || "No trend explanation for this report yet."}
                     </Typo>
                 ) : (
                     <div className="grow w-full *:h-3.5 gap-2 flex flex-col">

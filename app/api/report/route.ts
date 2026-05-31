@@ -14,9 +14,14 @@ export async function GET(request: NextRequest): Promise<ReportRouteResponse> {
     if (!client) return NextResponse.json(err("Unauthorized"), { status: 401 });
 
     const end_date = getParam("to", request, (v) => new Date(v));
-    if (!end_date) return NextResponse.json(err("'to' param is required"), { status: 400 });
+    if (!end_date || isNaN(end_date.getTime())) {
+        return NextResponse.json(err("'to' must be a valid date"), { status: 400 });
+    }
 
     const start_date = getParam("from", request, (v) => new Date(v));
+    if (start_date && isNaN(start_date.getTime())) {
+        return NextResponse.json(err("'from' must be a valid date"), { status: 400 });
+    }
     const clientMatch = { ad_account: { connection: { client_id: client.id } } };
     const snapshotMatch = start_date ? { ...clientMatch, start_date: { gte: start_date } } : clientMatch;
 

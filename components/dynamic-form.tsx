@@ -130,7 +130,14 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
                     </Button>
                 </Field>
 
-                {error && <p className="text-destructive">{error.message}</p>}
+                {error && (
+                    <p
+                        role="alert"
+                        className="w-full rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
+                    >
+                        {error.message}
+                    </p>
+                )}
             </CardFooter>
         </Card>
     );

@@ -1,12 +1,16 @@
+import { Brand } from "@/components/brand";
 import { AdminForm } from "@/components/forms/admin-form";
 import { isAdminAuthenticated } from "@/lib/admin/auth";
 
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     const authenticated = await isAdminAuthenticated();
 
+    if (authenticated) return children;
+
     return (
-        <div className="size-full min-h-dvh items-center justify-center flex">
-            {authenticated ? children : <AdminForm />}
+        <div className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
+            <Brand />
+            <AdminForm />
         </div>
     );
 }

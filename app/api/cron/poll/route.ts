@@ -6,6 +6,7 @@ import { checkEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin/server";
 import { err, settle } from "@/lib/try-catch";
+import { timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import pLimit from "p-limit";
 
@@ -17,10 +18,12 @@ const ADAPTERS: Record<Platform, Repolio.Adapter> = {
 
 export async function POST(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (process.env.NODE_ENV !== "development") {
-        const header = request.headers.get("authorization");
-        const secret = checkEnv("CRON_SECRET");
+        // checkEnv throws if CRON_SECRET is unset, so a misconfigured deployment
+        // fails closed rather than leaving the endpoint open.
+        const expected = Buffer.from(`Bearer ${checkEnv("CRON_SECRET")}`);
+        const provided = Buffer.from(request.headers.get("authorization") ?? "");
 
-        if (secret && header !== `bearer ${secret}`) {
+        if (expected.length !== provided.length || !timingSafeEqual(expected, provided)) {
             return NextResponse.json(err("Unauthorized"), { status: 401 });
         }
     }
@@ -92,17 +95,22 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
 
     const successful = built.flatMap(({ group, result }) => (result.data ? [{ group, data: result.data }] : []));
 
-    try {
-        await prisma.$transaction(
-            successful.map(({ group, data }) =>
-                prisma.report.create({
-                    data: { ...data, snapshots: { connect: group.map((s) => ({ id: s.id })) } },
-                }),
-            ),
-        );
-        return new NextResponse(null);
-    } catch (error) {
-        console.error(`Failed to insert ${successful.length} reports:`, error);
-        return new NextResponse(null, { status: 500 });
+    // Commit each report independently so one bad group doesn't roll back the rest.
+    const inserts = await Promise.allSettled(
+        successful.map(({ group, data }) =>
+            prisma.report.create({
+                data: { ...data, snapshots: { connect: group.map((s) => ({ id: s.id })) } },
+            }),
+        ),
+    );
+
+    const failures = inserts.filter((r) => r.status === "rejected");
+    if (failures.length > 0) {
+        failures.forEach((f) => console.error("Failed to insert report:", (f as PromiseRejectedResult).reason));
+        if (failures.length === inserts.length) {
+            return NextResponse.json(err("Failed to insert reports"), { status: 500 });
+        }
     }
+
+    return new NextResponse(null);
 }

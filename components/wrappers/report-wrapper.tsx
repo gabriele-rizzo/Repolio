@@ -1,12 +1,11 @@
 "use client";
 
 import type { FetchedReport } from "@/actions/report/get-report";
-import { ArrowRight } from "lucide-react";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
+import { ReportContextEditor } from "../report/context-editor";
 import { ReportOverview } from "../report/overview";
 import { Typo } from "../typography";
-import { Textarea } from "../ui/textarea";
 
 interface ReportWrapperProps {
     report?: FetchedReport;
@@ -36,7 +35,7 @@ export function ReportWrapper({ report }: ReportWrapperProps) {
                     Metrics
                 </Typo>
 
-                <div className="grid grid-cols-3 xl:grid-cols-6 gap-4 *:h-24">
+                <div className="grid grid-cols-2 gap-4 *:h-24 md:grid-cols-3 xl:grid-cols-6 print:grid-cols-3">
                     <MetricCard
                         title="Spend"
                         value={report?.spend}
@@ -90,29 +89,7 @@ export function ReportWrapper({ report }: ReportWrapperProps) {
 
             <AIInsights report={report} />
 
-            <div className="space-y-3" id="context">
-                <div className="flex flex-row items-center justify-between">
-                    <div className="flex flex-row items-center gap-1.5">
-                        <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                            Context
-                        </Typo>
-
-                        <Typo as="muted" className="text-xs tracking-wide font-medium opacity-50">
-                            Optional
-                        </Typo>
-                    </div>
-
-                    <Typo
-                        as="muted"
-                        className="flex flex-row items-center gap-1.5 text-xs tracking-wide font-medium text-purple-300"
-                    >
-                        <ArrowRight className="size-3.5" />
-                        Helps the AI
-                    </Typo>
-                </div>
-
-                <Textarea placeholder="Help the AI by giving more context to this reporting period. Holidays, creative changes, budget changes, campaign launches…" />
-            </div>
+            {report && <ReportContextEditor reportId={report.id} initial={report.context_comment} />}
         </div>
     );
 }

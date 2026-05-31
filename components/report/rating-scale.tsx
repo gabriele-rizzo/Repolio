@@ -38,10 +38,15 @@ export function RatingScale({ report }: RatingScaleProps) {
             </div>
 
             <div className="relative w-full h-4">
-                <div className="absolute inset-0 h-4 bg-linear-to-r from-red-500 via-amber-500 to-green-500 opacity-50" />
+                <div
+                    aria-hidden
+                    className="absolute inset-0 h-4 bg-linear-to-r from-red-500 via-amber-500 to-green-500 opacity-50"
+                />
 
                 {report && (
                     <div
+                        role="img"
+                        aria-label={`Performance score ${report.performance_score} of 100`}
                         className={cn(
                             "absolute top-1/2 size-4 -translate-y-1/2 -translate-x-1/2 border-2 border-foreground",
                             SCORE_COLORS[report.score_label],

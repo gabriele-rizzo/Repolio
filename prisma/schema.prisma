@@ -124,9 +124,10 @@ model PlatformConnection {
     client_id Int
     client    Client @relation(fields: [client_id], references: [id])
 
-    platform     Platform
-    access_token String
-    expires_at   DateTime?
+    platform         Platform
+    access_token     String
+    expires_at       DateTime?
+    external_user_id String? // platform user id, used to honor deauth/deletion callbacks
 
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt

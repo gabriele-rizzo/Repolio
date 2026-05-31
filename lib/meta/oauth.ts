@@ -43,6 +43,16 @@ export async function exchangeCodeForToken(code: string): Promise<TokenResponse>
     return res.json();
 }
 
+export async function getMetaUserId(accessToken: string): Promise<string> {
+    const params = new URLSearchParams({ access_token: accessToken, fields: "id" });
+    const res = await fetch(`${graphUrl("/me")}?${params.toString()}`);
+
+    if (!res.ok) throw new Error(`Meta /me lookup failed (${res.status}): ${await res.text()}`);
+
+    const data = (await res.json()) as { id: string };
+    return data.id;
+}
+
 export async function exchangeForLongLivedToken(shortLivedToken: string): Promise<TokenResponse> {
     const params = new URLSearchParams({
         grant_type: "fb_exchange_token",

@@ -40,7 +40,9 @@ export function PageScaffold({ onShow, ...props }: PageScaffoldProps) {
                         ))}
                 </div>
 
-                {typeof props.actions !== "undefined" && <div className="flex-row flex gap-2">{props.actions}</div>}
+                {typeof props.actions !== "undefined" && (
+                    <div className="flex-row flex gap-2 print:hidden">{props.actions}</div>
+                )}
             </div>
 
             {props.children}

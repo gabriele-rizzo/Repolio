@@ -4,10 +4,11 @@ import { BreadcrumbLabel } from "@/components/header/context";
 import { PlatformBadge } from "@/components/platform-badge";
 import { PageScaffold } from "@/components/scaffolds/page-scaffold";
 import { Typo } from "@/components/typography";
+import { PrintButton } from "@/components/report/print-button";
 import { Button } from "@/components/ui/button";
 import { ReportWrapper } from "@/components/wrappers/report-wrapper";
 import { dateFormatRelative } from "@/lib/date/format-relative";
-import { Download, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -51,10 +52,7 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
                             </Button>
                         </a>
 
-                        <Button>
-                            <Download />
-                            Download
-                        </Button>
+                        <PrintButton />
                     </>
                 }
             >

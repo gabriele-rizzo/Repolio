@@ -9,6 +9,7 @@ const ERROR_MESSAGES: Record<string, string> = {
     invalid_state: "Connection failed: the request expired or was invalid. Please try again.",
     no_ad_accounts: "No ad accounts were found on that account.",
     access_denied: "Connection cancelled.",
+    connection_failed: "We couldn't connect to Meta. Please try again.",
 };
 
 interface ConnectionStatusToastProps {
