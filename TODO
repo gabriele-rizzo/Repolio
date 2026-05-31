@@ -6,7 +6,6 @@
             - implement name edit functionality
             - implement account connection delete functionality (extraniate into separate component to make use of "use client" directive)
             - implement "managed accounts" stat, showing how many ads accounts the client is managing (among all connected platforms)
-      - overview page:
-            - remove page completely
+            - account connection delete button overlap with connection creation date
 - backend:
       - implement notifications system

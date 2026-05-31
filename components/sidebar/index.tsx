@@ -5,6 +5,7 @@ import { Sidebar, SidebarContent, SidebarFooter } from "../ui/sidebar";
 import { DashboardSidebarAccounts } from "./accounts";
 import type { DashboardSidebarProps } from "./config";
 import { DashboardSidebarHeader } from "./header";
+import { DashboardSidebarMain } from "./main";
 import { DashboardSidebarUser } from "./user";
 
 export function DashboardSidebar({ client, accountGroups }: DashboardSidebarProps) {
@@ -13,6 +14,8 @@ export function DashboardSidebar({ client, accountGroups }: DashboardSidebarProp
             <DashboardSidebarHeader />
 
             <SidebarContent>
+                <DashboardSidebarMain />
+
                 <Suspense fallback={null}>
                     <DashboardSidebarAccounts groups={accountGroups} />
                 </Suspense>

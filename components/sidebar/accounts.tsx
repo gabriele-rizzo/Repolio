@@ -1,9 +1,10 @@
 "use client";
 
 import type { Platform } from "@/generated/prisma/browser";
-import { Megaphone, Plus, type LucideIcon } from "lucide-react";
+import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
+import { FaMeta } from "react-icons/fa6";
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -16,8 +17,8 @@ import {
 } from "../ui/sidebar";
 import type { SidebarAccountGroup } from "./config";
 
-const platformMeta: Record<Platform, { label: string; icon: LucideIcon }> = {
-    META: { label: "Meta", icon: Megaphone },
+const platformMeta: Record<Platform, { label: string; icon: React.ElementType }> = {
+    META: { label: "Meta", icon: FaMeta },
 };
 
 interface DashboardSidebarAccountsProps {
