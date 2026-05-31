@@ -15,6 +15,7 @@ model Client {
     name       String
     email      String
     company    String?
+    image      String?
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 

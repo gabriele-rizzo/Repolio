@@ -1,4 +1,5 @@
 import { authorize } from "@/actions/auth/authorize";
+import { ConnectionStatusToast } from "@/components/account/connection-status-toast";
 import { PlatformBadge } from "@/components/platform-badge";
 import { SCORE_COLORS } from "@/components/report/score-badge";
 import { Typo } from "@/components/typography";
@@ -32,8 +33,15 @@ function Stat({ label, value }: { label: string; value: React.ReactNode }) {
     );
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+    searchParams,
+}: {
+    searchParams: Promise<{ meta_connected?: string; meta_error?: string }>;
+}) {
     const client = await authorize();
+
+    const { meta_connected, meta_error } = await searchParams;
+    const statusToast = <ConnectionStatusToast connected={meta_connected === "1"} error={meta_error} />;
 
     const adAccounts = await prisma.adAccount.findMany({
         where: { connection: { client_id: client.id } },
@@ -52,7 +60,9 @@ export default async function DashboardPage() {
 
     if (adAccounts.length === 0) {
         return (
-            <Empty className="border border-dashed">
+            <>
+                {statusToast}
+                <Empty className="border border-dashed">
                 <EmptyHeader>
                     <EmptyMedia variant="icon">
                         <Link2Off />
@@ -70,7 +80,8 @@ export default async function DashboardPage() {
                         Connect Facebook
                     </a>
                 </EmptyContent>
-            </Empty>
+                </Empty>
+            </>
         );
     }
 
@@ -78,6 +89,8 @@ export default async function DashboardPage() {
 
     return (
         <div className="space-y-6">
+            {statusToast}
+
             <div className="space-y-1">
                 <Typo as="title">Home</Typo>
                 <Typo as="muted">

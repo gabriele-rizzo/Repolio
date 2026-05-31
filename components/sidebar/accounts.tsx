@@ -1,10 +1,9 @@
 "use client";
 
-import type { Platform } from "@/generated/prisma/browser";
+import { PLATFORM_META } from "@/lib/platform";
 import { Plus } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
-import { FaMeta } from "react-icons/fa6";
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -16,10 +15,6 @@ import {
     SidebarMenuSubItem,
 } from "../ui/sidebar";
 import type { SidebarAccountGroup } from "./config";
-
-const platformMeta: Record<Platform, { label: string; icon: React.ElementType }> = {
-    META: { label: "Meta", icon: FaMeta },
-};
 
 interface DashboardSidebarAccountsProps {
     groups: SidebarAccountGroup[];
@@ -50,11 +45,11 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
                     </SidebarMenuItem>
                 ) : (
                     groups.map(({ platform, accounts }) => {
-                        const { label, icon: Icon } = platformMeta[platform];
+                        const { label, icon: Icon } = PLATFORM_META[platform];
 
                         return (
                             <SidebarMenuItem key={platform}>
-                                <SidebarMenuButton className="font-medium text-sidebar-foreground/70">
+                                <SidebarMenuButton className="pointer-events-none font-medium text-sidebar-foreground/70">
                                     <Icon />
                                     <span>{label}</span>
                                 </SidebarMenuButton>

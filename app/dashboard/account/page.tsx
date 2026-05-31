@@ -1,19 +1,18 @@
 import { authorize } from "@/actions/auth/authorize";
-import { PlatformBadge } from "@/components/platform-badge";
+import { ConnectionDelete } from "@/components/account/connection-delete";
+import { ProfileAvatar } from "@/components/account/profile-avatar";
+import { ProfileName } from "@/components/account/profile-name";
 import { Typo } from "@/components/typography";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
+import { signAvatarUrl } from "@/lib/avatar";
 import { dateFormatRelative } from "@/lib/date/format-relative";
+import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
-import { userInitials } from "@/lib/user/initials";
-import { Pen, Trash } from "lucide-react";
-import { Fragment } from "react";
 
 export default async function AccountPage() {
     const client = await authorize();
-    const [nreports, nsnapshots, connections] = await Promise.all([
+    const [nreports, nsnapshots, connections, avatar] = await Promise.all([
         prisma.report.count({
             where: { snapshots: { some: { ad_account: { connection: { client_id: client.id } } } } },
         }),
@@ -24,6 +23,7 @@ export default async function AccountPage() {
             where: { client_id: client.id },
             include: { ad_accounts: { orderBy: { created_at: "asc" } } },
         }),
+        signAvatarUrl(client.image),
     ]);
 
     const managedAccounts = connections.reduce((sum, connection) => sum + connection.ad_accounts.length, 0);
@@ -31,18 +31,10 @@ export default async function AccountPage() {
     return (
         <div className="space-y-4">
             <Card className="px-4">
-                <button className="relative w-fit group">
-                    <Avatar className="size-24 group-hover:opacity-75">
-                        <AvatarFallback className="text-2xl">{userInitials(client.name)}</AvatarFallback>
-                    </Avatar>
-
-                    <div className="absolute size-7 flex items-center justify-center bg-muted bottom-0.5 right-0.5 border-4 border-card rounded-full">
-                        <Pen className="size-3 group-hover:opacity-50" />
-                    </div>
-                </button>
+                <ProfileAvatar name={client.name} image={avatar} />
 
                 <div>
-                    <Typo as="title">{client.name}</Typo>
+                    <ProfileName name={client.name} />
                     <Typo as="muted">{client.email}</Typo>
                 </div>
 
@@ -73,60 +65,64 @@ export default async function AccountPage() {
                     Account Connections
                 </Typo>
 
-                <div className="border">
-                    {connections.map((connection, index, list) => (
-                        <Fragment key={connection.id}>
-                            <div className="pl-4 pr-2.5 py-2.5 space-y-3 relative group">
-                                <Button
-                                    variant="destructive"
-                                    className="not-group-hover:hidden not-group-hover:pointer-events-none absolute top-2 right-2 size-6"
-                                >
-                                    <Trash />
-                                </Button>
+                <div className="space-y-3">
+                    {connections.map((connection) => {
+                        const { label, icon: Icon } = PLATFORM_META[connection.platform];
+                        const count = connection.ad_accounts.length;
 
-                                <div className="flex flex-row justify-between items-start gap-2">
-                                    <div className="flex flex-col gap-1">
-                                        <PlatformBadge platform={connection.platform} />
+                        return (
+                            <Card key={connection.id} className="gap-0 p-0">
+                                <div className="flex flex-row items-center justify-between gap-3 p-4">
+                                    <div className="flex min-w-0 flex-row items-center gap-3">
+                                        <div className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-muted">
+                                            <Icon className="size-5" />
+                                        </div>
 
-                                        {connection.expires_at && (
-                                            <div className="flex flex-row gap-1.5">
-                                                <Typo as="muted">Expires at:</Typo>
-                                                <Typo as="normal" className="text-sm">
-                                                    {dateFormatRelative(connection.expires_at)}
-                                                </Typo>
-                                            </div>
-                                        )}
+                                        <div className="min-w-0">
+                                            <Typo as="large" className="text-base">
+                                                {label}
+                                            </Typo>
+                                            <Typo as="muted" className="text-xs">
+                                                Connected {dateFormatRelative(connection.created_at)}
+                                                {connection.expires_at &&
+                                                    ` · Expires ${dateFormatRelative(connection.expires_at)}`}
+                                            </Typo>
+                                        </div>
                                     </div>
 
-                                    <Typo as="muted">{dateFormatRelative(connection.created_at)}</Typo>
+                                    <ConnectionDelete connectionId={connection.id} platform={connection.platform} />
                                 </div>
 
-                                <div className="space-y-1">
-                                    {connection.ad_accounts.length === 0 ? (
+                                <div className="space-y-2 border-t bg-muted/30 p-4">
+                                    <Typo as="muted" className="text-[10px] font-medium tracking-wide uppercase">
+                                        {count} ad {count === 1 ? "account" : "accounts"}
+                                    </Typo>
+
+                                    {count === 0 ? (
                                         <Typo as="muted" className="text-sm">
                                             No ad accounts found for this connection.
                                         </Typo>
                                     ) : (
-                                        connection.ad_accounts.map((account) => (
-                                            <div
-                                                key={account.id}
-                                                className="flex flex-row items-center justify-between gap-2 border bg-muted px-2.5 py-1.5"
-                                            >
-                                                <Typo as="normal" className="text-sm truncate">
-                                                    {account.name ?? "Unnamed account"}
-                                                </Typo>
-                                                <Typo as="muted" className="text-xs shrink-0">
-                                                    {account.external_id}
-                                                </Typo>
-                                            </div>
-                                        ))
+                                        <div className="space-y-1.5">
+                                            {connection.ad_accounts.map((account) => (
+                                                <div
+                                                    key={account.id}
+                                                    className="flex flex-row items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
+                                                >
+                                                    <Typo as="normal" className="truncate text-sm font-medium">
+                                                        {account.name ?? "Unnamed account"}
+                                                    </Typo>
+                                                    <span className="shrink-0 font-mono text-xs text-muted-foreground">
+                                                        {account.external_id}
+                                                    </span>
+                                                </div>
+                                            ))}
+                                        </div>
                                     )}
                                 </div>
-                            </div>
-
-                            {index !== list.length - 1 && <Separator orientation="horizontal" />}
-                        </Fragment>
-                    ))}
+                            </Card>
+                        );
+                    })}
                 </div>
             </div>
         </div>

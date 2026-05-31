@@ -1,19 +1,12 @@
-"use state";
+"use client";
 
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
-import { userInitials } from "@/lib/user/initials";
-import { useMemo } from "react";
+import { UserAvatar } from "@/components/user-avatar";
 import type { WithClientProps } from "../config";
 
 export function DashboardSidebarUserInfos({ client }: WithClientProps) {
-    const initials = useMemo(() => userInitials(client.name), [client.name]);
-
     return (
         <>
-            <Avatar className="size-8">
-                {/* <AvatarImage src={user.avatar} alt={user.name} /> */}
-                <AvatarFallback>{initials}</AvatarFallback>
-            </Avatar>
+            <UserAvatar name={client.name} src={client.image} className="size-8" />
 
             <div className="grid flex-1 text-left text-sm leading-tight">
                 <span className="truncate font-medium">{client.name}</span>

@@ -6,6 +6,7 @@ import { SIDEBAR_STATE_COOKIE } from "@/components/sidebar/config";
 import { Button } from "@/components/ui/button";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { signAvatarUrl } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
 import { Bell } from "lucide-react";
 import type { Metadata } from "next";
@@ -22,17 +23,20 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
 
     const open = store.get(SIDEBAR_STATE_COOKIE)?.value === "true";
 
-    const connections = await prisma.platformConnection.findMany({
-        where: { client_id: client.id },
-        orderBy: { created_at: "asc" },
-        select: {
-            platform: true,
-            ad_accounts: {
-                orderBy: { created_at: "asc" },
-                select: { id: true, external_id: true, name: true },
+    const [connections, avatar] = await Promise.all([
+        prisma.platformConnection.findMany({
+            where: { client_id: client.id },
+            orderBy: { created_at: "asc" },
+            select: {
+                platform: true,
+                ad_accounts: {
+                    orderBy: { created_at: "asc" },
+                    select: { id: true, external_id: true, name: true },
+                },
             },
-        },
-    });
+        }),
+        signAvatarUrl(client.image),
+    ]);
 
     const accountGroups = connections.map((connection) => ({
         platform: connection.platform,
@@ -46,7 +50,7 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
 
     return (
         <SidebarProvider defaultOpen={open} className="overscroll-none">
-            <DashboardSidebar client={client} accountGroups={accountGroups} />
+            <DashboardSidebar client={{ ...client, image: avatar }} accountGroups={accountGroups} />
 
             <SidebarInset className="flex flex-col overflow-hidden shrink-0 h-[calc(100vh-var(--spacing)*4)]! overscroll-none relative">
                 <BreadcrumbProvider>

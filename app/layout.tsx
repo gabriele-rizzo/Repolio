@@ -20,7 +20,7 @@ export default function RootLayout({ children }: React.PropsWithChildren) {
             <body className="min-h-full flex flex-col">
                 <ThemeProvider>
                     <TooltipProvider>{children}</TooltipProvider>
-                    <Toaster theme="system" />
+                    <Toaster theme="system" richColors />
                 </ThemeProvider>
             </body>
         </html>

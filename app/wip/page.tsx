@@ -43,7 +43,8 @@ export default async function WorkInProgressPage() {
 
                 <EmptyTitle>Work in Progress</EmptyTitle>
                 <EmptyDescription>
-                    Thank you for helping us improve our product. We're going to get back to you as soon as possible.
+                    Thank you for helping us improve our product. We&apos;re going to get back to you as soon as
+                    possible.
                 </EmptyDescription>
             </EmptyHeader>
         </Empty>
