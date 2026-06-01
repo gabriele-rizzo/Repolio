@@ -2,12 +2,13 @@ import { authorize } from "@/actions/auth/authorize";
 import { getReport } from "@/actions/report/get-report";
 import { BreadcrumbLabel } from "@/components/header/context";
 import { PlatformBadge } from "@/components/platform-badge";
+import { PrintButton } from "@/components/report/print-button";
 import { PageScaffold } from "@/components/scaffolds/page-scaffold";
 import { Typo } from "@/components/typography";
-import { PrintButton } from "@/components/report/print-button";
 import { Button } from "@/components/ui/button";
 import { ReportWrapper } from "@/components/wrappers/report-wrapper";
 import { dateFormatRelative } from "@/lib/date/format-relative";
+import { metricsForWindow } from "@/lib/metrics/window";
 import { Plus } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -19,12 +20,17 @@ export const metadata: Metadata = {
 export default async function DashboardReportPage({ params }: PageProps<"/dashboard/reports/[id]">) {
     const [{ id }, client] = await Promise.all([params, authorize()]);
 
-    const report = await getReport(id, client.id);
-    if (!report) notFound();
+    const fetched = await getReport(id, client.id);
+    if (!fetched) notFound();
 
-    const periodStart = report.snapshots[0]?.start_date ?? report.created_at;
-    const period = `${dateFormatRelative(periodStart)} - ${dateFormatRelative(report.created_at)}`;
-    const platforms = [...new Set(report.snapshots.map((s) => s.platform))];
+    const { report, account, from, to } = fetched;
+
+    // KPIs are computed live for this report's covered period.
+    const { current, previous } = account
+        ? await metricsForWindow(account.id, from, to)
+        : { current: null, previous: null };
+
+    const period = `${dateFormatRelative(from)} - ${dateFormatRelative(to)}`;
 
     return (
         <>
@@ -33,16 +39,16 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
             <PageScaffold
                 title={
                     <div className="flex flex-row gap-4 items-center">
-                        <Typo as="title">{period}</Typo>
+                        <Typo as="title">{account?.name ?? "Report"}</Typo>
 
-                        <div className="mt-1 flex flex-row gap-2 items-center">
-                            {platforms.map((p) => (
-                                <PlatformBadge platform={p} key={p} />
-                            ))}
-                        </div>
+                        {account && (
+                            <div className="mt-1">
+                                <PlatformBadge platform={account.connection.platform} />
+                            </div>
+                        )}
                     </div>
                 }
-                description="A report is the analysis of your data from a series of daily snapshots."
+                description={`AI write-up from this report; metrics computed live for ${period}.`}
                 actions={
                     <>
                         <a href="#context">
@@ -56,7 +62,7 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
                     </>
                 }
             >
-                <ReportWrapper report={report} />
+                <ReportWrapper report={report} current={current} previous={previous} />
             </PageScaffold>
         </>
     );

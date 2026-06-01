@@ -1,34 +1,38 @@
-"use client";
-
-import type { FetchedReport } from "@/actions/report/get-report";
+import type { Report } from "@/generated/prisma/browser";
+import type { ComputedMetrics } from "@/lib/metrics/meta";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
 import { ReportContextEditor } from "../report/context-editor";
 import { ReportOverview } from "../report/overview";
+import { type Recommendation } from "../report/recommendation-card";
 import { Typo } from "../typography";
 
 interface ReportWrapperProps {
-    report?: FetchedReport;
+    /** The AI report (executive summary, recommendations, trend explanation, context). */
+    report?: Report;
+    /** Live metrics for the selected window. */
+    current?: ComputedMetrics | null;
+    /** Live metrics for the preceding equal-length window (for deltas). */
+    previous?: ComputedMetrics | null;
+    loading?: boolean;
 }
 
-const currency = new Intl.NumberFormat("de-DE", {
-    style: "currency",
-    currency: "EUR",
-    maximumFractionDigits: 2,
-});
-
-const compact = new Intl.NumberFormat("en-US", {
-    notation: "compact",
-    maximumFractionDigits: 1,
-});
-
+const currency = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
+const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const formatCurrency = (value: number) => currency.format(value);
 const formatCompact = (value: number) => compact.format(value);
 
-export function ReportWrapper({ report }: ReportWrapperProps) {
+export function ReportWrapper({ report, current, previous, loading }: ReportWrapperProps) {
+    const recommendations = (report?.recommendations ?? []) as unknown as Recommendation[];
+
     return (
         <div className="space-y-8">
-            <ReportOverview report={report} />
+            <ReportOverview
+                score={current?.performance_score}
+                label={current?.score_label}
+                trendExplanation={report?.trend_explanation}
+                loading={loading}
+            />
 
             <div className="space-y-3">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
@@ -38,56 +42,56 @@ export function ReportWrapper({ report }: ReportWrapperProps) {
                 <div className="grid grid-cols-2 gap-4 *:h-24 md:grid-cols-3 xl:grid-cols-6 print:grid-cols-3">
                     <MetricCard
                         title="Spend"
-                        value={report?.spend}
-                        previous={report?.previous?.spend}
+                        value={current?.spend}
+                        previous={previous?.spend}
                         format={formatCurrency}
                         betterWhen="neutral"
-                        loading={!report}
+                        loading={loading}
                     />
                     <MetricCard
                         title="ROAS"
-                        value={report?.roas}
-                        previous={report?.previous?.roas}
+                        value={current?.roas}
+                        previous={previous?.roas}
                         format={(v) => `${v.toFixed(2)}x`}
                         betterWhen="up"
-                        loading={!report}
+                        loading={loading}
                     />
                     <MetricCard
                         title="CPA"
-                        value={report?.cpa}
-                        previous={report?.previous?.cpa}
+                        value={current?.cpa}
+                        previous={previous?.cpa}
                         format={formatCurrency}
                         betterWhen="down"
-                        loading={!report}
+                        loading={loading}
                     />
                     <MetricCard
                         title="Conversions"
-                        value={report?.conversions}
-                        previous={report?.previous?.conversions}
+                        value={current?.conversions}
+                        previous={previous?.conversions}
                         format={(v) => v.toLocaleString("en-US")}
                         betterWhen="up"
-                        loading={!report}
+                        loading={loading}
                     />
                     <MetricCard
                         title="CTR"
-                        value={report?.ctr}
-                        previous={report?.previous?.ctr}
+                        value={current?.ctr}
+                        previous={previous?.ctr}
                         format={(v) => `${v.toFixed(2)}%`}
                         betterWhen="up"
-                        loading={!report}
+                        loading={loading}
                     />
                     <MetricCard
                         title="Reach"
-                        value={report?.reach}
-                        previous={report?.previous?.reach}
+                        value={current?.reach}
+                        previous={previous?.reach}
                         format={formatCompact}
                         betterWhen="up"
-                        loading={!report}
+                        loading={loading}
                     />
                 </div>
             </div>
 
-            <AIInsights report={report} />
+            <AIInsights summary={report?.executive_summary} recommendations={recommendations} loading={loading} />
 
             {report && <ReportContextEditor reportId={report.id} initial={report.context_comment} />}
         </div>

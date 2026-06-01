@@ -1,4 +1,4 @@
-import type { FetchedReport } from "@/actions/report/get-report";
+import type { ScoreLabel } from "@/generated/prisma/browser";
 import { Sparkles } from "lucide-react";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
@@ -6,14 +6,15 @@ import { Separator } from "../ui/separator";
 import { Skeleton } from "../ui/skeleton";
 import { RatingScale } from "./rating-scale";
 import { ReportScoreBadge } from "./score-badge";
-import { ScoreTrend } from "./score-trend";
-import { ReportTrend } from "./trend";
 
-interface ReportOverview {
-    report?: FetchedReport;
+interface ReportOverviewProps {
+    score?: number;
+    label?: ScoreLabel;
+    trendExplanation?: string;
+    loading?: boolean;
 }
 
-export function ReportOverview({ report }: ReportOverview) {
+export function ReportOverview({ score, label, trendExplanation, loading }: ReportOverviewProps) {
     return (
         <Card className="flex flex-col xl:flex-row px-4 gap-4">
             <div className="flex-1 flex flex-row gap-4">
@@ -24,12 +25,12 @@ export function ReportOverview({ report }: ReportOverview) {
                         </Typo>
 
                         <div className="flex flex-row items-baseline gap-1.5 shrink-0">
-                            {report ? (
-                                <Typo as="title" className="text-6xl leading-none tabular-nums">
-                                    {report.performance_score}
-                                </Typo>
-                            ) : (
+                            {loading ? (
                                 <Skeleton className="w-20 h-13" />
+                            ) : (
+                                <Typo as="title" className="text-6xl leading-none tabular-nums">
+                                    {score ?? "—"}
+                                </Typo>
                             )}
 
                             <Typo as="muted" className="text-2xl shrink-0 leading-none">
@@ -38,15 +39,11 @@ export function ReportOverview({ report }: ReportOverview) {
                         </div>
                     </div>
 
-                    <div className="flex flex-col gap-2">
-                        <ReportScoreBadge report={report} />
-                        <ReportTrend report={report} />
-                    </div>
+                    <ReportScoreBadge label={label} loading={loading} />
                 </div>
 
-                <div className="grow min-h-40 flex flex-col gap-4">
-                    <RatingScale report={report} />
-                    <ScoreTrend history={report?.history} />
+                <div className="grow min-h-40 flex flex-col justify-center">
+                    <RatingScale score={loading ? undefined : score} label={label} />
                 </div>
             </div>
 
@@ -59,16 +56,16 @@ export function ReportOverview({ report }: ReportOverview) {
                     <Typo as="small">AI Trend Explanation</Typo>
                 </div>
 
-                {report ? (
-                    <Typo as="muted" className="line-clamp-5">
-                        {report.trend_explanation || "No trend explanation for this report yet."}
-                    </Typo>
-                ) : (
+                {loading ? (
                     <div className="grow w-full *:h-3.5 gap-2 flex flex-col">
                         <Skeleton className="w-full" />
                         <Skeleton className="w-full" />
                         <Skeleton className="w-2/3" />
                     </div>
+                ) : (
+                    <Typo as="muted" className="line-clamp-5">
+                        {trendExplanation || "No trend explanation for this report yet."}
+                    </Typo>
                 )}
             </div>
         </Card>

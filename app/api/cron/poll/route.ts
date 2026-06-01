@@ -1,6 +1,5 @@
-import { metaAdapter } from "@/actions/adapters/meta";
 import { collectSnapshots } from "@/actions/meta/collect-snapshots";
-import type { Client, Platform, Snapshot } from "@/generated/prisma/browser";
+import type { Client, Snapshot } from "@/generated/prisma/browser";
 import { startOfDay } from "@/lib/date/start-of-day";
 import { checkEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
@@ -11,10 +10,6 @@ import { NextResponse, type NextRequest } from "next/server";
 import pLimit from "p-limit";
 
 const limit = pLimit(10);
-
-const ADAPTERS: Record<Platform, Repolio.Adapter> = {
-    META: metaAdapter,
-};
 
 export async function POST(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (process.env.NODE_ENV !== "development") {
@@ -78,28 +73,49 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
         else groups.set(s.ad_account_id, [s]);
     }
 
-    const built = await Promise.all(
-        Array.from(groups.values()).map((group) =>
-            limit(async () => {
-                const result = await ADAPTERS[group[0].platform](group);
-                return { group, result };
-            }),
-        ),
-    );
+    const groupEntries = Array.from(groups.entries());
 
-    const rresponse = settle(
-        "reports",
-        built.map((b) => b.result),
-    );
-    if (rresponse.error) return NextResponse.json(err(rresponse.error), { status: 500 });
+    // Resolve the owning client + display name for each ad account so we can notify.
+    const adAccountIds = groupEntries.map(([id]) => id);
+    const adAccounts = await prisma.adAccount.findMany({
+        where: { id: { in: adAccountIds } },
+        select: { id: true, name: true, connection: { select: { client_id: true } } },
+    });
+    const accounts = new Map(adAccounts.map((a) => [a.id, a]));
 
-    const successful = built.flatMap(({ group, result }) => (result.data ? [{ group, data: result.data }] : []));
-
-    // Commit each report independently so one bad group doesn't roll back the rest.
+    // One report per ad account for this period. Reports only carry AI output
+    // (empty until the AI step runs); KPIs are computed live on the report page.
     const inserts = await Promise.allSettled(
-        successful.map(({ group, data }) =>
-            prisma.report.create({
-                data: { ...data, snapshots: { connect: group.map((s) => ({ id: s.id })) } },
+        groupEntries.map(([adAccountId, group]) =>
+            limit(async () => {
+                const report = await prisma.report.create({
+                    data: {
+                        executive_summary: "",
+                        recommendations: [],
+                        trend_explanation: "",
+                        snapshots: { connect: group.map((s) => ({ id: s.id })) },
+                    },
+                });
+
+                // Notify the client; a notification failure must not fail the report.
+                const account = accounts.get(adAccountId);
+                if (account) {
+                    try {
+                        await prisma.notification.create({
+                            data: {
+                                client_id: account.connection.client_id,
+                                type: "REPORT_READY",
+                                title: `New report for ${account.name ?? "an ad account"}`,
+                                body: "Your latest performance report is ready to view.",
+                                link: `/dashboard/reports/${report.id}`,
+                            },
+                        });
+                    } catch (error) {
+                        console.error("Failed to create notification:", error);
+                    }
+                }
+
+                return report;
             }),
         ),
     );

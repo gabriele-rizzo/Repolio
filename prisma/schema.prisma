@@ -19,8 +19,30 @@ model Client {
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 
-    recurrence  Recurrence?
-    connections PlatformConnection[]
+    recurrence    Recurrence?
+    connections   PlatformConnection[]
+    notifications Notification[]
+}
+
+model Notification {
+    id Int @id @default(autoincrement())
+
+    client_id Int
+    client    Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+    type  NotificationType
+    title String
+    body  String?
+    link  String?
+
+    read_at    DateTime?
+    created_at DateTime  @default(now())
+
+    @@index([client_id, created_at])
+}
+
+enum NotificationType {
+    REPORT_READY
 }
 
 model Snapshot {
@@ -45,57 +67,11 @@ model Report {
 
     snapshots Snapshot[]
 
-    // --- A: CORE KPIs (account-level, current period) ---
-    spend       Float // #1  RAW
-    revenue     Float? // #2  RAW (optional — null disables ROAS)
-    impressions Int // #3  RAW
-    clicks      Int // #4  RAW
-    conversions Int // #5  RAW (extracted from actions[])
-    reach       Int? // #6  RAW (optional)
-    frequency   Float? // #7  RAW (optional)
-    ctr         Float // #8  CALC  clicks / impressions × 100
-    cpm         Float // #9  CALC  spend / impressions × 1000
-    cpa         Float? // #10 CALC  null if conversions = 0
-    cpc         Float? // #11 CALC  null if clicks = 0
-    roas        Float? // #12 CALC  null if revenue is null
-
-    // --- B: TIME SERIES (within this report's period) ---
-    daily_kpis Json // #13 [{ date, spend, impressions, clicks, conversions, reach?, frequency?, revenue? }]
-
-    // --- C: CAMPAIGN BREAKDOWN (#17–#24, #35 comment) ---
-    campaigns Json
-    // [{
-    //   external_id, name,
-    //   type: "performance" | "awareness" | "consideration" | "unknown",   // #28
-    //   spend, conversions,                                                 // #17, #18
-    //   roas: Float | null, cpa: Float | null,                              // #19, #20
-    //   budget_share: Float, conversion_share: Float | null,                // #21, #22
-    //   cpa_vs_avg: Float | null,                                           // #23
-    //   badge: "STRONG" | "MEDIUM" | "WEAK",                                // #24
-    //   comment: string                                                     // #35 (AI)
-    // }]
-
-    // --- D: PRE-PROCESSING / LOGIC ---
-    performance_score Int // #25  0–100
-    score_label       ScoreLabel // #27
-    anomalies         Json
-    // [{
-    //   severity: "LOW" | "MEDIUM" | "HIGH",
-    //   code: string,                  // e.g. "CPA_OVER_BENCHMARK", "ZERO_CONV_HIGH_SPEND"
-    //   campaign_external_id: string?, // null for account-level anomalies
-    //   message: string
-    // }]
-
-    // --- E: AI-GENERATED (Claude, single call) ---
-    executive_summary String // #31  80–120 words
-    recommendations   Json // #32
-    // [{
-    //   priority: "IMMEDIATE" | "THIS_WEEK" | "MONITOR",
-    //   category: "BUDGET" | "CREATIVE" | "TARGETING" | "BIDDING",
-    //   title: string,
-    //   body: string
-    // }]    1–4 items
-    trend_explanation String // #33
+    // --- AI-GENERATED (Claude). KPIs, score and anomalies are NOT stored here —
+    // they are recomputed live on the report page from snapshots over a chosen window. ---
+    executive_summary String
+    recommendations   Json
+    trend_explanation String
 
     // --- F: USER INPUT (snapshotted at report time) ---
     target_cpa      Float? // #36

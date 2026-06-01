@@ -5,6 +5,8 @@ import { prisma } from "@/lib/prisma";
 
 export type FetchedReport = NonNullable<Awaited<ReturnType<typeof getReport>>>;
 
+// A report now carries only the AI output. We also resolve the account it belongs
+// to and the period it covered, so the page can compute KPIs live for that window.
 export async function getReport(id: string, client_id: Client["id"]) {
     if (isNaN(+id)) return null;
 
@@ -13,53 +15,23 @@ export async function getReport(id: string, client_id: Client["id"]) {
         include: {
             snapshots: {
                 orderBy: { start_date: "asc" },
-                take: 1,
+                select: { start_date: true, ad_account_id: true, platform: true },
             },
         },
     });
 
     if (!report) return null;
 
-    // Last 6 reports (including current) for this client, chronological order.
-    const recent = await prisma.report.findMany({
-        where: {
-            created_at: { lte: report.created_at },
-            snapshots: { some: { ad_account: { connection: { client_id } } } },
-        },
-        orderBy: { created_at: "desc" },
-        take: 6,
-        select: { id: true, created_at: true, performance_score: true },
-    });
+    const first = report.snapshots[0];
+    const from = first?.start_date ?? report.created_at;
+    const to = report.created_at;
 
-    // `recent` is descending by created_at, so the first non-current entry is the most recent prior report.
-    const prior = recent.find((r) => r.id !== report.id);
-    const history = [...recent].reverse();
-
-    // Pull the metric fields of the prior report so cards can render deltas.
-    const previous = prior
-        ? await prisma.report.findUnique({
-              where: { id: prior.id },
-              select: {
-                  spend: true,
-                  revenue: true,
-                  impressions: true,
-                  clicks: true,
-                  conversions: true,
-                  reach: true,
-                  frequency: true,
-                  ctr: true,
-                  cpm: true,
-                  cpa: true,
-                  cpc: true,
-                  roas: true,
-              },
+    const account = first
+        ? await prisma.adAccount.findUnique({
+              where: { id: first.ad_account_id },
+              select: { id: true, name: true, connection: { select: { platform: true } } },
           })
         : null;
 
-    return {
-        ...report,
-        previous_score: prior?.performance_score ?? null,
-        previous,
-        history,
-    };
+    return { report, account, from, to };
 }

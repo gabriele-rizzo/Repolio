@@ -1,6 +1,5 @@
 import type { Snapshot } from "@/generated/prisma/browser";
 import { ScoreLabel } from "@/generated/prisma/enums";
-import { err, ok } from "@/lib/try-catch";
 
 type MetaAction = { action_type: string; value: string };
 
@@ -22,12 +21,22 @@ type MetaSnapshotData = { data: MetaInsightsRow[] };
 
 type CampaignType = "performance" | "awareness" | "consideration" | "unknown";
 
-type Anomaly = {
-    severity: "LOW" | "MEDIUM" | "HIGH";
-    code: string;
-    campaign_external_id: string | null;
-    message: string;
-};
+export interface ComputedMetrics {
+    spend: number;
+    revenue: number | null;
+    impressions: number;
+    clicks: number;
+    conversions: number;
+    reach: number | null;
+    frequency: number | null;
+    ctr: number;
+    cpm: number;
+    cpa: number | null;
+    cpc: number | null;
+    roas: number | null;
+    performance_score: number;
+    score_label: ScoreLabel;
+}
 
 const PERFORMANCE = new Set(["OUTCOME_SALES", "CONVERSIONS", "LEAD_GENERATION"]);
 const AWARENESS = new Set(["OUTCOME_AWARENESS", "BRAND_AWARENESS", "REACH"]);
@@ -52,18 +61,20 @@ const classify = (objective: string): CampaignType => {
     return "unknown";
 };
 
-export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
+/**
+ * Aggregates Meta snapshot data into account-level KPIs and a performance score.
+ * Computed live from whatever snapshots fall in the requested window — no longer
+ * stored on the report. Returns null when there's no data for the window.
+ */
+export function computeMetaMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
     const rows: MetaInsightsRow[] = [];
     for (const s of snapshots) {
         const raw = s.data as unknown as MetaSnapshotData | null;
         if (raw && Array.isArray(raw.data)) rows.push(...raw.data);
     }
 
-    if (rows.length === 0) {
-        return err(`No Meta insights data across ${snapshots.length} snapshot(s)`);
-    }
+    if (rows.length === 0) return null;
 
-    // --- A: CORE KPIs — sum across rows (account-level totals) ---
     let spend = 0;
     let impressions = 0;
     let clicks = 0;
@@ -83,7 +94,6 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
     }
 
     const reach = reachTotal;
-    // Prefer derived frequency from totals; fall back to the raw row value.
     const frequency = reach != null && reach > 0 ? impressions / reach : frequencyRaw;
     const revenueOut = revenue > 0 ? revenue : null;
 
@@ -93,27 +103,8 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
     const cpc = clicks > 0 ? spend / clicks : null;
     const roas = revenueOut != null && spend > 0 ? revenueOut / spend : null;
 
-    // --- D: LOGIC — anomalies (account-level only; per-campaign needs richer data) ---
     const type = classify(rows[0].objective ?? "");
-    const anomalies: Anomaly[] = [];
-    if (frequency != null && frequency > 5) {
-        anomalies.push({
-            severity: "MEDIUM",
-            code: "HIGH_FREQUENCY",
-            campaign_external_id: null,
-            message: `Frequency ${frequency.toFixed(2)} above 5 — audience saturation risk.`,
-        });
-    }
-    if (type === "performance" && impressions > 0 && ctr < 0.5) {
-        anomalies.push({
-            severity: "LOW",
-            code: "LOW_CTR",
-            campaign_external_id: null,
-            message: `CTR ${ctr.toFixed(2)}% below 0.5%.`,
-        });
-    }
 
-    // --- D: LOGIC — Performance Score (v1, no benchmarks yet) ---
     let performance_score: number;
     if (type === "performance") {
         const roasScore = roas != null ? Math.min(100, (roas / 5) * 100) : 0;
@@ -131,8 +122,7 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
               ? ScoreLabel.MODERATE
               : ScoreLabel.NEEDS_IMPROVEMENT;
 
-    return ok({
-        // A: Core KPIs
+    return {
         spend,
         revenue: revenueOut,
         impressions,
@@ -145,26 +135,7 @@ export const metaAdapter: Repolio.Adapter = (snapshots: Snapshot[]) => {
         cpa,
         cpc,
         roas,
-
-        // B: Time series — requires additional API calls not yet in the snapshot
-        daily_kpis: [],
-
-        // C: Campaign breakdown — requires level=campaign insights not yet in the snapshot
-        campaigns: [],
-
-        // D: Logic
         performance_score,
         score_label,
-        anomalies,
-
-        // E: AI — filled by the downstream Claude step
-        executive_summary: "",
-        recommendations: [],
-        trend_explanation: "",
-
-        // F: Inputs — set by agency via Supabase, joined in a later step
-        target_cpa: null,
-        target_roas: null,
-        context_comment: null,
-    });
-};
+    };
+}

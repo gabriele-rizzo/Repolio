@@ -58,10 +58,14 @@ export function DashboardSidebarUser({ client }: WithClientProps) {
                                 }
                             />
 
-                            <DropdownMenuItem disabled>
-                                <Bell />
-                                Notifications
-                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                                render={
+                                    <Link href="/dashboard/notifications">
+                                        <Bell />
+                                        Notifications
+                                    </Link>
+                                }
+                            />
                         </DropdownMenuGroup>
 
                         <DropdownMenuSeparator />

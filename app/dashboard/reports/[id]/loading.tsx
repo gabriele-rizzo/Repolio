@@ -8,7 +8,7 @@ export default function DashboardReportLoadingPage() {
             title={<Skeleton className="h-8 w-46" />}
             description="This report analyzes your data from a series of daily snapshots."
         >
-            <ReportWrapper report={undefined} />
+            <ReportWrapper loading />
         </PageScaffold>
     );
 }

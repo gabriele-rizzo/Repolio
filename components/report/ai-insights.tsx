@@ -1,4 +1,3 @@
-import type { FetchedReport } from "@/actions/report/get-report";
 import { ScrollText, Sparkles } from "lucide-react";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
@@ -7,12 +6,12 @@ import { Skeleton } from "../ui/skeleton";
 import { RecommendationCard, type Recommendation } from "./recommendation-card";
 
 interface AIInsightsProps {
-    report?: FetchedReport;
+    summary?: string;
+    recommendations?: Recommendation[];
+    loading?: boolean;
 }
 
-export function AIInsights({ report }: AIInsightsProps) {
-    const recommendations = (report?.recommendations ?? []) as unknown as Recommendation[];
-
+export function AIInsights({ summary, recommendations = [], loading }: AIInsightsProps) {
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-row gap-1.5 items-center text-purple-700 dark:text-purple-300">
@@ -28,23 +27,21 @@ export function AIInsights({ report }: AIInsightsProps) {
                     </Typo>
                 </div>
 
-                {report ? (
-                    report.executive_summary ? (
-                        <Typo as="normal" className="leading-relaxed whitespace-pre-wrap">
-                            {report.executive_summary}
-                        </Typo>
-                    ) : (
-                        <Typo as="muted" className="italic">
-                            No executive summary was generated for this report.
-                        </Typo>
-                    )
-                ) : (
+                {loading ? (
                     <div className="flex flex-col gap-2 *:h-3.5">
                         <Skeleton className="w-full" />
                         <Skeleton className="w-full" />
                         <Skeleton className="w-full" />
                         <Skeleton className="w-3/4" />
                     </div>
+                ) : summary ? (
+                    <Typo as="normal" className="leading-relaxed whitespace-pre-wrap">
+                        {summary}
+                    </Typo>
+                ) : (
+                    <Typo as="muted" className="italic">
+                        No executive summary was generated for this report.
+                    </Typo>
                 )}
             </Card>
 
@@ -52,14 +49,14 @@ export function AIInsights({ report }: AIInsightsProps) {
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
                     Recommendations
                 </Typo>
-                {report && recommendations.length > 0 && (
+                {!loading && recommendations.length > 0 && (
                     <Typo as="muted" className="text-xs">
                         · {recommendations.length}
                     </Typo>
                 )}
             </div>
 
-            {!report ? (
+            {loading ? (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {Array.from({ length: 2 }).map((_, i) => (
                         <Card key={i} className="p-4 gap-2">
