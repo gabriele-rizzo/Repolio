@@ -2,6 +2,7 @@ import { authorize } from "@/actions/auth/authorize";
 import { ConnectionDelete } from "@/components/account/connection-delete";
 import { ProfileAvatar } from "@/components/account/profile-avatar";
 import { ProfileName } from "@/components/account/profile-name";
+import { RecurrenceSettings } from "@/components/account/recurrence-settings";
 import { Typo } from "@/components/typography";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -12,7 +13,7 @@ import { prisma } from "@/lib/prisma";
 
 export default async function AccountPage() {
     const client = await authorize();
-    const [nreports, nsnapshots, connections, avatar] = await Promise.all([
+    const [nreports, nsnapshots, connections, avatar, recurrence] = await Promise.all([
         prisma.report.count({
             where: { snapshots: { some: { ad_account: { connection: { client_id: client.id } } } } },
         }),
@@ -24,9 +25,11 @@ export default async function AccountPage() {
             include: { ad_accounts: { orderBy: { created_at: "asc" } } },
         }),
         signAvatarUrl(client.image),
+        prisma.recurrence.findUnique({ where: { client_id: client.id } }),
     ]);
 
     const managedAccounts = connections.reduce((sum, connection) => sum + connection.ad_accounts.length, 0);
+    const ndays = recurrence?.ndays ?? 30;
 
     return (
         <div className="space-y-4">
@@ -59,6 +62,14 @@ export default async function AccountPage() {
                     </div>
                 </div>
             </Card>
+
+            <section id="recurrence" className="space-y-3 scroll-mt-20">
+                <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
+                    Reporting
+                </Typo>
+
+                <RecurrenceSettings ndays={ndays} />
+            </section>
 
             <div className="space-y-3">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">

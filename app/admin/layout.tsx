@@ -5,12 +5,10 @@ import { isAdminAuthenticated } from "@/lib/admin/auth";
 export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     const authenticated = await isAdminAuthenticated();
 
-    if (authenticated) return children;
-
     return (
         <div className="flex min-h-dvh flex-col items-center justify-center gap-6 p-6">
             <Brand />
-            <AdminForm />
+            {authenticated ? children : <AdminForm />}
         </div>
     );
 }

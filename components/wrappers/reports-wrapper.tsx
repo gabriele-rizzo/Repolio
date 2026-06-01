@@ -157,13 +157,13 @@ export function ReportsWrapper() {
                         <EmptyTitle>Reports Collection Empty</EmptyTitle>
                         <EmptyDescription>
                             When a report will be created it will be shown here. In the meantime you can change your
-                            recurrence options.
+                            report cadence setting.
                         </EmptyDescription>
                     </EmptyHeader>
 
                     <EmptyContent>
                         <Link href="/dashboard/account#recurrence">
-                            <Button>Change Recurrence</Button>
+                            <Button>Change Report Cadence</Button>
                         </Link>
                     </EmptyContent>
                 </Empty>
