@@ -12,6 +12,7 @@
         "db:generate": "prisma generate"
     },
     "dependencies": {
+        "@anthropic-ai/sdk": "^0.100.1",
         "@base-ui/react": "^1.4.1",
         "@hookform/resolvers": "^5.2.2",
         "@otp-lib/authenticator": "^0.2.1",

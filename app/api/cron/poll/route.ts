@@ -1,4 +1,5 @@
 import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
+import { generateReportContent } from "@/lib/ai/generate-report";
 import type { Client, Snapshot } from "@/generated/prisma/browser";
 import { startOfDay } from "@/lib/date/start-of-day";
 import { checkEnv } from "@/lib/env";
@@ -96,6 +97,15 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
                         snapshots: { connect: group.map((s) => ({ id: s.id })) },
                     },
                 });
+
+                // Fill in the AI section from the account's recent history. A
+                // generation failure must not fail the report — KPIs still
+                // render live on the report page, just without the narrative.
+                try {
+                    await generateReportContent(report.id);
+                } catch (error) {
+                    console.error(`Failed to generate AI content for report ${report.id}:`, error);
+                }
 
                 // Notify the client; a notification failure must not fail the report.
                 const account = accounts.get(adAccountId);
