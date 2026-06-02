@@ -1,4 +1,4 @@
-import { collectSnapshots } from "@/actions/meta/collect-snapshots";
+import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
 import type { Client, Snapshot } from "@/generated/prisma/browser";
 import { startOfDay } from "@/lib/date/start-of-day";
 import { checkEnv } from "@/lib/env";
