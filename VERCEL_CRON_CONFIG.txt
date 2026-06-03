@@ -1,4 +1,0 @@
-// {
-//     "path": "/api/cron/poll",
-//     "schedule": "0 0 * * *"
-// }
