@@ -92,7 +92,7 @@ export function ReportView({ report, account, reports, from: initialFrom, to: in
                         <TooltipContent>Add context</TooltipContent>
                     </Tooltip>
 
-                    <PrintButton />
+                    <PrintButton reportId={report.id} />
                 </div>
             }
         >
