@@ -17,14 +17,16 @@ interface ReportOverviewProps {
 export function ReportOverview({ score, label, trendExplanation, loading }: ReportOverviewProps) {
     return (
         <Card className="flex flex-col xl:flex-row px-4 gap-4">
-            <div className="flex-1 flex flex-row gap-4">
-                <div className="flex flex-col gap-3 shrink-0 min-w-40 justify-between">
-                    <div className="flex flex-col gap-3 shrink-0 min-w-40">
-                        <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                            Performance Score
-                        </Typo>
+            {/* Stat column: score sits at the top, the rating scale is pinned to the bottom (justify-between),
+                so the column fills its height and stays balanced however long the trend explanation runs. */}
+            <div className="flex w-full shrink-0 flex-col justify-between gap-6 xl:w-72">
+                <div className="flex flex-col gap-3">
+                    <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
+                        Performance Score
+                    </Typo>
 
-                        <div className="flex flex-row items-baseline gap-1.5 shrink-0">
+                    <div className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                        <div className="flex flex-row items-baseline gap-1.5">
                             {loading ? (
                                 <Skeleton className="w-20 h-13" />
                             ) : (
@@ -37,20 +39,18 @@ export function ReportOverview({ score, label, trendExplanation, loading }: Repo
                                 / 100
                             </Typo>
                         </div>
+
+                        <ReportScoreBadge label={label} loading={loading} />
                     </div>
-
-                    <ReportScoreBadge label={label} loading={loading} />
                 </div>
 
-                <div className="grow min-h-40 flex flex-col justify-center">
-                    <RatingScale score={loading ? undefined : score} label={label} />
-                </div>
+                <RatingScale score={loading ? undefined : score} label={label} />
             </div>
 
             <Separator orientation="vertical" className="hidden xl:block" />
             <Separator orientation="horizontal" className="xl:hidden" />
 
-            <div className="grow flex flex-col max-w-sm min-w-64 gap-2">
+            <div className="grow flex flex-col gap-2 min-w-64">
                 <div className="flex flex-row gap-1.5 items-center text-purple-700 dark:text-purple-300">
                     <Sparkles className="size-3.5" />
                     <Typo as="small">AI Trend Explanation</Typo>
@@ -63,7 +63,7 @@ export function ReportOverview({ score, label, trendExplanation, loading }: Repo
                         <Skeleton className="w-2/3" />
                     </div>
                 ) : (
-                    <Typo as="muted" className="line-clamp-5">
+                    <Typo as="muted" className="whitespace-pre-wrap">
                         {trendExplanation || "No trend explanation for this report yet."}
                     </Typo>
                 )}

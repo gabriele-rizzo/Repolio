@@ -2,12 +2,19 @@
 
 import { Download } from "lucide-react";
 import { Button } from "../ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
 export function PrintButton() {
     return (
-        <Button onClick={() => window.print()}>
-            <Download />
-            Download
-        </Button>
+        <Tooltip>
+            <TooltipTrigger
+                render={
+                    <Button size="icon" aria-label="Download report" onClick={() => window.print()}>
+                        <Download />
+                    </Button>
+                }
+            />
+            <TooltipContent>Download</TooltipContent>
+        </Tooltip>
     );
 }

@@ -30,14 +30,29 @@ interface DynamicFormProps<S extends z.ZodRawShape> {
     defaultValues: Data<S>;
     inputs: Record<keyof S, React.ComponentProps<typeof Input> & { label: string; inputType?: "default" | "otp" }>;
     submitLabel: string;
+    /** Optional cross-field validation (e.g. password confirmation). The error is shown under `path`. */
+    refine?: {
+        check: (data: Data<S>) => boolean;
+        message: string;
+        path: string[];
+    };
 }
 
 export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<Error | null>(null);
 
+    // Field rendering iterates props.schema.shape (a plain object), but the resolver validates a
+    // refined version when cross-field rules (e.g. confirm-password) are supplied.
+    const resolverSchema = props.refine
+        ? props.schema.refine(props.refine.check as (data: any) => boolean, {
+              message: props.refine.message,
+              path: props.refine.path,
+          })
+        : props.schema;
+
     const form = useForm<z.infer<typeof props.schema>>({
-        resolver: zodResolver(props.schema),
+        resolver: zodResolver(resolverSchema as any),
         /* eslint-disable @typescript-eslint/no-explicit-any */
         defaultValues: props.defaultValues as any,
     });

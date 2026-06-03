@@ -57,7 +57,8 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
                                 <SidebarMenuSub>
                                     {accounts.map((account) => {
                                         const active =
-                                            path === "/dashboard/reports" && activeAccount === String(account.id);
+                                            path.startsWith("/dashboard/reports") &&
+                                            activeAccount === String(account.id);
 
                                         return (
                                             <SidebarMenuSubItem key={account.id}>

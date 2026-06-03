@@ -1,15 +1,16 @@
 import { authorize } from "@/actions/auth/authorize";
-import { AccountReport } from "@/components/wrappers/account-report";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { prisma } from "@/lib/prisma";
-import { Inbox } from "lucide-react";
+import { Inbox, ScrollText } from "lucide-react";
 import type { Metadata } from "next";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
     title: "Reports | Repolio",
 };
 
+// The account-level URL is a resolver: it sends you to the account's latest report,
+// which is the single canonical view (live metrics + that report's AI write-up).
 export default async function DashboardReportsPage({ searchParams }: { searchParams: Promise<{ account?: string }> }) {
     const client = await authorize();
     const { account: accountParam } = await searchParams;
@@ -34,21 +35,33 @@ export default async function DashboardReportsPage({ searchParams }: { searchPar
 
     const account = await prisma.adAccount.findFirst({
         where: { id: accountId, connection: { client_id: client.id } },
-        select: { id: true, name: true, connection: { select: { platform: true } } },
+        select: { id: true, name: true },
     });
     if (!account) notFound();
 
-    const reports = await prisma.report.findMany({
+    const latest = await prisma.report.findFirst({
         where: { snapshots: { some: { ad_account_id: account.id } } },
         orderBy: { created_at: "desc" },
-        take: 12,
+        select: { id: true },
     });
 
-    return (
-        <AccountReport
-            account={{ id: account.id, name: account.name, platform: account.connection.platform }}
-            latest={reports[0] ?? null}
-            reports={reports.map((report) => ({ id: report.id, created_at: report.created_at }))}
-        />
-    );
+    if (!latest) {
+        return (
+            <Empty className="border border-dashed">
+                <EmptyHeader>
+                    <EmptyMedia variant="icon">
+                        <ScrollText />
+                    </EmptyMedia>
+
+                    <EmptyTitle>No reports yet</EmptyTitle>
+                    <EmptyDescription>
+                        {account.name ?? "This account"} doesn&apos;t have any reports yet. They&apos;re generated
+                        automatically — check back soon.
+                    </EmptyDescription>
+                </EmptyHeader>
+            </Empty>
+        );
+    }
+
+    redirect(`/dashboard/reports/${latest.id}?account=${account.id}`);
 }

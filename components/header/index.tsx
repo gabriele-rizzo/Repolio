@@ -1,7 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { Fragment, useMemo } from "react";
 import {
     Breadcrumb,
@@ -23,6 +23,9 @@ interface DashboardHeaderProps extends React.PropsWithChildren {
 export function DashboardHeader({ children, className }: DashboardHeaderProps) {
     const path = usePathname();
     const overrides = useBreadcrumbOverrides();
+    // The reports index is just a resolver that needs an account; keep the param so the
+    // "Reports" crumb routes back to this account's latest report instead of the picker.
+    const account = useSearchParams().get("account");
 
     const secondaries = useMemo(() => {
         const segments = path === "/dashboard" ? ["dashboard", "overview"] : path.split("/").filter(Boolean);
@@ -41,7 +44,14 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
                         {index === segments.length - 1 ? (
                             <BreadcrumbPage className="capitalize">{content}</BreadcrumbPage>
                         ) : (
-                            <BreadcrumbLink href={`/${path}`} className="capitalize">
+                            <BreadcrumbLink
+                                href={
+                                    path === "dashboard/reports" && account
+                                        ? `/${path}?account=${account}`
+                                        : `/${path}`
+                                }
+                                className="capitalize"
+                            >
                                 {content}
                             </BreadcrumbLink>
                         )}
@@ -49,7 +59,7 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
                 </Fragment>
             );
         });
-    }, [path, overrides]);
+    }, [path, overrides, account]);
 
     return (
         <div className={cn("h-12 w-full bg-background flex flex-row items-center gap-4 justify-between", className)}>

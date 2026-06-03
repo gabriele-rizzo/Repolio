@@ -117,7 +117,7 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
                                 type: "REPORT_READY",
                                 title: `New report for ${account.name ?? "an ad account"}`,
                                 body: "Your latest performance report is ready to view.",
-                                link: `/dashboard/reports/${report.id}`,
+                                link: `/dashboard/reports/${report.id}?account=${adAccountId}`,
                             },
                         });
                     } catch (error) {
