@@ -61,6 +61,17 @@ const classify = (objective: string): CampaignType => {
     return "unknown";
 };
 
+function dominantObjective(rows: MetaInsightsRow[]): string {
+    const counts = new Map<string, number>();
+
+    for (const row of rows) {
+        const obj = row.objective ?? "unknown";
+        counts.set(obj, (counts.get(obj) ?? 0) + 1);
+    }
+
+    return [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? "unknown";
+}
+
 /**
  * Aggregates Meta snapshot data into account-level KPIs and a performance score.
  * Computed live from whatever snapshots fall in the requested window — no longer
@@ -103,7 +114,7 @@ export function computeMetaMetrics(snapshots: Snapshot[]): ComputedMetrics | nul
     const cpc = clicks > 0 ? spend / clicks : null;
     const roas = revenueOut != null && spend > 0 ? revenueOut / spend : null;
 
-    const type = classify(rows[0].objective ?? "");
+    const type = classify(dominantObjective(rows));
 
     let performance_score: number;
     if (type === "performance") {

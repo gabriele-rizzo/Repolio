@@ -6,8 +6,7 @@ import { cookies } from "next/headers";
 
 export async function verifyAdmin(code: string) {
     const verified = await verifyOTP(code);
-
-    if (!verified) return;
+    if (!verified) throw new Error("Invalid OTP verification code");
 
     const store = await cookies();
     const token = createSessionToken();

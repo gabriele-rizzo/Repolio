@@ -30,7 +30,7 @@ export function settle<T, E>(name: string, data: Result<T, E>[]): Result<T[], st
         failures.forEach((e) => console.error(`There was an error during '${name}': ${e}`));
 
         if (successes.length === 0) {
-            return err(`No successfull outcome from '${name}' and there were errors (check logs).`);
+            return err(`No successful outcome from '${name}' and there were errors (check logs).`);
         }
     }
 

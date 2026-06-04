@@ -34,7 +34,6 @@ export async function GET(request: NextRequest) {
     }
 
     const client = await authorize();
-    if (!client) return NextResponse.redirect(siteUrl("/auth/login"));
 
     let access_token: string;
     let expires_at: Date | undefined;

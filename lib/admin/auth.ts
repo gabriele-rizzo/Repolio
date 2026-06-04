@@ -6,12 +6,18 @@ import { checkEnv } from "../env";
 export const ADMIN_COOKIE_NAME = "admin_session";
 export const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 hours
 
-const authenticator = new TOTP({
-    account: "admin",
-    issuer: "Repolio",
-    secret: Secret.fromBase32(checkEnv("TOTP_SECRET")),
-    digits: 6,
-});
+let _authenticator: TOTP | undefined;
+
+function getAuthenticator(): TOTP {
+    if (_authenticator) return _authenticator;
+
+    return (_authenticator ??= new TOTP({
+        account: "admin",
+        issuer: "Repolio",
+        secret: Secret.fromBase32(checkEnv("TOTP_SECRET")),
+        digits: 6,
+    }));
+}
 
 function sign(payload: string) {
     const secret = checkEnv("SESSION_SECRET");
@@ -48,5 +54,5 @@ export async function isAdminAuthenticated() {
 }
 
 export async function verifyOTP(code: string): Promise<boolean> {
-    return await authenticator.verify(code);
+    return await getAuthenticator().verify(code);
 }

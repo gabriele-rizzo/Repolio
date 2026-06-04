@@ -6,7 +6,7 @@ import { computeMetaMetrics, type ComputedMetrics } from "@/lib/metrics/meta";
 import { prisma } from "@/lib/prisma";
 import type Anthropic from "@anthropic-ai/sdk";
 
-const MODEL = "claude-opus-4-8";
+const MODEL = "claude-sonnet-4-6";
 // How many prior reports for the same ad account to feed in as trend context.
 const HISTORY_DEPTH = 3;
 
@@ -221,7 +221,7 @@ export async function generateReportContent(reportId: number): Promise<void> {
     });
 
     const message = await getAnthropic().messages.create({
-        model: "claude-sonnet-4-6",
+        model: MODEL,
         max_tokens: 8192,
         thinking: { type: "adaptive" },
         // Stable prefix → cached across the many reports generated in one poll run.

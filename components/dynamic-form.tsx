@@ -64,6 +64,14 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
         setError(null);
     }, [form, setError, loading]);
 
+    const onError = useCallback(
+        (error: Error) => {
+            reset();
+            setError(error);
+        },
+        [setError, reset],
+    );
+
     const onSubmit = form.handleSubmit(async (data) => {
         if (loading) return;
 
@@ -71,7 +79,7 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
 
         await Promise.resolve(props.action(data))
             .then(() => props.onSuccess?.())
-            .catch((error) => setError(error))
+            .catch(onError)
             .finally(() => setLoading(false));
     });
 
