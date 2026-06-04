@@ -1,4 +1,5 @@
 import type { Report } from "@/generated/prisma/browser";
+import { currencyFormatter } from "@/lib/format/currency";
 import type { ComputedMetrics } from "@/lib/metrics/meta";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
@@ -17,13 +18,15 @@ interface ReportWrapperProps {
     loading?: boolean;
 }
 
-const currency = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-const formatCurrency = (value: number) => currency.format(value);
 const formatCompact = (value: number) => compact.format(value);
 
 export function ReportWrapper({ report, current, previous, loading }: ReportWrapperProps) {
     const recommendations = (report?.recommendations ?? []) as unknown as Recommendation[];
+
+    // Currency comes from the account's metrics; fall back to EUR while metrics are still loading.
+    const currencyCode = current?.currency ?? previous?.currency ?? "EUR";
+    const formatCurrency = (value: number) => currencyFormatter(currencyCode).format(value);
 
     return (
         <div className="space-y-8">

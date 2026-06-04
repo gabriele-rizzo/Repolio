@@ -2,6 +2,7 @@
 
 import type { Platform, Report } from "@/generated/prisma/browser";
 import type { WindowMetrics } from "@/lib/metrics/window";
+import type { ReportRef } from "@/lib/report/reports-page";
 import { Brain } from "lucide-react";
 import { useState } from "react";
 import useSWR from "swr";
@@ -20,8 +21,10 @@ interface ReportViewProps {
     report: Report;
     /** The account this report belongs to. Null only for legacy reports with no resolvable account. */
     account: { id: number; name: string | null; platform: Platform } | null;
-    /** The account's reports, newest first, for the switcher. */
-    reports: { id: number; created_at: Date }[];
+    /** The first page of the account's reports, newest first, seeding the switcher. */
+    reports: ReportRef[];
+    /** Whether more reports exist beyond the seeded page (drives the switcher's "Load more"). */
+    hasMore: boolean;
     /** Start of the window (defaults to the period this report covers). */
     from: Date;
     /** End of the window (defaults to the period this report covers). */
@@ -39,7 +42,15 @@ const fetchMetrics = async ([path, account, from, to]: readonly [string, number,
     return data;
 };
 
-export function ReportView({ report, account, reports, from: initialFrom, to: initialTo, initial }: ReportViewProps) {
+export function ReportView({
+    report,
+    account,
+    reports,
+    hasMore,
+    from: initialFrom,
+    to: initialTo,
+    initial,
+}: ReportViewProps) {
     const [to, setTo] = useState<Date>(initialTo);
     const [from, setFrom] = useState<Date>(initialFrom);
 
@@ -74,7 +85,13 @@ export function ReportView({ report, account, reports, from: initialFrom, to: in
                     )}
 
                     {account && reports.length > 0 && (
-                        <ReportSwitcher reports={reports} currentId={report.id} accountId={account.id} />
+                        <ReportSwitcher
+                            reports={reports}
+                            currentId={report.id}
+                            currentCreatedAt={report.created_at}
+                            accountId={account.id}
+                            hasMore={hasMore}
+                        />
                     )}
 
                     <Tooltip>

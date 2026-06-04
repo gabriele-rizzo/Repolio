@@ -8,6 +8,7 @@ import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { dateFormatRelative } from "@/lib/date/format-relative";
+import { currencyFormatter } from "@/lib/format/currency";
 import { computeMetaMetrics } from "@/lib/metrics/meta";
 import { prisma } from "@/lib/prisma";
 import { Link2Off } from "lucide-react";
@@ -18,7 +19,6 @@ export const metadata: Metadata = {
     title: "Home | Repolio",
 };
 
-const currency = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 0 });
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -149,7 +149,10 @@ export default async function DashboardPage({
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 border-t pt-3">
-                                        <Stat label="Spend" value={currency.format(metrics.spend)} />
+                                        <Stat
+                                            label="Spend"
+                                            value={currencyFormatter(metrics.currency, 0).format(metrics.spend)}
+                                        />
                                         <Stat
                                             label="ROAS"
                                             value={metrics.roas != null ? `${metrics.roas.toFixed(2)}x` : "—"}

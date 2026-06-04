@@ -111,6 +111,7 @@ function periodLine(report: ReportWithSnapshots): string {
 function formatMetrics(m: ComputedMetrics | null): string {
     if (!m) return "No metrics available for this period.";
     return [
+        `- Currency: ${m.currency}`,
         `- Spend: ${fmtNum(m.spend)}`,
         `- Revenue: ${fmtNum(m.revenue)}`,
         `- ROAS: ${fmtNum(m.roas)}`,

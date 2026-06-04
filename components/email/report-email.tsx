@@ -1,5 +1,6 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
 import type { Recommendation } from "@/components/report/recommendation-card";
+import { currencyFormatter } from "@/lib/format/currency";
 import type { ComputedMetrics } from "@/lib/metrics/meta";
 
 /**
@@ -21,16 +22,18 @@ export interface ReportEmailProps {
     viewUrl: string | null;
 }
 
-const currency = new Intl.NumberFormat("de-DE", { style: "currency", currency: "EUR", maximumFractionDigits: 2 });
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 type MetricKey = "spend" | "roas" | "cpa" | "conversions" | "ctr" | "reach";
 type BetterWhen = "up" | "down" | "neutral";
 
-const METRICS: { key: MetricKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] = [
-    { key: "spend", label: "Spend", format: (v) => currency.format(v), betterWhen: "neutral" },
+// Built per-render so the spend/CPA columns format in the account's own currency.
+const metricDefs = (
+    money: Intl.NumberFormat,
+): { key: MetricKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] => [
+    { key: "spend", label: "Spend", format: (v) => money.format(v), betterWhen: "neutral" },
     { key: "roas", label: "ROAS", format: (v) => `${v.toFixed(2)}x`, betterWhen: "up" },
-    { key: "cpa", label: "CPA", format: (v) => currency.format(v), betterWhen: "down" },
+    { key: "cpa", label: "CPA", format: (v) => money.format(v), betterWhen: "down" },
     { key: "conversions", label: "Conversions", format: (v) => v.toLocaleString("en-US"), betterWhen: "up" },
     { key: "ctr", label: "CTR", format: (v) => `${v.toFixed(2)}%`, betterWhen: "up" },
     { key: "reach", label: "Reach", format: (v) => compact.format(v), betterWhen: "up" },
@@ -113,6 +116,7 @@ function delta(cur: number | null | undefined, prev: number | null | undefined, 
 
 export function ReportEmail(props: ReportEmailProps) {
     const { current, previous } = props;
+    const cols = metricDefs(currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"));
     const score = current?.performance_score;
     const labelStyle = current?.score_label ? SCORE_LABEL_STYLE[current.score_label] : null;
 
@@ -184,7 +188,7 @@ export function ReportEmail(props: ReportEmailProps) {
                             <tbody>
                                 {[0, 2, 4].map((row) => (
                                     <tr key={row}>
-                                        {[METRICS[row], METRICS[row + 1]].map((m) => {
+                                        {[cols[row], cols[row + 1]].map((m) => {
                                             const value = current?.[m.key];
                                             const d = delta(value, previous?.[m.key], m.betterWhen);
 

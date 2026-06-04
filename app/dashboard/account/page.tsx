@@ -4,10 +4,13 @@ import { ProfileAvatar } from "@/components/account/profile-avatar";
 import { ProfileName } from "@/components/account/profile-name";
 import { RecurrenceSettings } from "@/components/account/recurrence-settings";
 import { Typo } from "@/components/typography";
+import { Badge } from "@/components/ui/badge";
+import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { signAvatarUrl } from "@/lib/avatar";
 import { dateFormatRelative } from "@/lib/date/format-relative";
+import { expiryState } from "@/lib/meta/expiry";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 
@@ -80,6 +83,7 @@ export default async function AccountPage() {
                     {connections.map((connection) => {
                         const { label, icon: Icon } = PLATFORM_META[connection.platform];
                         const count = connection.ad_accounts.length;
+                        const state = expiryState(connection.expires_at);
 
                         return (
                             <Card key={connection.id} className="gap-0 p-0">
@@ -90,14 +94,50 @@ export default async function AccountPage() {
                                         </div>
 
                                         <div className="min-w-0">
-                                            <Typo as="large" className="text-base">
-                                                {label}
-                                            </Typo>
+                                            <div className="flex flex-row flex-wrap items-center gap-2">
+                                                <Typo as="large" className="text-base">
+                                                    {label}
+                                                </Typo>
+                                                {state === "expiring" && (
+                                                    <Badge
+                                                        variant="secondary"
+                                                        className="bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                                    >
+                                                        Expiring soon
+                                                    </Badge>
+                                                )}
+                                                {state === "expired" && <Badge variant="destructive">Expired</Badge>}
+                                            </div>
+
                                             <Typo as="muted" className="text-xs">
                                                 Connected {dateFormatRelative(connection.created_at)}
-                                                {connection.expires_at &&
-                                                    ` · Expires ${dateFormatRelative(connection.expires_at)}`}
+                                                {connection.expires_at && (
+                                                    <span
+                                                        className={
+                                                            state === "expired"
+                                                                ? "text-destructive"
+                                                                : state === "expiring"
+                                                                  ? "text-amber-600 dark:text-amber-400"
+                                                                  : undefined
+                                                        }
+                                                    >
+                                                        {` · ${state === "expired" ? "Expired" : "Expires"} ${dateFormatRelative(connection.expires_at)}`}
+                                                    </span>
+                                                )}
                                             </Typo>
+
+                                            {(state === "expiring" || state === "expired") && (
+                                                <a
+                                                    href="/api/meta/connect"
+                                                    className={buttonVariants({
+                                                        variant: "outline",
+                                                        size: "sm",
+                                                        className: "mt-2",
+                                                    })}
+                                                >
+                                                    Reconnect
+                                                </a>
+                                            )}
                                         </div>
                                     </div>
 

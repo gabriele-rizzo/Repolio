@@ -4,7 +4,7 @@ import { BreadcrumbLabel } from "@/components/header/context";
 import { ReportView } from "@/components/wrappers/report-view";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { metricsForWindow, type WindowMetrics } from "@/lib/metrics/window";
-import { prisma } from "@/lib/prisma";
+import { queryReportsPage, type ReportPage } from "@/lib/report/reports-page";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -22,17 +22,9 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
 
     // KPIs are computed live for the report's covered period (seeding the client window),
     // and we load the account's reports so the page can offer a switcher between them.
-    const [initial, reports] = account
-        ? await Promise.all([
-              metricsForWindow(account.id, from, to),
-              prisma.report.findMany({
-                  where: { snapshots: { some: { ad_account_id: account.id } } },
-                  orderBy: { created_at: "desc" },
-                  take: 12,
-                  select: { id: true, created_at: true },
-              }),
-          ])
-        : [{ current: null, previous: null } satisfies WindowMetrics, []];
+    const [initial, reportPage] = account
+        ? await Promise.all([metricsForWindow(account.id, from, to), queryReportsPage(account.id)])
+        : [{ current: null, previous: null } satisfies WindowMetrics, { items: [], hasMore: false } satisfies ReportPage];
 
     const period = `${dateFormatRelative(from)} - ${dateFormatRelative(to)}`;
 
@@ -48,7 +40,8 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
                 key={report.id}
                 report={report}
                 account={accountView}
-                reports={reports}
+                reports={reportPage.items}
+                hasMore={reportPage.hasMore}
                 from={from}
                 to={to}
                 initial={initial}

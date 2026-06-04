@@ -5,6 +5,7 @@ type MetaAction = { action_type: string; value: string };
 
 type MetaInsightsRow = {
     account_id: string;
+    account_currency?: string;
     objective?: string;
     date_start: string;
     date_stop: string;
@@ -22,6 +23,7 @@ type MetaSnapshotData = { data: MetaInsightsRow[] };
 type CampaignType = "performance" | "awareness" | "consideration" | "unknown";
 
 export interface ComputedMetrics {
+    currency: string;
     spend: number;
     revenue: number | null;
     impressions: number;
@@ -86,6 +88,9 @@ export function computeMetaMetrics(snapshots: Snapshot[]): ComputedMetrics | nul
 
     if (rows.length === 0) return null;
 
+    // Meta returns the account's currency per row; assume one currency per account.
+    const currency = rows.find((r) => r.account_currency)?.account_currency ?? "EUR";
+
     let spend = 0;
     let impressions = 0;
     let clicks = 0;
@@ -134,6 +139,7 @@ export function computeMetaMetrics(snapshots: Snapshot[]): ComputedMetrics | nul
               : ScoreLabel.NEEDS_IMPROVEMENT;
 
     return {
+        currency,
         spend,
         revenue: revenueOut,
         impressions,

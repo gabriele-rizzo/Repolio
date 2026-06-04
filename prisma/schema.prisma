@@ -43,6 +43,8 @@ model Notification {
 
 enum NotificationType {
     REPORT_READY
+    CONNECTION_EXPIRING
+    CONNECTION_EXPIRED
 }
 
 model Snapshot {
