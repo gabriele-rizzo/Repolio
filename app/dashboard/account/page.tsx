@@ -1,4 +1,5 @@
 import { authorize } from "@/actions/auth/authorize";
+import { ConnectButtons } from "@/components/account/connect-buttons";
 import { ConnectionDelete } from "@/components/account/connection-delete";
 import { ProfileAvatar } from "@/components/account/profile-avatar";
 import { ProfileName } from "@/components/account/profile-name";
@@ -10,9 +11,9 @@ import { Card } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { signAvatarUrl } from "@/lib/avatar";
 import { dateFormatRelative } from "@/lib/date/format-relative";
-import { expiryState } from "@/lib/meta/expiry";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
+import { ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
 
 export default async function AccountPage() {
     const client = await authorize();
@@ -33,6 +34,7 @@ export default async function AccountPage() {
 
     const managedAccounts = connections.reduce((sum, connection) => sum + connection.ad_accounts.length, 0);
     const ndays = recurrence?.ndays ?? 30;
+    const connectedPlatforms = connections.map((connection) => connection.platform);
 
     return (
         <div className="space-y-4">
@@ -83,7 +85,8 @@ export default async function AccountPage() {
                     {connections.map((connection) => {
                         const { label, icon: Icon } = PLATFORM_META[connection.platform];
                         const count = connection.ad_accounts.length;
-                        const state = expiryState(connection.expires_at);
+                        const disconnected = connection.status === "DISCONNECTED";
+                        const slug = ZERNIO_PLATFORMS[connection.platform]?.slug;
 
                         return (
                             <Card key={connection.id} className="gap-0 p-0">
@@ -98,37 +101,25 @@ export default async function AccountPage() {
                                                 <Typo as="large" className="text-base">
                                                     {label}
                                                 </Typo>
-                                                {state === "expiring" && (
+                                                {disconnected ? (
+                                                    <Badge variant="destructive">Disconnected</Badge>
+                                                ) : (
                                                     <Badge
                                                         variant="secondary"
-                                                        className="bg-amber-500/15 text-amber-700 dark:text-amber-400"
+                                                        className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                                                     >
-                                                        Expiring soon
+                                                        Connected
                                                     </Badge>
                                                 )}
-                                                {state === "expired" && <Badge variant="destructive">Expired</Badge>}
                                             </div>
 
                                             <Typo as="muted" className="text-xs">
                                                 Connected {dateFormatRelative(connection.created_at)}
-                                                {connection.expires_at && (
-                                                    <span
-                                                        className={
-                                                            state === "expired"
-                                                                ? "text-destructive"
-                                                                : state === "expiring"
-                                                                  ? "text-amber-600 dark:text-amber-400"
-                                                                  : undefined
-                                                        }
-                                                    >
-                                                        {` · ${state === "expired" ? "Expired" : "Expires"} ${dateFormatRelative(connection.expires_at)}`}
-                                                    </span>
-                                                )}
                                             </Typo>
 
-                                            {(state === "expiring" || state === "expired") && (
+                                            {disconnected && slug && (
                                                 <a
-                                                    href="/api/meta/connect"
+                                                    href={`/api/connect/${slug}`}
                                                     className={buttonVariants({
                                                         variant: "outline",
                                                         size: "sm",
@@ -174,6 +165,8 @@ export default async function AccountPage() {
                             </Card>
                         );
                     })}
+
+                    <ConnectButtons exclude={connectedPlatforms} />
                 </div>
             </div>
         </div>

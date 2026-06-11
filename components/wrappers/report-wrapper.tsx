@@ -1,6 +1,6 @@
 import type { Report } from "@/generated/prisma/browser";
 import { currencyFormatter } from "@/lib/format/currency";
-import type { ComputedMetrics } from "@/lib/metrics/meta";
+import type { ComputedMetrics } from "@/lib/metrics/compute";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
 import { ReportContextEditor } from "../report/context-editor";

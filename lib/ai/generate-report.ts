@@ -2,7 +2,7 @@ import type { Recommendation } from "@/components/report/recommendation-card";
 import type { Report, Snapshot } from "@/generated/prisma/browser";
 import type { Prisma } from "@/generated/prisma/client";
 import { getAnthropic } from "@/lib/ai/anthropic";
-import { computeMetaMetrics, type ComputedMetrics } from "@/lib/metrics/meta";
+import { computeMetrics, type ComputedMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import type Anthropic from "@anthropic-ai/sdk";
 
@@ -54,10 +54,10 @@ const REPORT_SCHEMA = {
     required: ["executive_summary", "trend_explanation", "recommendations"],
 };
 
-const SYSTEM_PROMPT = `You are a senior performance-marketing analyst at a Meta (Facebook/Instagram) ads agency. You write the AI-generated section of a client's recurring performance report for a single ad account.
+const SYSTEM_PROMPT = `You are a senior performance-marketing analyst at a digital ads agency. You write the AI-generated section of a client's recurring performance report for a single ad account.
 
 You are given:
-- METRICS FOR THE CURRENT PERIOD: KPIs aggregated from the account's Meta Insights data.
+- METRICS FOR THE CURRENT PERIOD: KPIs aggregated from the account's ad platform data.
 - The LAST UP TO 3 REPORTS for the same account (most recent first): each with its period, its KPIs, and the narrative + recommendations written at the time.
 - Optionally, CLIENT TARGETS (target CPA / target ROAS) and a CONTEXT NOTE from the account manager.
 
@@ -138,7 +138,7 @@ function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapsho
     const parts: string[] = [
         "# CURRENT PERIOD",
         periodLine(current),
-        formatMetrics(computeMetaMetrics(current.snapshots)),
+        formatMetrics(computeMetrics(current.snapshots)),
     ];
 
     const targets: string[] = [];
@@ -157,7 +157,7 @@ function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapsho
             const block = [
                 `## Report ${i + 1} — ${dateOnly(r.created_at)}`,
                 periodLine(r),
-                formatMetrics(computeMetaMetrics(r.snapshots)),
+                formatMetrics(computeMetrics(r.snapshots)),
                 r.executive_summary ? `Executive summary at the time:\n${r.executive_summary}` : null,
                 r.trend_explanation ? `Trend explanation at the time:\n${r.trend_explanation}` : null,
                 formatPriorRecommendations(r.recommendations),

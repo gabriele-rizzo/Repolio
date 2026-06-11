@@ -4,12 +4,14 @@ import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 
-// Friendly copy for the error codes the Meta callback can redirect with.
+// Friendly copy for the error codes the connect callback can redirect with.
 const ERROR_MESSAGES: Record<string, string> = {
     invalid_state: "Connection failed: the request expired or was invalid. Please try again.",
     no_ad_accounts: "No ad accounts were found on that account.",
     access_denied: "Connection cancelled.",
-    connection_failed: "We couldn't connect to Meta. Please try again.",
+    connection_failed: "We couldn't complete the connection. Please try again.",
+    plan_limit: "Connection limit reached. Please contact support to add more accounts.",
+    unsupported_platform: "That platform isn't available to connect yet.",
 };
 
 interface ConnectionStatusToastProps {

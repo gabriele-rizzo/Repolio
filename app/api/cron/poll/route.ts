@@ -2,7 +2,7 @@ import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
 import type { Client, Snapshot } from "@/generated/prisma/browser";
 import { generateReportContent } from "@/lib/ai/generate-report";
 import { isAuthorizedCron } from "@/lib/cron-auth";
-import { startOfDay } from "@/lib/date/start-of-day";
+import { startOfUtcDay } from "@/lib/date/start-of-day";
 import { renderReportEmail } from "@/lib/email/render-report";
 import { prisma } from "@/lib/prisma";
 import { createAdminClient } from "@/lib/supabase/admin/server";
@@ -33,12 +33,12 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
     // Self-heal: ensure every due client has today's snapshots. The daily snapshot cron normally
     // handles this; if it missed or failed for a client, collect now so the report isn't stale.
     // collectSnapshots is idempotent (skipDuplicates), so a redundant call here is harmless.
-    const today = startOfDay(new Date());
+    const today = startOfUtcDay(new Date());
     await Promise.all(
         dueClients.map((c) =>
             limit(async () => {
                 const fresh = await prisma.snapshot.findFirst({
-                    where: { ad_account: { connection: { client_id: c.id } }, created_at: { gte: today } },
+                    where: { ad_account: { connection: { client_id: c.id } }, start_date: { gte: today } },
                     select: { id: true },
                 });
                 if (fresh) return;
@@ -63,11 +63,14 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
                         select: { created_at: true },
                     });
 
-                    const since = startOfDay(new Date(last?.created_at ?? c.created_at));
+                    // Group the report's period by snapshot start_date (the metric day), not
+                    // created_at: daily rows are upserted and re-fetched, so created_at no longer
+                    // tracks the period. start_date matches how getReport derives the window.
+                    const since = startOfUtcDay(new Date(last?.created_at ?? c.created_at));
                     return prisma.snapshot.findMany({
                         where: {
                             ad_account: { connection: { client_id: c.id } },
-                            created_at: { gt: since.toISOString() },
+                            start_date: { gt: since },
                         },
                     });
                 }),

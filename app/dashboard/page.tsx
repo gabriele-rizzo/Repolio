@@ -1,15 +1,15 @@
 import { authorize } from "@/actions/auth/authorize";
+import { ConnectButtons } from "@/components/account/connect-buttons";
 import { ConnectionStatusToast } from "@/components/account/connection-status-toast";
 import { PlatformBadge } from "@/components/platform-badge";
 import { SCORE_COLORS } from "@/components/report/score-badge";
 import { Typo } from "@/components/typography";
 import { Badge } from "@/components/ui/badge";
-import { buttonVariants } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { currencyFormatter } from "@/lib/format/currency";
-import { computeMetaMetrics } from "@/lib/metrics/meta";
+import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import { Link2Off } from "lucide-react";
 import type { Metadata } from "next";
@@ -69,9 +69,7 @@ export default async function DashboardPage({
                     </EmptyHeader>
 
                     <EmptyContent>
-                        <a href="/api/meta/connect" className={buttonVariants()}>
-                            Connect Facebook
-                        </a>
+                        <ConnectButtons />
                     </EmptyContent>
                 </Empty>
             </>
@@ -93,7 +91,7 @@ export default async function DashboardPage({
                 }),
             ]);
 
-            return { account, metrics: computeMetaMetrics(snapshots), lastReportAt: lastReport?.created_at ?? null };
+            return { account, metrics: computeMetrics(snapshots), lastReportAt: lastReport?.created_at ?? null };
         }),
     );
 

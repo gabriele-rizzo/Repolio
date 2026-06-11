@@ -1,5 +1,5 @@
 import { authorize } from "@/actions/auth/authorize";
-import { buttonVariants } from "@/components/ui/button";
+import { ConnectButtons } from "@/components/account/connect-buttons";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { prisma } from "@/lib/prisma";
 import { Construction, Link2Off } from "lucide-react";
@@ -26,9 +26,7 @@ export default async function WorkInProgressPage() {
                 </EmptyHeader>
 
                 <EmptyContent>
-                    <a href="/api/meta/connect" className={buttonVariants()}>
-                        Connect Facebook
-                    </a>
+                    <ConnectButtons />
                 </EmptyContent>
             </Empty>
         );

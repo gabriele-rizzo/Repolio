@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { computeMetaMetrics, type ComputedMetrics } from "./meta";
+import { computeMetrics, type ComputedMetrics } from "./compute";
 
 export interface WindowMetrics {
     current: ComputedMetrics | null;
@@ -20,7 +20,7 @@ export async function metricsForWindow(adAccountId: number, from: Date, to: Date
     ]);
 
     return {
-        current: computeMetaMetrics(current),
-        previous: computeMetaMetrics(previous),
+        current: computeMetrics(current),
+        previous: computeMetrics(previous),
     };
 }

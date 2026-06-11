@@ -19,6 +19,9 @@ model Client {
     active     Boolean  @default(true)
     created_at DateTime @default(now())
 
+    // Zernio Profile that owns this client's ad connections. Lazily created on first connect.
+    zernio_profile_id String? @unique
+
     recurrence    Recurrence?
     connections   PlatformConnection[]
     notifications Notification[]
@@ -95,17 +98,22 @@ model Recurrence {
 }
 
 // OAuth credential for a platform. One per (client, platform); a single
-// connection can expose many ad accounts.
+// connection can expose many ad accounts. Zernio holds the OAuth tokens — we only
+// keep references to the Zernio SocialAccount.
 model PlatformConnection {
     id Int @id @default(autoincrement())
 
     client_id Int
     client    Client @relation(fields: [client_id], references: [id])
 
-    platform         Platform
-    access_token     String
-    expires_at       DateTime?
-    external_user_id String? // platform user id, used to honor deauth/deletion callbacks
+    platform Platform
+
+    // Zernio references. zernio_account_id is the ads SocialAccount (e.g. metaads);
+    // zernio_posting_account_id is the parent posting account (same-token platforms),
+    // kept so reconnect / ad-account re-scoping can target it.
+    zernio_account_id         String?
+    zernio_posting_account_id String?
+    status                    ConnectionStatus @default(CONNECTED)
 
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
@@ -124,6 +132,8 @@ model AdAccount {
 
     external_id String
     name        String?
+    currency    String?
+    timezone    String?
     active      Boolean @default(true)
 
     created_at DateTime @default(now())
@@ -136,4 +146,14 @@ model AdAccount {
 
 enum Platform {
     META
+    GOOGLE
+    TIKTOK
+    LINKEDIN
+    PINTEREST
+    X
+}
+
+enum ConnectionStatus {
+    CONNECTED
+    DISCONNECTED
 }

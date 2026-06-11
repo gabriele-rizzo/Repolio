@@ -1,12 +1,12 @@
 "use server";
 
-import { type Client, type PlatformConnection, type Snapshot } from "@/generated/prisma/browser";
+import type { Client, PlatformConnection, Snapshot } from "@/generated/prisma/browser";
+import { DAY_MS, REFRESH_THRESHOLD_DAYS } from "@/lib/constants";
 import { renderConnectionExpiredEmail } from "@/lib/email/render-connection-expired";
-import { DAY_MS, REFRESH_THRESHOLD_DAYS } from "@/lib/meta/expiry";
-import { refreshConnectionIfNeeded } from "@/lib/meta/refresh";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { err, ok, sink } from "@/lib/try-catch";
+import { listAccounts } from "@/lib/zernio/accounts";
 import { fetchSnapshot } from "./fetch-snapshot";
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
@@ -15,65 +15,107 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
         include: { connection: true },
     });
 
-    // Refresh tokens nearing expiry. Many ad accounts can share one connection, so dedupe by
-    // connection id and refresh each at most once. A failed refresh (e.g. the token is already
-    // dead) doesn't abort collection — it pauses that connection below and notifies the client.
-    const connections = new Map(adAccounts.map((a) => [a.connection.id, a.connection]));
-    let refreshed = false;
-    await Promise.all(
-        [...connections.values()].map(async (connection) => {
-            try {
-                // refreshConnectionIfNeeded returns the same object when it no-ops, a new one when it updates.
-                const updated = await refreshConnectionIfNeeded(connection);
-                if (updated !== connection) refreshed = true;
-            } catch (error) {
-                console.error(`Token refresh failed for connection ${connection.id}:`, error);
-                // Never let notification delivery fail the snapshot run.
-                try {
-                    await notifyConnectionExpired(client, connection);
-                } catch (notifyError) {
-                    console.error(`Failed to notify client ${client.id} of expired connection:`, notifyError);
-                }
-            }
-        }),
+    // Sync connection health from Zernio (replaces token-expiry tracking). Disconnected grants are
+    // flipped to DISCONNECTED and the client is asked to reconnect; recovered ones flip back. A
+    // health-check failure must never abort collection.
+    let disconnectedIds = new Set<number>();
+    if (client.zernio_profile_id) {
+        try {
+            disconnectedIds = await syncConnectionHealth(
+                client,
+                adAccounts.map((a) => a.connection),
+            );
+        } catch (error) {
+            console.error(`Connection health check failed for client ${client.id}:`, error);
+        }
+    }
+
+    // Pull only for healthy, Zernio-backed connections.
+    const usable = adAccounts.filter(
+        (a) => a.connection.zernio_account_id != null && !disconnectedIds.has(a.connection.id),
     );
 
-    // Only re-read when a refresh actually changed something, so the expiry filter (and the
-    // real-API token use) see current values. Most runs refresh nothing and reuse the loaded rows.
-    const accounts = refreshed
-        ? await prisma.adAccount.findMany({
-              where: { active: true, connection: { client_id: client.id } },
-              include: { connection: true },
-          })
-        : adAccounts;
-
-    const now = new Date();
-    const usable = accounts.filter((a) => (a.connection.expires_at ? new Date(a.connection.expires_at) > now : true));
     const results = await Promise.all(usable.map((a) => fetchSnapshot(a)));
-    const [data, errors] = sink(results);
+    const [batches, errors] = sink(results);
 
     if (errors.length > 0) {
         errors.forEach((e) => console.error(`Snapshot fetch failed: ${e}`));
 
-        if (data.length === 0) {
+        if (batches.length === 0) {
             return err(`No successful snapshot fetch for client '${client.id}', but there were errors (check logs).`);
         }
     }
 
+    const inputs = batches.flat();
+    if (inputs.length === 0) return ok([]);
+
+    // Per-day upsert so re-fetched trailing days overwrite (createMany/skipDuplicates can't update
+    // an existing day). Keyed on the @@unique([start_date, ad_account_id]).
     try {
-        const snapshots = await prisma.snapshot.createManyAndReturn({ data, skipDuplicates: true });
+        const snapshots = await prisma.$transaction(
+            inputs.map((input) =>
+                prisma.snapshot.upsert({
+                    where: {
+                        start_date_ad_account_id: {
+                            start_date: input.start_date,
+                            ad_account_id: input.ad_account_id,
+                        },
+                    },
+                    create: input,
+                    update: { data: input.data, platform: input.platform },
+                }),
+            ),
+        );
         return ok(snapshots);
     } catch {
-        return err(`Failed to insert snapshots for client '${client.id}'`);
+        return err(`Failed to upsert snapshots for client '${client.id}'`);
     }
 }
 
 /**
- * In-app + email notice that a connection's token couldn't be refreshed and the client needs to
- * reconnect. Rate-limited to once per REFRESH_THRESHOLD_DAYS per client so a persistently-dead
- * connection doesn't email them every day. (A client holds at most one connection per platform
- * today, so this is effectively per-connection; revisit the dedupe key if that changes.) Delivery
- * failures are logged, never thrown — they must not fail snapshot collection.
+ * Reconciles each connection's status against Zernio's view. Returns the set of connection ids that
+ * are currently disconnected (so the caller can skip pulling them). Flips PlatformConnection.status
+ * in the DB and notifies the client once per disconnected connection.
+ */
+async function syncConnectionHealth(client: Client, connections: PlatformConnection[]): Promise<Set<number>> {
+    const profileId = client.zernio_profile_id;
+    const disconnectedConnectionIds = new Set<number>();
+    if (!profileId) return disconnectedConnectionIds;
+
+    const disconnected = await listAccounts(profileId, "disconnected");
+    const disconnectedZernioIds = new Set(disconnected.map((a) => a._id));
+
+    // Many ad accounts can share one connection — dedupe so we update/notify each once.
+    const byId = new Map(connections.map((c) => [c.id, c]));
+
+    for (const connection of byId.values()) {
+        const isDisconnected =
+            connection.zernio_account_id != null && disconnectedZernioIds.has(connection.zernio_account_id);
+        const nextStatus = isDisconnected ? "DISCONNECTED" : "CONNECTED";
+
+        if (connection.status !== nextStatus) {
+            await prisma.platformConnection.update({ where: { id: connection.id }, data: { status: nextStatus } });
+        }
+
+        if (isDisconnected) {
+            disconnectedConnectionIds.add(connection.id);
+            try {
+                await notifyConnectionExpired(client, connection);
+            } catch (error) {
+                console.error(`Failed to notify client ${client.id} of disconnected connection:`, error);
+            }
+        }
+    }
+
+    return disconnectedConnectionIds;
+}
+
+/**
+ * In-app + email notice that a connection is disconnected and the client needs to reconnect.
+ * Rate-limited to once per REFRESH_THRESHOLD_DAYS per client so a persistently-dead connection
+ * doesn't email them every day. (A client holds at most one connection per platform today, so this
+ * is effectively per-connection; revisit the dedupe key if that changes.) Delivery failures are
+ * logged, never thrown — they must not fail snapshot collection.
  */
 async function notifyConnectionExpired(client: Client, connection: PlatformConnection): Promise<void> {
     const since = new Date(Date.now() - REFRESH_THRESHOLD_DAYS * DAY_MS);
@@ -92,7 +134,7 @@ async function notifyConnectionExpired(client: Client, connection: PlatformConne
                 client_id: client.id,
                 type: "CONNECTION_EXPIRED",
                 title: `Reconnect your ${platformLabel} account`,
-                body: `We couldn't refresh your ${platformLabel} connection, so new report data has paused. Reconnect to resume.`,
+                body: `Your ${platformLabel} connection was lost, so new report data has paused. Reconnect to resume.`,
                 link,
             },
         });

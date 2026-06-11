@@ -1,7 +1,7 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
 import type { Recommendation } from "@/components/report/recommendation-card";
 import { currencyFormatter } from "@/lib/format/currency";
-import type { ComputedMetrics } from "@/lib/metrics/meta";
+import type { ComputedMetrics } from "@/lib/metrics/compute";
 
 /**
  * Email-safe rendering of a report. Standalone from the dashboard UI on purpose: email clients

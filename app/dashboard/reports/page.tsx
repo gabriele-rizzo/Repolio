@@ -55,8 +55,8 @@ export default async function DashboardReportsPage({ searchParams }: { searchPar
 
                     <EmptyTitle>No reports yet</EmptyTitle>
                     <EmptyDescription>
-                        {account.name ?? "This account"} doesn&apos;t have any reports yet. They&apos;re generated
-                        automatically — check back soon.
+                        {(account.name ?? "This account") + " "} doesn&apos;t have any reports yet. They&apos;re
+                        generated automatically — check back soon.
                     </EmptyDescription>
                 </EmptyHeader>
             </Empty>
