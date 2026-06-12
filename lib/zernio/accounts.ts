@@ -17,3 +17,11 @@ export async function listAccounts(
     });
     return accounts ?? [];
 }
+
+// DELETE /v1/accounts/{accountId} — disconnects and removes a connected SocialAccount (an ads or
+// posting grant) from its profile. Called when a client removes a connection so the grant is freed
+// in Zernio too: billing stops, and a later reconnect re-runs OAuth instead of short-circuiting on
+// the stale grant. The profile is left in place — empty profiles are free and reused on reconnect.
+export async function disconnectAccount(accountId: string): Promise<void> {
+    await zernioFetch(`/v1/accounts/${accountId}`, { method: "DELETE" });
+}
