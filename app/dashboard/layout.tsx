@@ -9,7 +9,6 @@ import { signAvatarUrl } from "@/lib/avatar";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
-import { redirect } from "next/navigation";
 
 export const metadata: Metadata = {
     title: "Dashboard | Repolio",
@@ -41,11 +40,6 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
         platform: connection.platform,
         accounts: connection.ad_accounts,
     }));
-
-    // WORK IN PROGRESS ONLY. TODO: remove
-    if (process.env.NODE_ENV === "production" && client.email !== "gabrielerizzo.pers@gmail.com") {
-        redirect("/wip");
-    }
 
     return (
         <SidebarProvider defaultOpen={open} className="overscroll-none">
