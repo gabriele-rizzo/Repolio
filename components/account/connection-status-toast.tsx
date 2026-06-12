@@ -27,7 +27,10 @@ export function ConnectionStatusToast({ connected, error }: ConnectionStatusToas
     const pathname = usePathname();
     const handled = useRef(false);
 
+    console.log("[ConnToast] render", { connected, error }); // TEMP debug — remove
+
     useEffect(() => {
+        console.log("[ConnToast] effect ran", { connected, error, handled: handled.current }); // TEMP debug — remove
         if (handled.current || (!connected && !error)) return;
         handled.current = true;
 

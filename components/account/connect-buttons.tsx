@@ -1,8 +1,8 @@
+import { buttonVariants } from "@/components/ui/button";
 import type { Platform } from "@/generated/prisma/browser";
 import { PLATFORM_META } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { CONNECTABLE_PLATFORMS } from "@/lib/zernio/platform-map";
-import { buttonVariants } from "@/components/ui/button";
 
 interface ConnectButtonsProps {
     /** Platforms already connected — omitted from the list. */
@@ -21,7 +21,7 @@ export function ConnectButtons({ exclude = [], className }: ConnectButtonsProps)
             {platforms.map(({ platform, slug }) => {
                 const { label, icon: Icon } = PLATFORM_META[platform];
                 return (
-                    <a key={platform} href={`/api/connect/${slug}`} className={buttonVariants({ variant: "outline" })}>
+                    <a key={platform} href={`/api/connect/${slug}`} className={buttonVariants()}>
                         <Icon />
                         Connect {label}
                     </a>
