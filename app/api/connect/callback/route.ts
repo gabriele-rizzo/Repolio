@@ -1,4 +1,4 @@
-import { authorize } from "@/actions/auth/authorize";
+import { getCurrentClient } from "@/actions/auth/authorize";
 import { checkEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
 import { listAccounts } from "@/lib/zernio/accounts";
@@ -20,7 +20,6 @@ const META_POSTING_PLATFORMS = ["facebook", "instagram"];
 // NOTE: accountId is NOT relied upon — Zernio omits it when reconnecting an already-connected
 // account or after hosted selection — so we resolve the account from the profile instead.
 export async function GET(request: NextRequest) {
-    const client = await authorize();
     const { searchParams } = new URL(request.url);
 
     const oauthError = searchParams.get("error");
@@ -39,10 +38,23 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
     }
 
-    // Ownership: the profile must belong to the signed-in client.
-    if (profileId !== client.zernio_profile_id) {
+    // Resolve the owning client from the profile id, NOT the Supabase session. We arrive here from an
+    // external OAuth redirect (Meta -> Zernio -> us), and the session cookie is not reliably readable
+    // on that hop. Gating on it (the previous `authorize()`) bounced the request to /auth/login, which
+    // then redirected to /dashboard — silently dropping the connection with no success/error param.
+    // zernio_profile_id is unique and server-minted: it is stored on exactly one client and is not
+    // user-guessable, so it authoritatively identifies whose connection to finish. When the session IS
+    // readable we still cross-check it (defense-in-depth) and refuse if a different user is signed in.
+    const client = await prisma.client.findUnique({ where: { zernio_profile_id: profileId } });
+    if (!client) {
+        console.error(`Connect callback: no client owns profile ${profileId}`);
+        return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
+    }
+
+    const sessionClient = await getCurrentClient();
+    if (sessionClient && sessionClient.id !== client.id) {
         console.error(
-            `Connect callback: profile mismatch for client ${client.id} (got ${profileId}, expected ${client.zernio_profile_id})`,
+            `Connect callback: session/profile mismatch (session client ${sessionClient.id}, profile owner ${client.id})`,
         );
         return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
     }

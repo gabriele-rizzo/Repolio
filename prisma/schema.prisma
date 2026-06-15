@@ -64,6 +64,12 @@ model Snapshot {
     report    Report? @relation(fields: [report_id], references: [id])
 
     @@unique([start_date, ad_account_id])
+    // Hot path: live metrics filter by ad_account_id over a date range (dashboard cards, report
+    // windows). The unique index above has start_date leading, so it can't serve that predicate;
+    // this one (ad_account_id leading) does. The second indexes the Report<->Snapshot join, whose
+    // FK column was otherwise unindexed.
+    @@index([ad_account_id, start_date])
+    @@index([report_id])
 }
 
 model Report {
