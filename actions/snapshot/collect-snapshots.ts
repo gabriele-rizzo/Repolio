@@ -64,22 +64,32 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
     if (inputs.length === 0) return ok([]);
 
     // Per-day upsert so re-fetched trailing days overwrite (createMany/skipDuplicates can't update
-    // an existing day). Keyed on the @@unique([start_date, ad_account_id]).
+    // an existing day). Keyed on the @@unique([start_date, ad_account_id]). Chunked into small
+    // batches: the first-ever backfill can be hundreds of days across several ad accounts, and one
+    // giant $transaction blows Prisma's 5s interactive-transaction cap (P2028). Each chunk is its
+    // own transaction — a failing chunk fails the run, but already-committed chunks persist and the
+    // rest re-fetch next run.
+    const CHUNK_SIZE = 50;
     try {
-        const snapshots = await prisma.$transaction(
-            inputs.map((input) =>
-                prisma.snapshot.upsert({
-                    where: {
-                        start_date_ad_account_id: {
-                            start_date: input.start_date,
-                            ad_account_id: input.ad_account_id,
+        const snapshots: Snapshot[] = [];
+        for (let i = 0; i < inputs.length; i += CHUNK_SIZE) {
+            const chunk = inputs.slice(i, i + CHUNK_SIZE);
+            const upserted = await prisma.$transaction(
+                chunk.map((input) =>
+                    prisma.snapshot.upsert({
+                        where: {
+                            start_date_ad_account_id: {
+                                start_date: input.start_date,
+                                ad_account_id: input.ad_account_id,
+                            },
                         },
-                    },
-                    create: input,
-                    update: { data: input.data, platform: input.platform },
-                }),
-            ),
-        );
+                        create: input,
+                        update: { data: input.data, platform: input.platform },
+                    }),
+                ),
+            );
+            snapshots.push(...upserted);
+        }
         return ok(snapshots);
     } catch {
         return err(`Failed to upsert snapshots for client '${client.id}'`);

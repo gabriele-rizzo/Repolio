@@ -32,28 +32,32 @@ async function listAdAccountsWithRetry(accountId: string) {
     return accounts;
 }
 
-/** Upserts Zernio ad accounts under a connection. No-op for an empty list. */
+/**
+ * Upserts Zernio ad accounts under a connection. No-op for an empty list.
+ *
+ * Deliberately NOT wrapped in a single `$transaction`: batching many upserts against a remote DB
+ * blows Prisma's 5s interactive-transaction cap (P2028) for connections with lots of ad accounts.
+ * The upserts are independent and idempotent, so we run them one at a time with no transaction —
+ * partial progress on a mid-list failure is fine (the rest backfill on the next snapshot run).
+ */
 export async function upsertAdAccounts(connectionId: number, accounts: ZernioAdAccount[]): Promise<void> {
-    if (accounts.length === 0) return;
-    await prisma.$transaction(
-        accounts.map((acc) =>
-            prisma.adAccount.upsert({
-                where: { connection_id_external_id: { connection_id: connectionId, external_id: acc.id } },
-                create: {
-                    connection_id: connectionId,
-                    external_id: acc.id,
-                    name: acc.name ?? null,
-                    currency: acc.currency ?? null,
-                    timezone: acc.timezoneName ?? null,
-                },
-                update: {
-                    name: acc.name ?? null,
-                    currency: acc.currency ?? null,
-                    timezone: acc.timezoneName ?? null,
-                },
-            }),
-        ),
-    );
+    for (const acc of accounts) {
+        await prisma.adAccount.upsert({
+            where: { connection_id_external_id: { connection_id: connectionId, external_id: acc.id } },
+            create: {
+                connection_id: connectionId,
+                external_id: acc.id,
+                name: acc.name ?? null,
+                currency: acc.currency ?? null,
+                timezone: acc.timezoneName ?? null,
+            },
+            update: {
+                name: acc.name ?? null,
+                currency: acc.currency ?? null,
+                timezone: acc.timezoneName ?? null,
+            },
+        });
+    }
 }
 
 /**
