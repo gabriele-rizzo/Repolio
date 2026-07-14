@@ -1,5 +1,6 @@
 "use client";
 
+import type { ActionResult } from "@/lib/action";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { LoaderCircle } from "lucide-react";
@@ -26,7 +27,7 @@ interface DynamicFormProps<S extends z.ZodRawShape> {
     description: string;
     schema: z.ZodObject<S>;
     onSuccess?: () => void;
-    action: (data: Data<S>) => void | Promise<void>;
+    action: (data: Data<S>) => ActionResult | Promise<ActionResult>;
     defaultValues: Data<S>;
     inputs: Record<keyof S, React.ComponentProps<typeof Input> & { label: string; inputType?: "default" | "otp" }>;
     submitLabel: string;
@@ -78,7 +79,12 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
         setLoading(true);
 
         await Promise.resolve(props.action(data))
-            .then(() => props.onSuccess?.())
+            .then((result) => {
+                // Actions return `{ error }` on failure so the real message survives Next.js's
+                // production redaction of thrown Server Action errors.
+                if (result?.error) onError(new Error(result.error));
+                else props.onSuccess?.();
+            })
             .catch(onError)
             .finally(() => setLoading(false));
     });

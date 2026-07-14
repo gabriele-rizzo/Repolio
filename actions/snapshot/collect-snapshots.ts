@@ -7,9 +7,23 @@ import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { err, ok, sink } from "@/lib/try-catch";
 import { listAccounts } from "@/lib/zernio/accounts";
+import { listAdAccounts } from "@/lib/zernio/ads";
+import { upsertAdAccounts } from "@/lib/zernio/finish-connection";
 import { fetchSnapshot } from "./fetch-snapshot";
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
+    // Backfill ad accounts from Zernio before pulling. Zernio's ad-account listing lags the grant,
+    // so a connection can be legitimately recorded with zero ad accounts (or gain new ones later);
+    // without this the snapshot pull below would never see them, since it only iterates ad accounts
+    // already in our DB. Best-effort — a failure here must not abort collection.
+    if (client.zernio_profile_id) {
+        try {
+            await refreshAdAccounts(client.id);
+        } catch (error) {
+            console.error(`Ad-account refresh failed for client ${client.id}:`, error);
+        }
+    }
+
     const adAccounts = await prisma.adAccount.findMany({
         where: { active: true, connection: { client_id: client.id } },
         include: { connection: true },
@@ -69,6 +83,29 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
         return ok(snapshots);
     } catch {
         return err(`Failed to upsert snapshots for client '${client.id}'`);
+    }
+}
+
+/**
+ * Re-lists ad accounts from Zernio for each Zernio-backed connection and upserts any new ones. This
+ * catches accounts that appeared after connect (Zernio's ad-account sync lags the grant) as well as
+ * accounts added later, without requiring a manual reconnect. Existing rows are left in place — this
+ * only adds/updates, it does not deactivate accounts that vanished from Zernio.
+ */
+async function refreshAdAccounts(clientId: number): Promise<void> {
+    const connections = await prisma.platformConnection.findMany({
+        where: { client_id: clientId, status: "CONNECTED", zernio_account_id: { not: null } },
+        select: { id: true, zernio_account_id: true },
+    });
+
+    for (const connection of connections) {
+        if (!connection.zernio_account_id) continue;
+        try {
+            const accounts = await listAdAccounts(connection.zernio_account_id);
+            await upsertAdAccounts(connection.id, accounts);
+        } catch (error) {
+            console.error(`Failed to refresh ad accounts for connection ${connection.id}:`, error);
+        }
     }
 }
 

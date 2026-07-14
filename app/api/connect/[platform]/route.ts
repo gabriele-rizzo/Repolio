@@ -5,6 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { disconnectAccount, listAccounts } from "@/lib/zernio/accounts";
 import { ZernioError } from "@/lib/zernio/client";
 import { startConnect } from "@/lib/zernio/connect";
+import { finishConnection } from "@/lib/zernio/finish-connection";
 import { PLATFORM_BY_CONNECTED_PARAM, PLATFORM_BY_SLUG, ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
 import { createProfile, deleteProfile } from "@/lib/zernio/profiles";
 import { NextResponse, type NextRequest } from "next/server";
@@ -38,30 +39,51 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
         const redirectUrl = siteUrl("/api/connect/callback").toString();
         let result = await startConnect(config, profileId, redirectUrl);
 
-        // A fresh connect should return an OAuth authUrl (for same-token Meta that URL is where
-        // Zernio hosts the account/Page selector). When it doesn't, Zernio is short-circuiting on a
-        // grant left on the profile by an earlier attempt that never got recorded here — the user
-        // abandoned OAuth, or a later step failed before the PlatformConnection row was written. If
-        // we let that stand, the stale grant is "reconnected" silently and the selector never shows
-        // ("returns to the dashboard, no account can be chosen"). So when we have NO recorded
-        // connection, free those orphan grants and retry once to force the selector.
+        // A fresh connect returns an OAuth authUrl (for same-token Meta that URL is where Zernio
+        // hosts the account/Page selector). When it doesn't, Zernio is short-circuiting on a grant
+        // already on the profile — either a real connection being re-clicked, or one left by an
+        // earlier attempt that never got recorded here (abandoned OAuth, or a later step failed
+        // before the PlatformConnection row was written).
+        //
+        // Reconcile-before-clear: try to record that existing grant directly. If it resolves, we're
+        // done without destroying anything or bouncing the user through OAuth again — this is what
+        // recovers a live Zernio grant that Repolio never wrote a row for. Only when the grant is
+        // partial/stale (no usable posting account) do we free it and retry once to force a fresh
+        // selector; plan/other errors are surfaced without destroying the grant.
         if (!result.authUrl) {
-            const existing = await prisma.platformConnection.findUnique({
-                where: { client_id_platform: { client_id: client.id, platform } },
-                select: { id: true },
-            });
-            if (!existing) {
-                await clearOrphanGrants(profileId, platform);
-                result = await startConnect(config, profileId, redirectUrl);
-            }
-        }
+            const finish = await finishConnection(client.id, config, platform, profileId, result.accountId ?? null);
 
-        // Still no authUrl: an existing connection is being re-clicked (idempotent), or cleanup
-        // couldn't free the grant. Reconcile via the callback so the same upsert path runs.
-        if (!result.authUrl) {
-            const qs = new URLSearchParams({ connected: config.connectedParam, profileId });
-            if (result.accountId) qs.set("accountId", result.accountId);
-            return NextResponse.redirect(siteUrl(`/api/connect/callback?${qs}`));
+            if (finish.ok) {
+                return NextResponse.redirect(
+                    siteUrl(finish.hadAdAccounts ? "/dashboard?meta_connected=1" : "/dashboard?meta_error=no_ad_accounts"),
+                );
+            }
+            if (finish.reason === "plan_limit") {
+                return NextResponse.redirect(siteUrl("/dashboard?meta_error=plan_limit"));
+            }
+            if (finish.reason === "error") {
+                return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
+            }
+
+            // reason === "no_posting": the grant can't be turned into a connection. Free it and force
+            // a fresh OAuth so the hosted selector runs again.
+            await clearOrphanGrants(profileId, platform);
+            result = await startConnect(config, profileId, redirectUrl);
+
+            // Still short-circuiting: cleanup couldn't free the grant. Reconcile once more as a last
+            // resort so we don't strand the user on the dashboard with nothing to select.
+            if (!result.authUrl) {
+                const retry = await finishConnection(client.id, config, platform, profileId, result.accountId ?? null);
+                return NextResponse.redirect(
+                    siteUrl(
+                        retry.ok
+                            ? retry.hadAdAccounts
+                                ? "/dashboard?meta_connected=1"
+                                : "/dashboard?meta_error=no_ad_accounts"
+                            : "/dashboard?meta_error=connection_failed",
+                    ),
+                );
+            }
         }
 
         return NextResponse.redirect(result.authUrl);

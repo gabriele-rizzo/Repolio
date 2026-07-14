@@ -1,5 +1,6 @@
 "use client";
 
+import type { ActionResult } from "@/lib/action";
 import * as z from "zod";
 import { DynamicForm } from "../dynamic-form";
 
@@ -11,7 +12,7 @@ const schema = z.object({
 
 interface EnrollmentFormProps {
     onSuccess: () => void;
-    action: (data: z.infer<typeof schema>) => Promise<void>;
+    action: (data: z.infer<typeof schema>) => Promise<ActionResult>;
 }
 
 export function EnrollmentForm({ onSuccess, action }: EnrollmentFormProps) {

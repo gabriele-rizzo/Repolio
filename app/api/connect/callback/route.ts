@@ -1,19 +1,13 @@
 import { getCurrentClient } from "@/actions/auth/authorize";
 import { checkEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
-import { listAccounts } from "@/lib/zernio/accounts";
-import { listAdAccounts } from "@/lib/zernio/ads";
-import { ZernioError } from "@/lib/zernio/client";
-import { connectAds } from "@/lib/zernio/connect";
+import { finishConnection } from "@/lib/zernio/finish-connection";
 import { PLATFORM_BY_CONNECTED_PARAM, ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
 import { NextResponse, type NextRequest } from "next/server";
 
 function siteUrl(path: string): URL {
     return new URL(path, checkEnv("NEXT_PUBLIC_SITE_URL"));
 }
-
-// Zernio platform values that count as a Meta posting account (same-token source for ads).
-const META_POSTING_PLATFORMS = ["facebook", "instagram"];
 
 // Zernio redirects here after OAuth (and its hosted account/Page selection) with
 // ?connected={platform}&profileId=[&accountId=]. We finish the connection: for same-token (Meta)
@@ -61,96 +55,17 @@ export async function GET(request: NextRequest) {
         return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
     }
 
-    try {
-        let adsAccountId: string;
-        let postingAccountId: string | null = null;
+    const result = await finishConnection(client.id, config, platform, profileId, accountIdParam);
 
-        if (config.kind === "same-token") {
-            // Meta: find the posting account just connected, then copy its token into an ads grant.
-            const accounts = await listAccounts(profileId);
-            const posting =
-                (accountIdParam && accounts.find((a) => a._id === accountIdParam)) ||
-                accounts.find((a) => a.platform === connected) ||
-                accounts.find((a) => META_POSTING_PLATFORMS.includes(a.platform));
-
-            if (!posting) {
-                console.error(
-                    `Connect callback: no posting account in profile ${profileId} (${accounts.length} accounts: ${accounts
-                        .map((a) => a.platform)
-                        .join(", ")})`,
-                );
-                return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
-            }
-
-            postingAccountId = posting._id;
-            adsAccountId = await connectAds(config, profileId, posting._id);
-        } else {
-            // Standalone (googleads, unused today): prefer the redirect's accountId, else find the
-            // ads account by its connected platform.
-            if (accountIdParam) {
-                adsAccountId = accountIdParam;
-            } else {
-                const adsPlatform = config.adsPlatform ?? config.adsSlug;
-                const accounts = await listAccounts(profileId);
-                const ads = accounts.find((a) => a.platform === adsPlatform);
-                if (!ads) {
-                    console.error(`Connect callback: no ${adsPlatform} account in profile ${profileId}`);
-                    return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
-                }
-                adsAccountId = ads._id;
-            }
-        }
-
-        const adAccounts = await listAdAccounts(adsAccountId);
-        if (adAccounts.length === 0) {
-            console.error(`Connect callback: ads account ${adsAccountId} exposed no ad accounts`);
-            return NextResponse.redirect(siteUrl("/dashboard?meta_error=no_ad_accounts"));
-        }
-
-        const connection = await prisma.platformConnection.upsert({
-            where: { client_id_platform: { client_id: client.id, platform } },
-            create: {
-                client_id: client.id,
-                platform,
-                zernio_account_id: adsAccountId,
-                zernio_posting_account_id: postingAccountId,
-                status: "CONNECTED",
-            },
-            update: {
-                zernio_account_id: adsAccountId,
-                zernio_posting_account_id: postingAccountId,
-                status: "CONNECTED",
-            },
-        });
-
-        await prisma.$transaction(
-            adAccounts.map((acc) =>
-                prisma.adAccount.upsert({
-                    where: { connection_id_external_id: { connection_id: connection.id, external_id: acc.id } },
-                    create: {
-                        connection_id: connection.id,
-                        external_id: acc.id,
-                        name: acc.name ?? null,
-                        currency: acc.currency ?? null,
-                        timezone: acc.timezoneName ?? null,
-                    },
-                    update: {
-                        name: acc.name ?? null,
-                        currency: acc.currency ?? null,
-                        timezone: acc.timezoneName ?? null,
-                    },
-                }),
-            ),
+    if (result.ok) {
+        // The connection is recorded even with zero ad accounts (see finishConnection); still tell the
+        // user when nothing came back so the empty connection card isn't a mystery.
+        return NextResponse.redirect(
+            siteUrl(result.hadAdAccounts ? "/dashboard?meta_connected=1" : "/dashboard?meta_error=no_ad_accounts"),
         );
-
-        return NextResponse.redirect(siteUrl("/dashboard?meta_connected=1"));
-    } catch (error) {
-        console.error(`Zernio connect callback failed for client ${client.id}:`, error);
-        // 402/403 from connectAds means the workspace plan lacks ads access (Ads add-on) — surface
-        // the plan message instead of a generic failure.
-        if (error instanceof ZernioError && (error.status === 402 || error.status === 403)) {
-            return NextResponse.redirect(siteUrl("/dashboard?meta_error=plan_limit"));
-        }
-        return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
     }
+    if (result.reason === "plan_limit") {
+        return NextResponse.redirect(siteUrl("/dashboard?meta_error=plan_limit"));
+    }
+    return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
 }
