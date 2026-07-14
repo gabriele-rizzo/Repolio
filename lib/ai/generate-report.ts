@@ -201,12 +201,12 @@ function parseGenerated(message: Anthropic.Message): GeneratedReport {
 }
 
 /**
- * Generates the AI section of a report (executive summary, trend explanation,
- * recommendations) from the account's current snapshots and its last
- * {@link HISTORY_DEPTH} reports, then writes it back to the report row.
- * Throws on failure; callers decide whether that's fatal.
+ * Builds the Messages API params for a report's AI section from the account's current snapshots and
+ * its last {@link HISTORY_DEPTH} reports. No API call — this is shared by the live path
+ * ({@link generateReportContent}) and the batch path (the poll cron), so both send identical prompts
+ * and share the cached system prefix. Throws if the report is missing or has no snapshots.
  */
-export async function generateReportContent(reportId: number): Promise<void> {
+export async function buildReportParams(reportId: number): Promise<Anthropic.MessageCreateParamsNonStreaming> {
     const report = await prisma.report.findUnique({ where: { id: reportId }, include: { snapshots: true } });
     if (!report) throw new Error(`Report ${reportId} not found`);
 
@@ -221,16 +221,19 @@ export async function generateReportContent(reportId: number): Promise<void> {
         include: { snapshots: true },
     });
 
-    const message = await getAnthropic().messages.create({
+    return {
         model: MODEL,
         max_tokens: 8192,
         thinking: { type: "adaptive" },
-        // Stable prefix → cached across the many reports generated in one poll run.
+        // Stable prefix → cached across the many reports generated in one run/batch.
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         output_config: { effort: "medium", format: { type: "json_schema", schema: REPORT_SCHEMA } },
         messages: [{ role: "user", content: buildUserPrompt(report, priorReports) }],
-    });
+    };
+}
 
+/** Parses a model response and writes the AI section back to the report row. */
+export async function applyGeneratedReport(reportId: number, message: Anthropic.Message): Promise<void> {
     const generated = parseGenerated(message);
 
     await prisma.report.update({
@@ -241,4 +244,14 @@ export async function generateReportContent(reportId: number): Promise<void> {
             recommendations: generated.recommendations as unknown as Prisma.InputJsonValue,
         },
     });
+}
+
+/**
+ * Generates the AI section of a report with a live (synchronous) Messages API call and writes it
+ * back. The poll cron uses the cheaper Batches API instead; this remains for one-off/manual
+ * regeneration. Throws on failure; callers decide whether that's fatal.
+ */
+export async function generateReportContent(reportId: number): Promise<void> {
+    const message = await getAnthropic().messages.create(await buildReportParams(reportId));
+    await applyGeneratedReport(reportId, message);
 }

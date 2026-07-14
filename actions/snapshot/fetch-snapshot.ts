@@ -10,9 +10,13 @@ import type { SnapshotData } from "@/lib/zernio/types";
 
 export type AdAccountWithConnection = AdAccount & { connection: PlatformConnection };
 
-// Re-pull this many trailing days each run to absorb late attribution corrections (Meta's default
-// click window is 7 days). The first-ever pull backfills the account's whole history instead.
+// Trailing attribution window to re-absorb late corrections (Meta's default click window is 7 days).
+// Re-pulling this whole window every day is mostly redundant, so we only do it on the weekly
+// reconcile day; other days pull just from the last recorded day forward. The first-ever pull
+// backfills the account's whole history instead. Tradeoff: attribution corrections older than a day
+// land on the next reconcile day rather than immediately — fine for a 7-day window reconciled weekly.
 const TRAILING_DAYS = 7;
+const RECONCILE_WEEKDAY = 1; // Monday (UTC getUTCDay()): the one day we re-pull the full window.
 const MAX_BACKFILL_DAYS = 730; // Zernio's timeline range cap.
 
 const ymd = (d: Date): string => d.toISOString().slice(0, 10);
@@ -30,19 +34,25 @@ export async function fetchSnapshot(
         return err(`Connection ${connection.id} has no Zernio account id; reconnect required.`);
     }
 
-    // First-ever pull backfills history; later pulls only re-fetch the trailing attribution window.
-    const existing = await prisma.snapshot.findFirst({
+    // First-ever pull backfills history; later pulls fetch from the last recorded day forward, except
+    // on the weekly reconcile day, when we re-pull the full trailing window to absorb late attribution.
+    const latest = await prisma.snapshot.findFirst({
         where: { ad_account_id: adAccount.id },
-        select: { id: true },
+        orderBy: { start_date: "desc" },
+        select: { start_date: true },
     });
 
     const now = Date.now();
     const backfillFloor = new Date(now - MAX_BACKFILL_DAYS * DAY_MS);
-    const from = existing
-        ? new Date(now - TRAILING_DAYS * DAY_MS)
-        : adAccount.created_at > backfillFloor
-          ? adAccount.created_at
-          : backfillFloor;
+
+    let from: Date;
+    if (!latest) {
+        from = adAccount.created_at > backfillFloor ? adAccount.created_at : backfillFloor;
+    } else if (new Date(now).getUTCDay() === RECONCILE_WEEKDAY) {
+        from = new Date(now - TRAILING_DAYS * DAY_MS);
+    } else {
+        from = latest.start_date;
+    }
 
     let rows;
     try {

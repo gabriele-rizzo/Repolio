@@ -11,7 +11,7 @@ export async function GET(request: NextRequest) {
 
     if (!token_hash || !type) {
         const error = encodeURIComponent("The access token was missing in your URL.");
-        const url = new URL(`/login?error=${error}`, request.url);
+        const url = new URL(`/auth/login?error=${error}`, request.url);
 
         return NextResponse.redirect(url);
     }
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
 
     if (error) {
         const message = encodeURIComponent(error.message);
-        const url = new URL(`/login?error=${message}`, request.url);
+        const url = new URL(`/auth/login?error=${message}`, request.url);
 
         return NextResponse.redirect(url);
     }

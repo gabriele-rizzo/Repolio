@@ -1,18 +1,26 @@
 import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
 import type { Client, Snapshot } from "@/generated/prisma/browser";
-import { generateReportContent } from "@/lib/ai/generate-report";
+import { getAnthropic } from "@/lib/ai/anthropic";
+import { buildReportParams } from "@/lib/ai/generate-report";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { startOfUtcDay } from "@/lib/date/start-of-day";
-import { renderReportEmail } from "@/lib/email/render-report";
+import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
+import { notifyReportReady } from "@/lib/report/notify";
 import { createAdminClient } from "@/lib/supabase/admin/server";
 import { err } from "@/lib/try-catch";
 import { NextResponse, type NextRequest } from "next/server";
 import pLimit from "p-limit";
 
-// Generates reports for clients whose recurrence is due. Snapshots are collected daily by
-// /api/cron/snapshots; this route only back-fills any due client missing today's snapshots, then
-// reports. Split from collection so report generation gets its own execution-time budget.
+// Submit phase of report generation for clients whose recurrence is due. Snapshots are collected
+// daily by /api/cron/snapshots; this route back-fills any due client missing today's snapshots,
+// creates one report per ad account for the period, and submits the AI section to the Anthropic
+// Batches API (50% cheaper than live calls). /api/cron/collect writes the results back and notifies.
+//
+// Zero-activity accounts (no spend and no impressions this period) get a report row too — the KPIs
+// render live on the report page regardless — but skip the AI call entirely: the report is created
+// empty and the client is notified immediately here, so we never pay tokens narrating "nothing
+// happened".
 
 const limit = pLimit(10);
 
@@ -100,11 +108,12 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
     // client_id -> Client, for the report email recipient. Due clients own all these accounts.
     const clientsById = new Map(dueClients.map((c) => [c.id, c]));
 
-    // One report per ad account for this period. Reports only carry AI output
-    // (empty until the AI step runs); KPIs are computed live on the report page.
-    const inserts = await Promise.allSettled(
+    // One report per ad account. Zero-activity accounts are finished here (empty + notified); the
+    // rest produce a batch request keyed by report id so the collect cron can match results back.
+    type BatchRequest = { custom_id: string; params: Awaited<ReturnType<typeof buildReportParams>> };
+    const pending = await Promise.all(
         groupEntries.map(([adAccountId, group]) =>
-            limit(async () => {
+            limit(async (): Promise<{ reportId: number; request: BatchRequest } | null> => {
                 const report = await prisma.report.create({
                     data: {
                         executive_summary: "",
@@ -114,70 +123,54 @@ export async function POST(request: NextRequest): Promise<ResultResponse<null, s
                     },
                 });
 
-                // Fill in the AI section from the account's recent history. A
-                // generation failure must not fail the report — KPIs still
-                // render live on the report page, just without the narrative.
-                try {
-                    await generateReportContent(report.id);
-                } catch (error) {
-                    console.error(`Failed to generate AI content for report ${report.id}:`, error);
-                }
-
-                // Notify the client in-app and by email. Neither delivery failure should fail the report.
                 const account = accounts.get(adAccountId);
-                if (account) {
-                    const clientId = account.connection.client_id;
+                const client = account ? clientsById.get(account.connection.client_id) : undefined;
 
-                    try {
-                        await prisma.notification.create({
-                            data: {
-                                client_id: clientId,
-                                type: "REPORT_READY",
-                                title: `New report for ${account.name ?? "an ad account"}`,
-                                body: "Your latest performance report is ready to view.",
-                                link: `/dashboard/reports/${report.id}?account=${adAccountId}`,
-                            },
+                const metrics = computeMetrics(group);
+                const zeroActivity = !metrics || (metrics.spend === 0 && metrics.impressions === 0);
+
+                if (zeroActivity) {
+                    // Empty report, no AI call. Notify now — there's nothing to wait for.
+                    if (account && client) {
+                        await notifyReportReady({
+                            reportId: report.id,
+                            adAccountId,
+                            adAccountName: account.name,
+                            client,
                         });
-                    } catch (error) {
-                        console.error("Failed to create notification:", error);
                     }
-
-                    const client = clientsById.get(clientId);
-                    if (client) {
-                        try {
-                            const email = await renderReportEmail(report.id, clientId);
-                            if (email) {
-                                // Lazy import so a missing/invalid RESEND_API_KEY can't crash report
-                                // generation — it just fails the email below and is logged.
-                                const { resend } = await import("@/lib/resend");
-                                const { error } = await resend.emails.send({
-                                    // Set RESEND_FROM to a verified-domain sender in production; the
-                                    // resend.dev fallback only delivers to the Resend account owner.
-                                    from: process.env.RESEND_FROM ?? "Repolio <team@gj-automate.com>",
-                                    to: client.email,
-                                    subject: email.subject,
-                                    html: email.html,
-                                });
-
-                                if (error) console.error(`Resend rejected report email ${report.id}:`, error);
-                            }
-                        } catch (error) {
-                            console.error(`Failed to send report email for report ${report.id}:`, error);
-                        }
-                    }
+                    return null;
                 }
 
-                return report;
+                try {
+                    const params = await buildReportParams(report.id);
+                    return { reportId: report.id, request: { custom_id: String(report.id), params } };
+                } catch (error) {
+                    // Leave the report empty (KPIs still render); log and move on.
+                    console.error(`Failed to build report params for report ${report.id}:`, error);
+                    return null;
+                }
             }),
         ),
     );
 
-    const failures = inserts.filter((r) => r.status === "rejected");
-    if (failures.length > 0) {
-        failures.forEach((f) => console.error("Failed to insert report:", (f as PromiseRejectedResult).reason));
-        if (failures.length === inserts.length) {
-            return NextResponse.json(err("Failed to insert reports"), { status: 500 });
-        }
+    const active = pending.filter((p): p is { reportId: number; request: BatchRequest } => p !== null);
+    if (active.length === 0) return new NextResponse(null);
+
+    // Submit all AI sections as a single batch, then mark those reports pending so the collect cron
+    // picks them up. On submit failure the reports simply stay empty (ai_pending stays false) — no
+    // orphaned "forever pending" rows.
+    try {
+        const batch = await getAnthropic().messages.batches.create({
+            requests: active.map((a) => a.request),
+        });
+        await prisma.report.updateMany({
+            where: { id: { in: active.map((a) => a.reportId) } },
+            data: { ai_pending: true, batch_id: batch.id },
+        });
+    } catch (error) {
+        console.error("Failed to submit report batch:", error);
+        return NextResponse.json(err("Failed to submit report batch"), { status: 500 });
     }
 
     return new NextResponse(null);

@@ -9,7 +9,13 @@ import { err, ok, sink } from "@/lib/try-catch";
 import { listAccounts } from "@/lib/zernio/accounts";
 import { listAdAccounts } from "@/lib/zernio/ads";
 import { upsertAdAccounts } from "@/lib/zernio/finish-connection";
+import pLimit from "p-limit";
 import { fetchSnapshot } from "./fetch-snapshot";
+
+// Cap concurrent Zernio timeline fetches per client. A client with hundreds of ad accounts would
+// otherwise fire hundreds of simultaneous requests (Promise.all over all accounts), risking Zernio
+// rate limits (429 → retries) and cron timeouts.
+const fetchLimit = pLimit(6);
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
     // Backfill ad accounts from Zernio before pulling. Zernio's ad-account listing lags the grant,
@@ -49,7 +55,7 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
         (a) => a.connection.zernio_account_id != null && !disconnectedIds.has(a.connection.id),
     );
 
-    const results = await Promise.all(usable.map((a) => fetchSnapshot(a)));
+    const results = await Promise.all(usable.map((a) => fetchLimit(() => fetchSnapshot(a))));
     const [batches, errors] = sink(results);
 
     if (errors.length > 0) {

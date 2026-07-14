@@ -84,6 +84,14 @@ model Report {
     recommendations   Json
     trend_explanation String
 
+    // Batch generation state. The report row is created up front (KPIs render live regardless);
+    // the AI section is filled asynchronously via the Anthropic Batches API (50% cheaper than live
+    // calls). `ai_pending` is true from batch submission until the result is written back; `batch_id`
+    // is the Anthropic message batch the request was submitted in. Both stay at their defaults for
+    // reports that never need AI (e.g. zero-activity periods — created empty on purpose).
+    ai_pending Boolean @default(false)
+    batch_id   String?
+
     // --- F: USER INPUT (snapshotted at report time) ---
     target_cpa      Float? // #36
     target_roas     Float? // #37
