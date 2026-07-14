@@ -1,9 +1,11 @@
 import { authorize } from "@/actions/auth/authorize";
+import type { Platform } from "@/generated/prisma/browser";
 import { checkEnv } from "@/lib/env";
 import { prisma } from "@/lib/prisma";
+import { disconnectAccount, listAccounts } from "@/lib/zernio/accounts";
 import { ZernioError } from "@/lib/zernio/client";
 import { startConnect } from "@/lib/zernio/connect";
-import { PLATFORM_BY_SLUG, ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
+import { PLATFORM_BY_CONNECTED_PARAM, PLATFORM_BY_SLUG, ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
 import { createProfile, deleteProfile } from "@/lib/zernio/profiles";
 import { NextResponse, type NextRequest } from "next/server";
 
@@ -34,10 +36,28 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
 
     try {
         const redirectUrl = siteUrl("/api/connect/callback").toString();
-        const result = await startConnect(config, profileId, redirectUrl);
+        let result = await startConnect(config, profileId, redirectUrl);
 
-        // Standalone platforms can report "already connected" with no OAuth — reconcile via the
-        // callback so the same upsert path runs.
+        // A fresh connect should return an OAuth authUrl (for same-token Meta that URL is where
+        // Zernio hosts the account/Page selector). When it doesn't, Zernio is short-circuiting on a
+        // grant left on the profile by an earlier attempt that never got recorded here — the user
+        // abandoned OAuth, or a later step failed before the PlatformConnection row was written. If
+        // we let that stand, the stale grant is "reconnected" silently and the selector never shows
+        // ("returns to the dashboard, no account can be chosen"). So when we have NO recorded
+        // connection, free those orphan grants and retry once to force the selector.
+        if (!result.authUrl) {
+            const existing = await prisma.platformConnection.findUnique({
+                where: { client_id_platform: { client_id: client.id, platform } },
+                select: { id: true },
+            });
+            if (!existing) {
+                await clearOrphanGrants(profileId, platform);
+                result = await startConnect(config, profileId, redirectUrl);
+            }
+        }
+
+        // Still no authUrl: an existing connection is being re-clicked (idempotent), or cleanup
+        // couldn't free the grant. Reconcile via the callback so the same upsert path runs.
         if (!result.authUrl) {
             const qs = new URLSearchParams({ connected: config.connectedParam, profileId });
             if (result.accountId) qs.set("accountId", result.accountId);
@@ -48,6 +68,32 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     } catch (error) {
         console.error(`Zernio connect failed for client ${client.id} (${slug}):`, error);
         return NextResponse.redirect(siteUrl("/dashboard?meta_error=connection_failed"));
+    }
+}
+
+/**
+ * Frees grants left on the profile for `platform` that we never recorded a connection for. Such
+ * orphans make Zernio's next connect short-circuit (no OAuth, no account/Page selection), so
+ * clearing them lets the hosted selector run again. The set of Zernio account `platform` values
+ * that belong to a Repolio platform is derived from the connected-param reverse map
+ * (META -> facebook, instagram, metaads). Best-effort: a failed disconnect just means the retry may
+ * still short-circuit, which is no worse than before.
+ */
+async function clearOrphanGrants(profileId: string, platform: Platform): Promise<void> {
+    const platformValues = new Set(
+        Object.entries(PLATFORM_BY_CONNECTED_PARAM)
+            .filter(([, p]) => p === platform)
+            .map(([value]) => value),
+    );
+
+    const accounts = await listAccounts(profileId);
+    for (const account of accounts) {
+        if (!platformValues.has(account.platform)) continue;
+        try {
+            await disconnectAccount(account._id);
+        } catch (error) {
+            console.error(`Failed to clear orphan Zernio grant ${account._id} (${account.platform}):`, error);
+        }
     }
 }
 

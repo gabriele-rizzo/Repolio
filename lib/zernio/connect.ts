@@ -9,11 +9,12 @@ export interface ConnectResult {
 
 /**
  * Step 1 of connect — get the OAuth URL to redirect the user to.
- *  - standalone (Meta): GET /v1/connect/{adsSlug}/ads?profileId — the ads connect runs its own
- *    OAuth and creates ONLY the ads account (no Facebook Page / posting account). Meta accepts a
- *    per-request redirect_url (passRedirectUrl); platforms without it use a workspace-configured callback.
- *  - same-token: GET /v1/connect/{postingSlug}?profileId&redirect_url — posting OAuth first, then
- *    the callback copies its token into an ads account. Supported but unused by any platform today.
+ *  - same-token (Meta): GET /v1/connect/{postingSlug}?profileId&redirect_url — posting OAuth first
+ *    (Zernio hosts the account/Page selection UI), then the callback copies its token into the ads
+ *    account via connectAds. The /ads endpoint itself never runs OAuth for these platforms.
+ *  - standalone (googleads, unused today): GET /v1/connect/{adsSlug}/ads?profileId — the ads
+ *    connect runs its own OAuth. redirect_url is passed only when the platform honors it
+ *    (passRedirectUrl); otherwise the workspace-configured callback applies.
  */
 export async function startConnect(
     platform: ZernioPlatform,
@@ -32,7 +33,9 @@ export async function startConnect(
 
 /**
  * Same-token only: after the posting account exists, create the ads SocialAccount by copying its
- * token (no extra OAuth). Returns the ads SocialAccount id used for /v1/ads/* calls.
+ * token (no extra OAuth). Zernio returns `alreadyConnected: true` (with the accountId) when the
+ * ads grant already exists — both shapes carry accountId, which is all we need.
+ * Returns the ads SocialAccount id used for /v1/ads/* calls.
  */
 export async function connectAds(
     platform: ZernioPlatform,
