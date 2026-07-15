@@ -15,7 +15,8 @@ import pLimit from "p-limit";
 
 const limit = pLimit(10);
 
-export async function POST(request: NextRequest): Promise<ResultResponse<null, string>> {
+// Vercel Cron invokes via GET.
+export async function GET(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (!isAuthorizedCron(request)) return NextResponse.json(err("Unauthorized"), { status: 401 });
 
     const pending = await prisma.report.findMany({
