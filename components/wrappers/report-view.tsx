@@ -33,6 +33,20 @@ interface ReportViewProps {
     initial: WindowMetrics;
 }
 
+// The window is exchanged as calendar-day identity, never as an instant. Snapshots and the
+// /api/metrics query are keyed by UTC calendar day (one row per day, pinned to UTC midnight), while
+// react-day-picker and toLocaleDateString both work in the browser's local time. So we hold
+// local-midnight Dates in state — which keeps the picker and label showing the intended day in every
+// timezone — and convert only at the edges: server instants in, YYYY-MM-DD day strings out.
+
+/** A server instant's UTC calendar day, as a local-midnight Date. Uses UTC getters (not local) since
+ *  the window is already UTC-based; reading it with local getters would shift it a day west of UTC. */
+const localDayOf = (d: Date): Date => new Date(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+
+/** A local-midnight Date's calendar day as YYYY-MM-DD, which /api/metrics parses as UTC midnight. */
+const dayParam = (d: Date): string =>
+    `${d.getFullYear()}-${`${d.getMonth() + 1}`.padStart(2, "0")}-${`${d.getDate()}`.padStart(2, "0")}`;
+
 const fetchMetrics = async ([path, account, from, to]: readonly [string, number, string, string]) => {
     const params = new URLSearchParams({ account: String(account), from, to });
     const response = await fetch(`${path}?${params.toString()}`);
@@ -51,13 +65,13 @@ export function ReportView({
     to: initialTo,
     initial,
 }: ReportViewProps) {
-    const [to, setTo] = useState<Date>(initialTo);
-    const [from, setFrom] = useState<Date>(initialFrom);
+    const [to, setTo] = useState<Date>(() => localDayOf(initialTo));
+    const [from, setFrom] = useState<Date>(() => localDayOf(initialFrom));
 
     // Seeded with server-computed metrics for the report's period (no first-paint flash). On window
     // changes the key changes and SWR refetches; keepPreviousData holds the old values until they land.
     const { data } = useSWR(
-        account ? (["/api/metrics", account.id, from.toISOString(), to.toISOString()] as const) : null,
+        account ? (["/api/metrics", account.id, dayParam(from), dayParam(to)] as const) : null,
         fetchMetrics,
         { keepPreviousData: true, revalidateOnFocus: false, revalidateOnMount: false, fallbackData: initial },
     );
