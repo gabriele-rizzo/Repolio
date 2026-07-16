@@ -64,7 +64,7 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
 - **`Client`** — an advertising client of the agency. `account_id` links 1:1 to a Supabase auth user. Owns connections, notifications, a recurrence setting, and (lazily) a `zernio_profile_id`.
 - **`PlatformConnection`** — one OAuth connection per `(client, platform)`. Holds *references* to Zernio account IDs (`zernio_account_id` = ads grant, `zernio_posting_account_id` = parent posting grant) and a `CONNECTED`/`DISCONNECTED` status. **Repolio never stores the actual OAuth tokens** — Zernio holds them.
 - **`AdAccount`** — a specific ad account under a connection (e.g. a Meta `act_<id>`). One connection can expose many. Stores `external_id`, `currency`, `timezone`, `name`, `active`.
-- **`Snapshot`** — **one row per ad account per calendar day**, storing that day's raw Zernio metrics as JSON (`spend`, `impressions`, `clicks`, `conversions`, `purchaseValue`, `reach`, `roas`, etc.) plus a stamped `currency`. Uniqueness enforced on `(start_date, ad_account_id)`. Indexed on `(ad_account_id, start_date)` for the hot dashboard/report query path.
+- **`Snapshot`** — **one row per ad account per calendar day**, storing that day's raw Zernio metrics as JSON (`spend`, `impressions`, `clicks`, `reach`, the `actions`/`actionValues` maps, plus Zernio's derived scalars kept as provenance only) and a stamped `currency`. Uniqueness enforced on `(start_date, ad_account_id)`. Indexed on `(ad_account_id, start_date)` for the hot dashboard/report query path. KPI-relevant facts (purchases, leads, revenue, link clicks) are derived from the action maps at compute time — see §5.3.
 - **`Report`** — an AI-generated write-up covering a set of snapshots. **Stores only the AI text**: `executive_summary`, `recommendations` (JSON), `trend_explanation`, plus snapshotted user inputs (`target_cpa`, `target_roas`, `context_comment`). **KPIs and scores are NOT stored** — they are recomputed live from the linked snapshots every time.
 - **`Recurrence`** — per-client report cadence (`ndays`, default 30).
 - **`Notification`** — in-app notifications: `REPORT_READY`, `CONNECTION_EXPIRING`, `CONNECTION_EXPIRED`.
@@ -128,11 +128,15 @@ Client → Zernio Profile (one per client, lazily created)
 
 **Prompt discipline:** The system prompt casts Claude as a senior performance-marketing analyst, forbids inventing metrics, tells it to judge against targets, handles the first-report case explicitly, and demands specificity over platitudes.
 
-**Metrics & scoring (`lib/metrics/compute.ts`):**
-- Raw daily values are summed; rates are derived from the sums: `CTR = clicks/impressions`, `CPM = spend/impressions·1000`, `CPA = spend/conversions`, `CPC = spend/clicks`, `ROAS = revenue/spend`.
-- **Performance score (0–100):** for conversion/revenue accounts, driven by ROAS (`roas/5 × 100`, i.e. 5× ROAS = 100), plus a +10 boost for CTR ≥ 1.5%, minus a 15-point penalty for frequency > 3.5 (ad fatigue), clamped 0–100. Non-conversion accounts get a neutral 50.
+**Metrics & scoring (`lib/metrics/compute.ts` + `lib/metrics/extract.ts`):**
+- **Conversion facts come from the raw Meta action maps** (`actions` / `actionValues` stored in each snapshot), never from Zernio's derived scalars: `conversions`/`costPerConversion` mirror Meta's pixel-config-dependent rollup and `purchaseValue`/`roas` mix non-purchase values into "revenue" (lead values once produced a fake 74.5× ROAS). `lib/metrics/extract.ts` filters by explicit action types with roll-up-aware dedup: **purchases** (`omni_purchase`/`purchase`, else per-channel pixel/app/Shops/offline keys), **leads** (`lead`, else pixel/instant-forms/offline keys), **link clicks** (`link_click`).
+- **Conversions = purchases + leads** (breakdown reported alongside); **revenue is purchase-attributed only**; **CPL = spend/leads**.
+- Raw daily values are summed; rates are derived from the sums: `CTR = link clicks/impressions` and `CPC = spend/link clicks` (falls back to all clicks for windows without a `link_click` breakdown — matches Ads Manager's CTR (link)), `CPM = spend/impressions·1000`, `CPA = spend/conversions`, `ROAS = revenue/spend`.
+- **Null policy:** unmeasured metrics are `null` (rendered "—" / "n/a"), never 0 — a 0 CPA/ROAS would imply "free" and pollute averages. Counts are 0 when measured-zero.
+- **Performance score (0–100):** e-commerce accounts (measured purchase revenue) are driven by ROAS (`roas/5 × 100`, i.e. 5× ROAS = 100), plus a +10 boost for CTR ≥ 1.5%, minus a 15-point penalty for frequency > 3.5 (ad fatigue), clamped 0–100. Lead-gen accounts (conversions but no purchase revenue) anchor at 55 and move with the same CTR/frequency signals. Accounts with nothing measurable get a neutral 50.
 - **Label:** STRONG ≥ 70, MODERATE 40–69, NEEDS_IMPROVEMENT < 40.
-- **Known limitation:** period reach is summed over daily reach (over-counts unique users) — an accepted tradeoff of the daily-snapshot model.
+- **KPI card sets are focus-aware** (`lib/metrics/cards.ts`): lead-gen accounts lead with Leads/CPL, e-commerce with ROAS/CPA — shared by the report page, the email and the dashboard.
+- **Known limitation:** period reach is summed over daily reach (over-counts unique users) — an accepted tradeoff of the daily-snapshot model; frequency derives from it.
 
 ### 5.4 Automation Engine (Vercel Cron)
 
@@ -140,10 +144,12 @@ Two daily cron jobs, authenticated with a timing-safe Bearer `CRON_SECRET` check
 
 | Job | Schedule (UTC) | Purpose |
 |-----|----------------|---------|
-| `/api/cron/snapshots` | `0 0 * * *` (midnight) | Pull yesterday's ad data for every active client |
-| `/api/cron/poll` | `0 2 * * *` (2 AM) | Generate reports for clients that are "due" |
+| `/api/cron/daily` | `0 0 * * *` (midnight) | Snapshot pull for every active client, then report submission for "due" clients |
+| `/api/cron/collect` | `0 5 * * *` (5 AM) | Retrieve finished Anthropic batch results, write AI sections back, notify |
 
-**Snapshots job:** for each active client (max 10 concurrent), syncs connection health from Zernio (flips `DISCONNECTED` and fires a rate-limited — once per 7 days — connection-expired email + notification), then pulls the Zernio timeline for each healthy ad account and **upserts one snapshot per day**. First-ever pull backfills up to 730 days of history; later pulls only re-fetch a trailing 7-day window (to absorb Meta's late attribution corrections).
+(`/api/cron/snapshots` and `/api/cron/poll` remain live, unscheduled, for manual triggering.)
+
+**Snapshots phase:** for each active client (max 10 concurrent), syncs connection health from Zernio (flips `DISCONNECTED` and fires a rate-limited — once per 7 days — connection-expired email + notification), then pulls the Zernio timeline for each healthy ad account (max 6 concurrent per client, with retry/backoff on 429/5xx honoring `Retry-After`) and **upserts one snapshot per day**. First-ever pull backfills up to 730 days of history; every later pull **re-pulls the trailing 3 days** (so partial days and Meta's ~72h attribution restatements are overwritten daily), widening to 7 days on the Monday reconcile. Failures are recorded per account/stage in the internal **`SyncError`** table (30-day retention) and successful accounts get `AdAccount.last_synced_at` stamped — a silent skip is a one-query diagnosis. Reports connect **complete days only** — the just-started UTC day's near-empty row stays out of report KPIs and the AI narrative (the dashboard still shows live today).
 
 **Poll job:** calls the Postgres RPC **`due_clients()`** — a client is due when *calendar days* since its most recent report ≥ its `Recurrence.ndays` (default 30), falling back to the client's creation date if no report exists yet. For each due client it: self-heals missing snapshots, groups snapshots since the last report by ad account, creates one empty `Report` per account, runs `generateReportContent()` to fill the AI text, then sends a `REPORT_READY` in-app notification **and** a rendered HTML email via Resend. Every side-effect is best-effort — a failed AI call or email never aborts the run (the report still exists and renders live KPIs).
 

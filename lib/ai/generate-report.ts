@@ -75,6 +75,9 @@ Produce three things, grounded in how performance has TRENDED across these repor
 
 Rules:
 - Use ONLY the metrics provided. Never invent numbers, campaign names, or facts not in the input. If a metric is "n/a", do not guess it.
+- Revenue and ROAS count purchase conversions only. Lead-generation accounts legitimately show "n/a" there — never treat a missing ROAS as underperformance; judge such accounts on Leads and CPL.
+- Conversions = purchases + leads; the breakdown is provided. CTR and CPC are computed on link clicks when available.
+- Metric blocks of previous reports are recomputed with the current methodology, so their narrative text may cite figures that no longer match. Where a previous narrative and the numbers disagree, trust the numbers.
 - When targets are provided, judge performance against them (CPA above target is bad; ROAS above target is good).
 - Be honest about weak performance and acknowledge genuine improvement; avoid generic marketing platitudes. Every sentence should say something specific.
 - Currency amounts are in the account's own currency — do not assume a symbol.
@@ -113,15 +116,17 @@ function formatMetrics(m: ComputedMetrics | null): string {
     return [
         `- Currency: ${m.currency}`,
         `- Spend: ${fmtNum(m.spend)}`,
-        `- Revenue: ${fmtNum(m.revenue)}`,
+        `- Revenue (purchase-attributed): ${fmtNum(m.revenue)}`,
         `- ROAS: ${fmtNum(m.roas)}`,
-        `- Conversions: ${fmtNum(m.conversions, 0)}`,
+        `- Conversions: ${fmtNum(m.conversions, 0)} (${fmtNum(m.purchases, 0)} purchases + ${fmtNum(m.leads, 0)} leads)`,
         `- CPA: ${fmtNum(m.cpa)}`,
+        `- CPL: ${fmtNum(m.cpl)}`,
         `- CPC: ${fmtNum(m.cpc)}`,
-        `- CTR: ${fmtNum(m.ctr)}%`,
+        `- CTR: ${m.ctr == null ? "n/a" : `${fmtNum(m.ctr)}%`}`,
         `- CPM: ${fmtNum(m.cpm)}`,
         `- Impressions: ${fmtNum(m.impressions, 0)}`,
-        `- Clicks: ${fmtNum(m.clicks, 0)}`,
+        `- Clicks (all): ${fmtNum(m.clicks, 0)}`,
+        `- Link clicks: ${fmtNum(m.linkClicks, 0)}`,
         `- Reach: ${fmtNum(m.reach, 0)}`,
         `- Frequency: ${fmtNum(m.frequency)}`,
         `- Performance score: ${fmtNum(m.performance_score, 0)} (${m.score_label})`,

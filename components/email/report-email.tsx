@@ -1,6 +1,13 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
 import type { Recommendation } from "@/components/report/recommendation-card";
 import { currencyFormatter } from "@/lib/format/currency";
+import {
+    accountFocus,
+    METRIC_CARD_DEFS,
+    selectKpiCards,
+    type MetricCardKey,
+    type MetricFormat,
+} from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 
 /**
@@ -24,20 +31,29 @@ export interface ReportEmailProps {
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
-type MetricKey = "spend" | "roas" | "cpa" | "conversions" | "ctr" | "reach";
 type BetterWhen = "up" | "down" | "neutral";
 
-// Built per-render so the spend/CPA columns format in the account's own currency.
+// The card set and metric metadata come from lib/metrics/cards.ts (shared with the report page);
+// only the string formatters are email-specific. Built per-render so money columns format in the
+// account's own currency.
 const metricDefs = (
+    current: ComputedMetrics | null,
+    previous: ComputedMetrics | null,
     money: Intl.NumberFormat,
-): { key: MetricKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] => [
-    { key: "spend", label: "Spend", format: (v) => money.format(v), betterWhen: "neutral" },
-    { key: "roas", label: "ROAS", format: (v) => `${v.toFixed(2)}x`, betterWhen: "up" },
-    { key: "cpa", label: "CPA", format: (v) => money.format(v), betterWhen: "down" },
-    { key: "conversions", label: "Conversions", format: (v) => v.toLocaleString("en-US"), betterWhen: "up" },
-    { key: "ctr", label: "CTR", format: (v) => `${v.toFixed(2)}%`, betterWhen: "up" },
-    { key: "reach", label: "Reach", format: (v) => compact.format(v), betterWhen: "up" },
-];
+): { key: MetricCardKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] => {
+    const formats: Record<MetricFormat, (v: number) => string> = {
+        currency: (v) => money.format(v),
+        percent: (v) => `${v.toFixed(2)}%`,
+        multiplier: (v) => `${v.toFixed(2)}x`,
+        count: (v) => v.toLocaleString("en-US"),
+        compact: (v) => compact.format(v),
+    };
+
+    return selectKpiCards(accountFocus(current, previous)).map((key) => {
+        const def = METRIC_CARD_DEFS[key];
+        return { key, label: def.label, format: formats[def.format], betterWhen: def.betterWhen };
+    });
+};
 
 // Neutral palette + accents, matching the app's light theme (Tailwind neutral scale, --radius: 0).
 const ink = "#0a0a0a"; // foreground
@@ -116,7 +132,7 @@ function delta(cur: number | null | undefined, prev: number | null | undefined, 
 
 export function ReportEmail(props: ReportEmailProps) {
     const { current, previous } = props;
-    const cols = metricDefs(currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"));
+    const cols = metricDefs(current, previous, currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"));
     const score = current?.performance_score;
     const labelStyle = current?.score_label ? SCORE_LABEL_STYLE[current.score_label] : null;
 

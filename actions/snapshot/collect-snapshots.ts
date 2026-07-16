@@ -5,6 +5,7 @@ import { DAY_MS, REFRESH_THRESHOLD_DAYS } from "@/lib/constants";
 import { renderConnectionExpiredEmail } from "@/lib/email/render-connection-expired";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
+import { logSyncError } from "@/lib/sync-error";
 import { err, ok, sink } from "@/lib/try-catch";
 import { listAccounts } from "@/lib/zernio/accounts";
 import { listAdAccounts } from "@/lib/zernio/ads";
@@ -27,6 +28,7 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
             await refreshAdAccounts(client.id);
         } catch (error) {
             console.error(`Ad-account refresh failed for client ${client.id}:`, error);
+            await logSyncError({ stage: "refresh_ad_accounts", clientId: client.id, message: String(error) });
         }
     }
 
@@ -47,6 +49,7 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
             );
         } catch (error) {
             console.error(`Connection health check failed for client ${client.id}:`, error);
+            await logSyncError({ stage: "health_check", clientId: client.id, message: String(error) });
         }
     }
 
@@ -58,6 +61,13 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
     const results = await Promise.all(usable.map((a) => fetchLimit(() => fetchSnapshot(a))));
     const [batches, errors] = sink(results);
 
+    // Promise.all preserves order, so results are index-aligned with usable. Zero-row fetches
+    // (ok([]), normal right after connect) still count as synced.
+    const okAccountIds = usable.filter((_, i) => !results[i].error).map((a) => a.id);
+    console.log(
+        `[snapshots] client=${client.id} accounts=${usable.length} ok=${okAccountIds.length} failed=${errors.length}`,
+    );
+
     if (errors.length > 0) {
         errors.forEach((e) => console.error(`Snapshot fetch failed: ${e}`));
 
@@ -67,7 +77,10 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
     }
 
     const inputs = batches.flat();
-    if (inputs.length === 0) return ok([]);
+    if (inputs.length === 0) {
+        await stampSynced(okAccountIds);
+        return ok([]);
+    }
 
     // Per-day upsert so re-fetched trailing days overwrite (createMany/skipDuplicates can't update
     // an existing day). Keyed on the @@unique([start_date, ad_account_id]). Chunked into small
@@ -96,9 +109,30 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
             );
             snapshots.push(...upserted);
         }
+
+        // Stamped only after the whole upsert succeeded — conservative on partial chunk failure
+        // (nobody gets stamped; the trailing re-pull heals next run).
+        await stampSynced(okAccountIds);
+        console.log(`[snapshots] client=${client.id} rows=${inputs.length} upserted`);
+
         return ok(snapshots);
-    } catch {
-        return err(`Failed to upsert snapshots for client '${client.id}'`);
+    } catch (error) {
+        const message = `Failed to upsert snapshots for client '${client.id}': ${String(error)}`;
+        await logSyncError({ stage: "upsert_snapshots", clientId: client.id, message });
+        return err(message);
+    }
+}
+
+/** Marks accounts whose fetch+upsert round-tripped, for "which account silently stopped syncing" queries. */
+async function stampSynced(adAccountIds: number[]): Promise<void> {
+    if (adAccountIds.length === 0) return;
+    try {
+        await prisma.adAccount.updateMany({
+            where: { id: { in: adAccountIds } },
+            data: { last_synced_at: new Date() },
+        });
+    } catch (error) {
+        console.error("Failed to stamp last_synced_at:", error);
     }
 }
 

@@ -12,5 +12,7 @@ export default defineConfig([
         "out/**",
         "build/**",
         "next-env.d.ts",
+        // Claude Code worktrees (each carries its own .next build artifacts).
+        ".claude/**",
     ]),
 ]);

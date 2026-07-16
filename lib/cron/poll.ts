@@ -6,6 +6,7 @@ import { startOfUtcDay } from "@/lib/date/start-of-day";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import { notifyReportReady } from "@/lib/report/notify";
+import { logSyncError } from "@/lib/sync-error";
 import { createAdminClient } from "@/lib/supabase/admin/server";
 import pLimit from "p-limit";
 
@@ -38,7 +39,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
 
     // Self-heal: ensure every due client has today's snapshots. The daily snapshot phase normally
     // handles this; if it missed or failed for a client, collect now so the report isn't stale.
-    // collectSnapshots is idempotent (skipDuplicates), so a redundant call here is harmless.
+    // collectSnapshots is idempotent (per-day upsert), so a redundant call here is harmless.
     const today = startOfUtcDay(new Date());
     await Promise.all(
         dueClients.map((c) =>
@@ -53,7 +54,9 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
                     const result = await collectSnapshots(c);
                     if (result.error) console.error(`Snapshot back-fill failed for client ${c.id}: ${result.error}`);
                 } catch (error) {
+                    // Thrown (non-Result) path — the Result path already records at its source.
                     console.error(`Snapshot back-fill threw for client ${c.id}:`, error);
+                    await logSyncError({ stage: "poll_backfill", clientId: c.id, message: String(error) });
                 }
             }),
         ),
@@ -72,11 +75,14 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
                     // Group the report's period by snapshot start_date (the metric day), not
                     // created_at: daily rows are upserted and re-fetched, so created_at no longer
                     // tracks the period. start_date matches how getReport derives the window.
+                    // Complete days only: the run stores a near-empty row for the just-started UTC
+                    // day, which would read as a fake collapse in the report KPIs and AI narrative
+                    // — reports end on the last full day (the dashboard still shows live today).
                     const since = startOfUtcDay(new Date(last?.created_at ?? c.created_at));
                     return prisma.snapshot.findMany({
                         where: {
                             ad_account: { connection: { client_id: c.id } },
-                            start_date: { gt: since },
+                            start_date: { gt: since, lt: today },
                         },
                     });
                 }),
@@ -125,7 +131,11 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
                 const client = account ? clientsById.get(account.connection.client_id) : undefined;
 
                 const metrics = computeMetrics(group);
-                const zeroActivity = !metrics || (metrics.spend === 0 && metrics.impressions === 0);
+                // Conversions guard is defensive: Meta attributes actions to impression/click days,
+                // so conversions without impressions are near-impossible — but never mute a period
+                // that did convert.
+                const zeroActivity =
+                    !metrics || (metrics.spend === 0 && metrics.impressions === 0 && metrics.conversions === 0);
 
                 if (zeroActivity) {
                     // Empty report, no AI call. Notify now — there's nothing to wait for.
@@ -168,6 +178,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
         });
     } catch (error) {
         console.error("Failed to submit report batch:", error);
+        await logSyncError({ stage: "batch_submit", message: String(error) });
         return { status: 500, error: "Failed to submit report batch" };
     }
 

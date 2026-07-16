@@ -25,6 +25,28 @@ model Client {
     recurrence    Recurrence?
     connections   PlatformConnection[]
     notifications Notification[]
+    sync_errors   SyncError[]
+}
+
+// Internal-only trace of pipeline failures (per account where known, else per client). Written
+// best-effort by the crons via lib/sync-error.ts and pruned after 30 days; never client-facing.
+// `stage` is a free string ("fetch_snapshot", "upsert_snapshots", ...) so new stages don't need
+// a migration.
+model SyncError {
+    id         Int      @id @default(autoincrement())
+    created_at DateTime @default(now())
+
+    stage   String
+    message String
+
+    client_id Int?
+    client    Client? @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+    ad_account_id Int?
+    ad_account    AdAccount? @relation(fields: [ad_account_id], references: [id], onDelete: Cascade)
+
+    @@index([created_at])
+    @@index([ad_account_id, created_at])
 }
 
 model Notification {
@@ -150,10 +172,15 @@ model AdAccount {
     timezone    String?
     active      Boolean @default(true)
 
+    // Stamped after each fully-successful snapshot upsert; null or stale (>48h) on an active
+    // account means its sync is silently failing — check SyncError.
+    last_synced_at DateTime?
+
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
-    snapshots Snapshot[]
+    snapshots   Snapshot[]
+    sync_errors SyncError[]
 
     @@unique([connection_id, external_id])
 }

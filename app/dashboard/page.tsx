@@ -9,6 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { currencyFormatter } from "@/lib/format/currency";
+import { accountFocus } from "@/lib/metrics/cards";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import { Link2Off } from "lucide-react";
@@ -151,10 +152,22 @@ export default async function DashboardPage({
                                             label="Spend"
                                             value={currencyFormatter(metrics.currency, 0).format(metrics.spend)}
                                         />
-                                        <Stat
-                                            label="ROAS"
-                                            value={metrics.roas != null ? `${metrics.roas.toFixed(2)}x` : "—"}
-                                        />
+                                        {accountFocus(metrics) === "leadgen" ? (
+                                            // Lead-gen accounts have no ROAS by definition — lead with CPL.
+                                            <Stat
+                                                label="CPL"
+                                                value={
+                                                    metrics.cpl != null
+                                                        ? currencyFormatter(metrics.currency).format(metrics.cpl)
+                                                        : "—"
+                                                }
+                                            />
+                                        ) : (
+                                            <Stat
+                                                label="ROAS"
+                                                value={metrics.roas != null ? `${metrics.roas.toFixed(2)}x` : "—"}
+                                            />
+                                        )}
                                         <Stat label="Conv." value={compact.format(metrics.conversions)} />
                                     </div>
 

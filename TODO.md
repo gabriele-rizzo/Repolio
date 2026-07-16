@@ -1,3 +1,7 @@
+> ⚠️ **STALE (pre-Zernio).** This file describes the removed Meta-direct architecture
+> (`lib/meta/*`, encrypted tokens, `metaApi()`); the app now consumes Zernio and stores no tokens.
+> Kept for historical reference only — see `PROJECT_OVERVIEW.md` for the current architecture.
+
 ## Fixes
 
 ### #1 🟡 `fetchSnapshot` uses the wrong date semantics

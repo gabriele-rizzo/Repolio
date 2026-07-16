@@ -24,7 +24,9 @@ export async function getReport(id: string, client_id: Client["id"]) {
 
     const first = report.snapshots[0];
     const from = first?.start_date ?? report.created_at;
-    const to = report.created_at;
+    // End on the last day the report actually covers (reports connect complete days only), not the
+    // creation instant — otherwise the default window bleeds into the partial day after the period.
+    const to = report.snapshots.at(-1)?.start_date ?? report.created_at;
 
     const account = first
         ? await prisma.adAccount.findUnique({

@@ -1,5 +1,6 @@
 import type { Report } from "@/generated/prisma/browser";
 import { currencyFormatter } from "@/lib/format/currency";
+import { accountFocus, METRIC_CARD_DEFS, metricValue, selectKpiCards, type MetricFormat } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
@@ -28,6 +29,18 @@ export function ReportWrapper({ report, current, previous, loading }: ReportWrap
     const currencyCode = current?.currency ?? previous?.currency ?? "EUR";
     const formatCurrency = (value: number) => currencyFormatter(currencyCode).format(value);
 
+    const formatters: Record<MetricFormat, (v: number) => string> = {
+        currency: formatCurrency,
+        percent: (v) => `${v.toFixed(2)}%`,
+        multiplier: (v) => `${v.toFixed(2)}x`,
+        count: (v) => v.toLocaleString("en-US"),
+        compact: formatCompact,
+    };
+
+    // Card set follows what the account measurably optimizes for (lead-gen accounts lead with
+    // Leads/CPL instead of an "n/a" ROAS). See lib/metrics/cards.ts.
+    const cards = selectKpiCards(accountFocus(current, previous));
+
     return (
         <div className="space-y-8">
             <ReportOverview
@@ -43,54 +56,20 @@ export function ReportWrapper({ report, current, previous, loading }: ReportWrap
                 </Typo>
 
                 <div className="grid grid-cols-2 gap-4 *:h-24 md:grid-cols-3 xl:grid-cols-6 print:grid-cols-3">
-                    <MetricCard
-                        title="Spend"
-                        value={current?.spend}
-                        previous={previous?.spend}
-                        format={formatCurrency}
-                        betterWhen="neutral"
-                        loading={loading}
-                    />
-                    <MetricCard
-                        title="ROAS"
-                        value={current?.roas}
-                        previous={previous?.roas}
-                        format={(v) => `${v.toFixed(2)}x`}
-                        betterWhen="up"
-                        loading={loading}
-                    />
-                    <MetricCard
-                        title="CPA"
-                        value={current?.cpa}
-                        previous={previous?.cpa}
-                        format={formatCurrency}
-                        betterWhen="down"
-                        loading={loading}
-                    />
-                    <MetricCard
-                        title="Conversions"
-                        value={current?.conversions}
-                        previous={previous?.conversions}
-                        format={(v) => v.toLocaleString("en-US")}
-                        betterWhen="up"
-                        loading={loading}
-                    />
-                    <MetricCard
-                        title="CTR"
-                        value={current?.ctr}
-                        previous={previous?.ctr}
-                        format={(v) => `${v.toFixed(2)}%`}
-                        betterWhen="up"
-                        loading={loading}
-                    />
-                    <MetricCard
-                        title="Reach"
-                        value={current?.reach}
-                        previous={previous?.reach}
-                        format={formatCompact}
-                        betterWhen="up"
-                        loading={loading}
-                    />
+                    {cards.map((key) => {
+                        const def = METRIC_CARD_DEFS[key];
+                        return (
+                            <MetricCard
+                                key={key}
+                                title={def.label}
+                                value={current ? metricValue(current, key) : undefined}
+                                previous={previous ? metricValue(previous, key) : undefined}
+                                format={formatters[def.format]}
+                                betterWhen={def.betterWhen}
+                                loading={loading}
+                            />
+                        );
+                    })}
                 </div>
             </div>
 
