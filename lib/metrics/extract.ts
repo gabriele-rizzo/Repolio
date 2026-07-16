@@ -24,9 +24,12 @@ export interface ActionSpec {
 }
 
 // Meta action_type vocabularies. Aggregates match Ads Manager's "Purchases" / "Leads" columns.
-// Zernio strips Meta's namespace prefix on some accounts (observed: `fb_pixel_lead` for
-// `offsite_conversion.fb_pixel_lead`) — `lookup` tolerates both spellings. Prune these lists
-// against the real stored vocabulary (scratch/action-keys.sql) before trusting new entries.
+// LEADS was validated against the first customer's stored data (scratch/action-keys.sql, Jul 2026):
+// the `lead` rollup is always present when leads occur and already subsumes the pixel/instant-form
+// channels, so the specific groups only fire as a fallback. PURCHASES is unobserved in that
+// (pure lead-gen) data set but retained for future e-commerce accounts. Zernio keeps Meta's
+// namespace prefix (observed `offsite_conversion.fb_pixel_lead`), and `lookup` also tolerates the
+// bare form should that ever change.
 export const PURCHASES: ActionSpec = {
     aggregates: ["omni_purchase", "purchase"],
     specificGroups: [
@@ -41,7 +44,8 @@ export const LEADS: ActionSpec = {
     aggregates: ["lead"],
     specificGroups: [
         ["offsite_conversion.fb_pixel_lead"], // website pixel lead
-        ["onsite_conversion.lead_grouped", "leadgen_grouped", "leadgen.other"], // instant forms
+        ["onsite_conversion.lead_grouped", "leadgen_grouped", "leadgen.other"], // on-Facebook instant forms
+        ["onsite_web_lead"], // website lead measured on-site (observed in the first customer's data)
         ["offline_conversion.lead"],
     ],
 };

@@ -48,6 +48,12 @@ describe("pickAction", () => {
         expect(pickAction(map, PURCHASES)).toBe(6);
     });
 
+    it("counts on-site web leads (observed channel) when the lead rollup is absent", () => {
+        expect(pickAction({ onsite_web_lead: 4 }, LEADS)).toBe(4);
+        // ...but the rollup still wins outright when present (it already includes this channel).
+        expect(pickAction({ lead: 4, onsite_web_lead: 4 }, LEADS)).toBe(4);
+    });
+
     it("treats entries within one group as alternatives, not additive", () => {
         // web_app is the roll-up of web + app inside the Shops channel.
         const map = { onsite_web_app_purchase: 5, onsite_web_purchase: 3 };
