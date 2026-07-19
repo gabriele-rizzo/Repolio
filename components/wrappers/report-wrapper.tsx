@@ -17,12 +17,14 @@ interface ReportWrapperProps {
     /** Live metrics for the preceding equal-length window (for deltas). */
     previous?: ComputedMetrics | null;
     loading?: boolean;
+    /** Read-only preview (admin simulation): hide the context editor and other mutating controls. */
+    readOnly?: boolean;
 }
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const formatCompact = (value: number) => compact.format(value);
 
-export function ReportWrapper({ report, current, previous, loading }: ReportWrapperProps) {
+export function ReportWrapper({ report, current, previous, loading, readOnly }: ReportWrapperProps) {
     const recommendations = (report?.recommendations ?? []) as unknown as Recommendation[];
 
     // Currency comes from the account's metrics; fall back to EUR while metrics are still loading.
@@ -75,7 +77,7 @@ export function ReportWrapper({ report, current, previous, loading }: ReportWrap
 
             <AIInsights summary={report?.executive_summary} recommendations={recommendations} loading={loading} />
 
-            {report && <ReportContextEditor reportId={report.id} initial={report.context_comment} />}
+            {report && !readOnly && <ReportContextEditor reportId={report.id} initial={report.context_comment} />}
         </div>
     );
 }

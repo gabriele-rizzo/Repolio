@@ -12,11 +12,15 @@ export default function EnrollmentPage() {
     const [sent, setSent] = useState(false);
 
     if (!sent) {
-        return <EnrollmentForm action={(data) => enrollClient(data)} onSuccess={() => setSent(true)} />;
+        return (
+            <div className="mx-auto w-full max-w-md">
+                <EnrollmentForm action={(data) => enrollClient(data)} onSuccess={() => setSent(true)} />
+            </div>
+        );
     }
 
     return (
-        <Card className="w-full max-w-md">
+        <Card className="mx-auto w-full max-w-md">
             <CardContent>
                 <Empty>
                     <EmptyHeader>

@@ -31,6 +31,9 @@ interface ReportViewProps {
     to: Date;
     /** Server-computed metrics for [from, to], used to seed SWR and avoid a loading flash. */
     initial: WindowMetrics;
+    /** Read-only preview (admin simulation): hide client-scoped controls (window/switcher/context)
+     *  that navigate into /dashboard or refetch under the client's session. */
+    readOnly?: boolean;
 }
 
 // The window is exchanged as calendar-day identity, never as an instant. Snapshots and the
@@ -64,6 +67,7 @@ export function ReportView({
     from: initialFrom,
     to: initialTo,
     initial,
+    readOnly = false,
 }: ReportViewProps) {
     const [to, setTo] = useState<Date>(() => localDayOf(initialTo));
     const [from, setFrom] = useState<Date>(() => localDayOf(initialFrom));
@@ -87,7 +91,7 @@ export function ReportView({
             description="The AI write-up is for this report. Metrics are computed live for the selected window, which defaults to the period this report covers."
             actions={
                 <div className="flex flex-row flex-wrap items-center justify-end gap-2">
-                    {account && (
+                    {account && !readOnly && (
                         <DateRangePicker
                             from={from}
                             to={to}
@@ -98,7 +102,7 @@ export function ReportView({
                         />
                     )}
 
-                    {account && reports.length > 0 && (
+                    {account && !readOnly && reports.length > 0 && (
                         <ReportSwitcher
                             reports={reports}
                             currentId={report.id}
@@ -108,26 +112,34 @@ export function ReportView({
                         />
                     )}
 
-                    <Tooltip>
-                        <TooltipTrigger
-                            render={
-                                <a
-                                    href="#context"
-                                    aria-label="Add context"
-                                    className={buttonVariants({ variant: "outline", size: "icon" })}
-                                >
-                                    <Brain />
-                                </a>
-                            }
-                        />
-                        <TooltipContent>Add context</TooltipContent>
-                    </Tooltip>
+                    {!readOnly && (
+                        <Tooltip>
+                            <TooltipTrigger
+                                render={
+                                    <a
+                                        href="#context"
+                                        aria-label="Add context"
+                                        className={buttonVariants({ variant: "outline", size: "icon" })}
+                                    >
+                                        <Brain />
+                                    </a>
+                                }
+                            />
+                            <TooltipContent>Add context</TooltipContent>
+                        </Tooltip>
+                    )}
 
                     <PrintButton reportId={report.id} />
                 </div>
             }
         >
-            <ReportWrapper report={report} current={data?.current} previous={data?.previous} loading={!data} />
+            <ReportWrapper
+                report={report}
+                current={data?.current}
+                previous={data?.previous}
+                loading={!data}
+                readOnly={readOnly}
+            />
         </PageScaffold>
     );
 }
