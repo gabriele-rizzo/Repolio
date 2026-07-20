@@ -15,12 +15,13 @@ export type MetricCardKey =
     | "cpc"
     | "cpm"
     | "reach"
+    | "frequency"
     | "impressions";
 
 export type AccountFocus = "ecom" | "leadgen" | "mixed" | "none";
 
 /** Formatter kind — each renderer maps it to its own formatter (web React vs email string). */
-export type MetricFormat = "currency" | "percent" | "multiplier" | "count" | "compact";
+export type MetricFormat = "currency" | "percent" | "multiplier" | "count" | "compact" | "decimal";
 
 export interface MetricCardDef {
     label: string;
@@ -39,6 +40,8 @@ export const METRIC_CARD_DEFS: Record<MetricCardKey, MetricCardDef> = {
     cpc: { label: "CPC", betterWhen: "down", format: "currency" },
     cpm: { label: "CPM", betterWhen: "down", format: "currency" },
     reach: { label: "Reach", betterWhen: "up", format: "compact" },
+    // Avg times each person saw the ads. Higher = more repetition/fatigue risk, so lower is better.
+    frequency: { label: "Frequency", betterWhen: "down", format: "decimal" },
     impressions: { label: "Impressions", betterWhen: "up", format: "compact" },
 };
 
@@ -67,7 +70,9 @@ const CARD_SETS: Record<AccountFocus, readonly MetricCardKey[]> = {
     ecom: ["spend", "roas", "cpa", "conversions", "ctr", "reach"],
     leadgen: ["spend", "leads", "cpl", "ctr", "cpc", "reach"],
     mixed: ["spend", "roas", "conversions", "cpa", "cpl", "ctr"],
-    none: ["spend", "impressions", "ctr", "cpc", "cpm", "reach"],
+    // Awareness/no-conversion accounts: frequency (ad fatigue) is the actionable signal here, so it
+    // takes CPC's slot — there are no conversions for a click-cost to speak to.
+    none: ["spend", "impressions", "ctr", "cpm", "reach", "frequency"],
 };
 
 export function selectKpiCards(focus: AccountFocus): readonly MetricCardKey[] {

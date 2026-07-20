@@ -47,6 +47,7 @@ const metricDefs = (
         multiplier: (v) => `${v.toFixed(2)}x`,
         count: (v) => v.toLocaleString("en-US"),
         compact: (v) => compact.format(v),
+        decimal: (v) => v.toFixed(2),
     };
 
     return selectKpiCards(accountFocus(current, previous)).map((key) => {

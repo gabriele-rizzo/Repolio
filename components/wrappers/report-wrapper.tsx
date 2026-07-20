@@ -37,6 +37,7 @@ export function ReportWrapper({ report, current, previous, loading, readOnly }: 
         multiplier: (v) => `${v.toFixed(2)}x`,
         count: (v) => v.toLocaleString("en-US"),
         compact: formatCompact,
+        decimal: (v) => v.toFixed(2),
     };
 
     // Card set follows what the account measurably optimizes for (lead-gen accounts lead with

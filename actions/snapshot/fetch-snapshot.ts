@@ -5,6 +5,7 @@ import type { SnapshotCreateManyInput } from "@/generated/prisma/models";
 import { DAY_MS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { logSyncError } from "@/lib/sync-error";
+import { missingZeroFillDates, zeroFillFloor, zeroSnapshotData } from "@/lib/snapshot/zero-fill";
 import { err, ok } from "@/lib/try-catch";
 import { getTimeline } from "@/lib/zernio/ads";
 import type { SnapshotData } from "@/lib/zernio/types";
@@ -49,14 +50,15 @@ export async function fetchSnapshot(
     });
 
     const now = Date.now();
+    const nowDate = new Date(now);
     const backfillFloor = new Date(now - MAX_BACKFILL_DAYS * DAY_MS);
+    const repullDays = nowDate.getUTCDay() === RECONCILE_WEEKDAY ? TRAILING_DAYS : REPULL_DAYS;
 
     let from: Date;
     if (!latest) {
         from = adAccount.created_at > backfillFloor ? adAccount.created_at : backfillFloor;
     } else {
-        const days = new Date(now).getUTCDay() === RECONCILE_WEEKDAY ? TRAILING_DAYS : REPULL_DAYS;
-        const windowFloor = new Date(now - days * DAY_MS);
+        const windowFloor = new Date(now - repullDays * DAY_MS);
         from = latest.start_date < windowFloor ? latest.start_date : windowFloor;
         if (from < backfillFloor) from = backfillFloor;
     }
@@ -73,20 +75,30 @@ export async function fetchSnapshot(
     }
 
     const currency = adAccount.currency ?? "EUR";
+    // Pin the account-local calendar day to UTC midnight so the @@unique([start_date, ad_account_id])
+    // key is stable regardless of server timezone.
+    const toInput = (data: SnapshotData): SnapshotCreateManyInput => ({
+        ad_account_id: adAccount.id,
+        platform: connection.platform,
+        start_date: new Date(`${data.date}T00:00:00.000Z`),
+        data: data as unknown as SnapshotCreateManyInput["data"],
+    });
+
     const inputs: SnapshotCreateManyInput[] = rows.map((row) => {
         // engagement is an excluded vanity metric — never persisted (see SnapshotData).
         const kept = { ...row };
         delete kept.engagement;
-        const data: SnapshotData = { ...kept, currency };
-        return {
-            ad_account_id: adAccount.id,
-            platform: connection.platform,
-            // Pin the account-local calendar day to UTC midnight so the @@unique([start_date,
-            // ad_account_id]) key is stable regardless of server timezone.
-            start_date: new Date(`${row.date}T00:00:00.000Z`),
-            data: data as unknown as SnapshotCreateManyInput["data"],
-        };
+        return toInput({ ...kept, currency });
     });
+
+    // The fetch succeeded (a failure returned above), so every day the trailing window should cover
+    // that Zernio didn't return is a confirmed no-delivery day — persist it as an explicit zero-row
+    // so a missing snapshot can only mean "never fetched" (see lib/snapshot/zero-fill.ts).
+    const have = new Set(rows.map((row) => row.date));
+    const floorMs = zeroFillFloor(nowDate, from, repullDays);
+    for (const date of missingZeroFillDates(have, floorMs, nowDate)) {
+        inputs.push(toInput(zeroSnapshotData(date, currency)));
+    }
 
     return ok(inputs);
 }
