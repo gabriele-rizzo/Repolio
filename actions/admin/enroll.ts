@@ -25,11 +25,13 @@ export async function enrollClient({ email, ...data }: ClientEnrollment) {
         const supabase = await createAdminClient();
         const baseUrl = checkEnv("NEXT_PUBLIC_SITE_URL");
 
-        const { error } = await supabase.auth.admin.inviteUserByEmail(email, {
+        const { error } = await supabase.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
             redirectTo: `${baseUrl}/auth/confirm`,
             data,
         });
 
+        // Turn Supabase's raw "already been registered" into something an admin can act on.
+        if (error?.code === "email_exists") throw new Error("A client with this email is already enrolled.");
         if (error) throw error;
 
         revalidatePath("/admin/enrollment");

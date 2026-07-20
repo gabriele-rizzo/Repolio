@@ -5,9 +5,14 @@ import * as z from "zod";
 import { DynamicForm } from "../dynamic-form";
 
 const schema = z.object({
-    email: z.string().email(),
-    name: z.string(),
-    company: z.string().nullable(),
+    name: z.string().trim().min(1, "Please enter the client's name."),
+    email: z.string().trim().email("Enter a valid email address."),
+    // Optional: an empty box submits as null rather than "" so it lands as a null Client.company.
+    company: z
+        .string()
+        .trim()
+        .transform((v) => v || null)
+        .nullable(),
 });
 
 interface EnrollmentFormProps {
@@ -42,10 +47,10 @@ export function EnrollmentForm({ onSuccess, action }: EnrollmentFormProps) {
                     required: true,
                 },
                 company: {
-                    label: "Company",
+                    label: "Company (optional)",
                     placeholder: "Acme Corp.",
                     type: "text",
-                    autoComplete: "company",
+                    autoComplete: "organization",
                 },
             }}
         />

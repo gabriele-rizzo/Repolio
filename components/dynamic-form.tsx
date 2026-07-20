@@ -65,13 +65,12 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
         setError(null);
     }, [form, setError, loading]);
 
-    const onError = useCallback(
-        (error: Error) => {
-            reset();
-            setError(error);
-        },
-        [setError, reset],
-    );
+    // Surface the failure but keep everything the user typed — re-entering a whole form after a
+    // transient error (rate-limit, duplicate email) is exactly the frustration to avoid. Clearing
+    // is the explicit "Clear" button's job.
+    const onError = useCallback((error: Error) => {
+        setError(error);
+    }, []);
 
     const onSubmit = form.handleSubmit(async (data) => {
         if (loading) return;
