@@ -78,11 +78,17 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
                     // Complete days only: the run stores a near-empty row for the just-started UTC
                     // day, which would read as a fake collapse in the report KPIs and AI narrative
                     // — reports end on the last full day (the dashboard still shows live today).
+                    //
+                    // gte, not gt: the previous report was generated on day D (created_at floored to
+                    // D 00:00) but only covered metric days < D (its own `lt today` excluded day D),
+                    // so day D belongs to THIS report. `gt` would drop day D from every cycle — it
+                    // sat in the crack between the two windows. The `lt today` bound still prevents a
+                    // same-day re-run from double-reporting (the range collapses to empty).
                     const since = startOfUtcDay(new Date(last?.created_at ?? c.created_at));
                     return prisma.snapshot.findMany({
                         where: {
                             ad_account: { connection: { client_id: c.id } },
-                            start_date: { gt: since, lt: today },
+                            start_date: { gte: since, lt: today },
                         },
                     });
                 }),

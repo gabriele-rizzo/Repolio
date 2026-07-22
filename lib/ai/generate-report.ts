@@ -6,7 +6,10 @@ import { computeMetrics, type ComputedMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import type Anthropic from "@anthropic-ai/sdk";
 
-const MODEL = "claude-sonnet-4-6";
+// Sonnet 5: structured outputs (output_config.format, used below) are not supported on Sonnet 4.6,
+// so a batch request on 4.6 errored and the report rendered with empty AI sections. Sonnet 5 keeps
+// the same request surface we use here (adaptive thinking, effort, json_schema format).
+const MODEL = "claude-sonnet-5";
 // How many prior reports for the same ad account to feed in as trend context.
 const HISTORY_DEPTH = 3;
 

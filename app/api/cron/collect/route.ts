@@ -15,6 +15,10 @@ import pLimit from "p-limit";
 
 const limit = pLimit(10);
 
+// Retrieving + writing back every finished batch overruns the 10s default budget; 60s is the
+// Hobby ceiling. Keep in sync with the other cron routes.
+export const maxDuration = 60;
+
 // Vercel Cron invokes via GET.
 export async function GET(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (!isAuthorizedCron(request)) return NextResponse.json(err("Unauthorized"), { status: 401 });

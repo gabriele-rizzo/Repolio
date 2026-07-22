@@ -79,6 +79,14 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
     let revenue: number | null = null;
     let linkClicksTotal: number | null = null;
 
+    // Link clicks are usable as a rate basis only if the WHOLE window measures them. A day with
+    // real clicks but no link_click breakdown leaves the link total incomplete, so mixing that
+    // partial sum with full-window impressions/spend yields a CTR/CPC that is neither the true
+    // link figure nor the all-clicks figure. Track completeness and fall back to all clicks for
+    // the whole window if any active day is missing the breakdown. (Zero-click days are fine —
+    // an absent breakdown there is a truthful zero, not a missing measurement.)
+    let linkClicksComplete = true;
+
     for (const r of rows) {
         spend += num(r.spend);
         impressions += num(r.impressions);
@@ -90,10 +98,12 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
         leads += facts.leads;
         if (facts.revenue != null) revenue = (revenue ?? 0) + facts.revenue;
         if (facts.linkClicks != null) linkClicksTotal = (linkClicksTotal ?? 0) + facts.linkClicks;
+        else if (num(r.clicks) > 0) linkClicksComplete = false;
     }
 
     const conversions = purchases + leads;
-    const linkClicks = linkClicksTotal;
+    // Null when the breakdown is incomplete → clickBasis below falls back to all clicks.
+    const linkClicks = linkClicksComplete ? linkClicksTotal : null;
 
     // Daily rows give per-day reach; summing over-counts unique users reached across days, so
     // period reach/frequency are approximate (Zernio exposes no period-level reach). This is an

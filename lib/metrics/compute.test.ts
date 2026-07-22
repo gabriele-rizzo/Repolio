@@ -79,6 +79,31 @@ describe("computeMetrics", () => {
         expect(withoutBreakout!.cpc).toBeCloseTo(100 / 3263);
     });
 
+    it("falls back to all clicks when link_click coverage is PARTIAL across the window", () => {
+        // One active day breaks out link_click, another day has clicks but no breakdown (Meta omits
+        // it on some days). Summing only the covered day's link clicks against full-window
+        // impressions/spend would yield a CTR/CPC that is neither the true link nor all-clicks
+        // figure — so the whole window must fall back to all clicks.
+        const m = computeMetrics([
+            day({ spend: 50, impressions: 1000, clicks: 100, actions: { link_click: 50 } }, "2026-07-14"),
+            day({ spend: 50, impressions: 1000, clicks: 100 }, "2026-07-15"),
+        ]);
+        expect(m!.linkClicks).toBeNull(); // incomplete → not reported as a measured total
+        expect(m!.ctr).toBeCloseTo(10); // 200 all clicks / 2000 impressions, not 50/2000 = 2.5
+        expect(m!.cpc).toBeCloseTo(0.5); // 100 spend / 200 all clicks, not 100/50 = 2.0
+    });
+
+    it("keeps the link basis when only zero-click days lack the breakdown", () => {
+        // Zero-delivery days (no clicks, no breakdown) are truthful zeros, not missing measurements
+        // — they must not force the all-clicks fallback.
+        const m = computeMetrics([
+            day({ spend: 100, impressions: 10_000, clicks: 300, actions: { link_click: 250 } }, "2026-07-14"),
+            day({ spend: 0, impressions: 0, clicks: 0 }, "2026-07-15"),
+        ]);
+        expect(m!.linkClicks).toBe(250);
+        expect(m!.ctr).toBeCloseTo(2.5); // 250 / 10000
+    });
+
     it("nulls every unmeasured rate instead of storing 0", () => {
         const m = computeMetrics([day({ spend: 5 })]);
         expect(m!.ctr).toBeNull(); // impressions 0 (was 0 before the fix)

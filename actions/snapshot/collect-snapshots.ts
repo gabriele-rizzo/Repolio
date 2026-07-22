@@ -13,10 +13,18 @@ import { upsertAdAccounts } from "@/lib/zernio/finish-connection";
 import pLimit from "p-limit";
 import { fetchSnapshot } from "./fetch-snapshot";
 
-// Cap concurrent Zernio timeline fetches per client. A client with hundreds of ad accounts would
-// otherwise fire hundreds of simultaneous requests (Promise.all over all accounts), risking Zernio
-// rate limits (429 → retries) and cron timeouts.
-const fetchLimit = pLimit(6);
+// Global cap on concurrent Zernio timeline fetches. Module-level, so it bounds the WHOLE run
+// (every account of every client), not each client in isolation — one big client can use the full
+// budget when others are idle, and total in-flight requests stay bounded regardless of client mix.
+//
+// This is a balance, not a max-it-out: too low and a 20-account client serializes into many waves
+// that overrun the cron budget (the Jul blackout); too high and a burst of simultaneous requests
+// trips Zernio's rate limit, whose 429 → retry-with-backoff then costs more wall-clock than the
+// waves saved. 20 clears today's largest client in ~one wave while still capping a future
+// hundreds-of-accounts client. Override with ZERNIO_FETCH_CONCURRENCY once Zernio's real limit is
+// known — no deploy needed.
+const FETCH_CONCURRENCY = Number(process.env.ZERNIO_FETCH_CONCURRENCY) || 20;
+const fetchLimit = pLimit(FETCH_CONCURRENCY);
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
     // Backfill ad accounts from Zernio before pulling. Zernio's ad-account listing lags the grant,

@@ -15,11 +15,26 @@ import { NextResponse, type NextRequest } from "next/server";
 // Ordering: snapshots runs first so poll sees fresh data; poll also self-heals any missing
 // snapshots, so a snapshot-phase failure is logged but does not block report generation.
 // Vercel Cron invokes via GET.
+
+// This route does real work per invocation: a Zernio timeline fetch per ad account (fanned out,
+// each with retry+backoff on throttling) followed by the report submit phase. On Vercel the
+// default function budget is 10s (Hobby) — far too short once a client has a dozen-plus accounts,
+// so the function was being KILLED mid-run and committed nothing for the slower clients. 60s is
+// the Hobby ceiling; raise to 300 if this ever moves to Pro. See vercel.json.
+export const maxDuration = 60;
+
 export async function GET(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (!isAuthorizedCron(request)) return NextResponse.json(err("Unauthorized"), { status: 401 });
 
-    const snapshots = await runSnapshots();
-    if (snapshots.error) console.error("daily: snapshot phase failed:", snapshots.error);
+    // Snapshots must never abort the run: a thrown snapshot phase would 500 the whole job and skip
+    // poll (which self-heals missing snapshots anyway). runSnapshots already returns a Result, but
+    // guard the throw path too so one unexpected rejection can't blackout report generation.
+    try {
+        const snapshots = await runSnapshots();
+        if (snapshots.error) console.error("daily: snapshot phase failed:", snapshots.error);
+    } catch (error) {
+        console.error("daily: snapshot phase threw:", error);
+    }
 
     const poll = await runPoll();
     if (poll.error) return NextResponse.json(err(poll.error), { status: poll.status });
