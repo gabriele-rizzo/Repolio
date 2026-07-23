@@ -5,6 +5,7 @@ import { DAY_MS, REFRESH_THRESHOLD_DAYS } from "@/lib/constants";
 import { renderConnectionExpiredEmail } from "@/lib/email/render-connection-expired";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
+import { resolveSyncedAccounts, type UpsertOutcome } from "@/lib/snapshot/resolve-synced-accounts";
 import { logSyncError } from "@/lib/sync-error";
 import { err, ok, sink } from "@/lib/try-catch";
 import { listAccounts } from "@/lib/zernio/accounts";
@@ -25,6 +26,13 @@ import { fetchSnapshot } from "./fetch-snapshot";
 // known — no deploy needed.
 const FETCH_CONCURRENCY = Number(process.env.ZERNIO_FETCH_CONCURRENCY) || 20;
 const fetchLimit = pLimit(FETCH_CONCURRENCY);
+
+// Concurrency cap for the per-day snapshot upserts (see the upsert loop). Each upsert is an
+// independent, idempotent, autocommitted write — no wrapping transaction — so they run in parallel,
+// bounded here so a huge first-time backfill (hundreds of days × dozens of accounts) can't exhaust
+// the Prisma connection pool. Override with SNAPSHOT_UPSERT_CONCURRENCY — no deploy needed.
+const UPSERT_CONCURRENCY = Number(process.env.SNAPSHOT_UPSERT_CONCURRENCY) || 10;
+const upsertLimit = pLimit(UPSERT_CONCURRENCY);
 
 export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
     // Backfill ad accounts from Zernio before pulling. Zernio's ad-account listing lags the grant,
@@ -90,19 +98,20 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
         return ok([]);
     }
 
-    // Per-day upsert so re-fetched trailing days overwrite (createMany/skipDuplicates can't update
-    // an existing day). Keyed on the @@unique([start_date, ad_account_id]). Chunked into small
-    // batches: the first-ever backfill can be hundreds of days across several ad accounts, and one
-    // giant $transaction blows Prisma's 5s interactive-transaction cap (P2028). Each chunk is its
-    // own transaction — a failing chunk fails the run, but already-committed chunks persist and the
-    // rest re-fetch next run.
-    const CHUNK_SIZE = 50;
+    // Per-day upserts, each its own autocommitted statement — deliberately NOT wrapped in a
+    // $transaction. Keyed on the @@unique([start_date, ad_account_id]); a re-fetched trailing day
+    // overwrites (createMany/skipDuplicates can't update an existing day). The writes need no
+    // cross-day atomicity — the run already tolerates partial persistence and re-pulls the rest next
+    // time — and the old per-chunk $transaction was actively harmful: a large first-time backfill
+    // (hundreds of days × dozens of accounts) overran Prisma's 5s interactive-transaction cap
+    // (P2028), so the chunk rolled back, the client committed NOTHING, and it never advanced past
+    // that first chunk (client 5 sat fully un-synced this way). Autocommitting each row means
+    // partial progress sticks, so a backfill too big for one 60s run just shrinks the backlog every
+    // run until it completes. Concurrency-bounded by upsertLimit.
     try {
-        const snapshots: Snapshot[] = [];
-        for (let i = 0; i < inputs.length; i += CHUNK_SIZE) {
-            const chunk = inputs.slice(i, i + CHUNK_SIZE);
-            const upserted = await prisma.$transaction(
-                chunk.map((input) =>
+        const settled = await Promise.allSettled(
+            inputs.map((input) =>
+                upsertLimit(() =>
                     prisma.snapshot.upsert({
                         where: {
                             start_date_ad_account_id: {
@@ -114,14 +123,33 @@ export async function collectSnapshots(client: Client): Promise<Result<Snapshot[
                         update: { data: input.data, platform: input.platform },
                     }),
                 ),
-            );
-            snapshots.push(...upserted);
-        }
+            ),
+        );
 
-        // Stamped only after the whole upsert succeeded — conservative on partial chunk failure
-        // (nobody gets stamped; the trailing re-pull heals next run).
-        await stampSynced(okAccountIds);
-        console.log(`[snapshots] client=${client.id} rows=${inputs.length} upserted`);
+        const snapshots: Snapshot[] = [];
+        const outcomes: UpsertOutcome[] = [];
+        let firstError: unknown = null;
+        settled.forEach((outcome, i) => {
+            const ok = outcome.status === "fulfilled";
+            outcomes.push({ adAccountId: inputs[i].ad_account_id, ok });
+            if (outcome.status === "fulfilled") snapshots.push(outcome.value);
+            else firstError ??= outcome.reason;
+        });
+
+        // Stamp only accounts whose every upsert landed; a partially-upserted account stays "stale"
+        // so the trailing re-pull heals it next run and the stale-account query stays honest.
+        const { syncedAccountIds, failedAccountIds } = resolveSyncedAccounts(outcomes, okAccountIds);
+        await stampSynced(syncedAccountIds);
+
+        console.log(
+            `[snapshots] client=${client.id} rows=${inputs.length} upserted=${snapshots.length} failed=${failedAccountIds.length} accounts`,
+        );
+
+        if (failedAccountIds.length > 0) {
+            const message = `Failed to upsert some snapshots for client '${client.id}': ${failedAccountIds.length} account(s) errored (committed ${snapshots.length}/${inputs.length} rows, will re-pull next run). First error: ${String(firstError)}`;
+            await logSyncError({ stage: "upsert_snapshots", clientId: client.id, message });
+            return err(message);
+        }
 
         return ok(snapshots);
     } catch (error) {
