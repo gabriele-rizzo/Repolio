@@ -1,6 +1,7 @@
 import type { Snapshot } from "@/generated/prisma/browser";
-import { ScoreLabel } from "@/generated/prisma/enums";
+import type { ScoreLabel } from "@/generated/prisma/enums";
 import { extractRowFacts } from "@/lib/metrics/extract";
+import { scorePerformance, type ScoreComponent, type ScoreDay } from "@/lib/metrics/score";
 import type { SnapshotData } from "@/lib/zernio/types";
 
 /**
@@ -39,16 +40,19 @@ export interface ComputedMetrics {
     cpl: number | null;
     cpc: number | null;
     roas: number | null;
+    /** 0-100 blend of the dimensions below — see lib/metrics/score.ts. */
     performance_score: number;
     score_label: ScoreLabel;
+    /** What went into the score, for the report/AI prompt ("why 63"). Empty when nothing delivered. */
+    score_components: ScoreComponent[];
+    /** 0-1 confidence in the score, by data volume and breadth (thin windows are pulled toward 50). */
+    score_confidence: number;
 }
 
 const num = (v: number | string | null | undefined): number => {
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : 0;
 };
-
-const clampScore = (v: number): number => Math.max(0, Math.min(100, Math.round(v)));
 
 /**
  * Aggregates Zernio daily timeline rows (stored one per Snapshot) into account-level KPIs and a
@@ -87,6 +91,10 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
     // an absent breakdown there is a truthful zero, not a missing measurement.)
     let linkClicksComplete = true;
 
+    // Per-day series for the score's consistency and momentum dimensions (see lib/metrics/score.ts):
+    // those read the shape of the window, which the summed totals below have thrown away.
+    const days: ScoreDay[] = [];
+
     for (const r of rows) {
         spend += num(r.spend);
         impressions += num(r.impressions);
@@ -99,6 +107,16 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
         if (facts.revenue != null) revenue = (revenue ?? 0) + facts.revenue;
         if (facts.linkClicks != null) linkClicksTotal = (linkClicksTotal ?? 0) + facts.linkClicks;
         else if (num(r.clicks) > 0) linkClicksComplete = false;
+
+        days.push({
+            date: r.date,
+            spend: num(r.spend),
+            impressions: num(r.impressions),
+            clicks: num(r.clicks),
+            linkClicks: facts.linkClicks,
+            conversions: facts.purchases + facts.leads,
+            revenue: facts.revenue,
+        });
     }
 
     const conversions = purchases + leads;
@@ -121,29 +139,23 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
     const cpc = clickBasis > 0 ? spend / clickBasis : null;
     const roas = revenueOut != null && spend > 0 ? revenueOut / spend : null;
 
-    // Timeline rows have no campaign objective, so performance vs awareness can't be classified.
-    // E-commerce accounts (measured purchase revenue) score on the ROAS curve. Lead-gen accounts
-    // (conversions, no revenue) have no ROI benchmark until CPL targets exist, so they anchor at 55
-    // and move within the MODERATE band on engagement signals. Nothing measurable stays neutral 50.
-    const ctrBoost = ctr != null && ctr >= 1.5 ? 10 : 0;
-    const freqPenalty = frequency != null && frequency > 3.5 ? 15 : 0;
-
-    let performance_score: number;
-    if (revenueOut != null) {
-        const roasScore = roas != null ? Math.min(100, (roas / 5) * 100) : 0;
-        performance_score = clampScore(roasScore + ctrBoost - freqPenalty);
-    } else if (conversions > 0) {
-        performance_score = clampScore(55 + ctrBoost - freqPenalty);
-    } else {
-        performance_score = 50;
-    }
-
-    const score_label =
-        performance_score >= 70
-            ? ScoreLabel.STRONG
-            : performance_score >= 40
-              ? ScoreLabel.MODERATE
-              : ScoreLabel.NEEDS_IMPROVEMENT;
+    // Timeline rows have no campaign objective, so performance vs awareness can't be classified —
+    // the score instead blends every dimension the window can measure (ROI where revenue exists,
+    // conversion rate, CTR, saturation, delivery consistency, in-window trend) and renormalises
+    // over the rest. See lib/metrics/score.ts for the benchmark curves and weights.
+    const scored = scorePerformance({
+        spend,
+        impressions,
+        clickBasis,
+        ctrBasis: CLICK_BASIS === "link" && linkClicks != null ? "link" : "all",
+        conversions,
+        purchases,
+        revenue: revenueOut,
+        frequency,
+        ctr,
+        roas,
+        days,
+    });
 
     return {
         currency,
@@ -163,7 +175,9 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
         cpl,
         cpc,
         roas,
-        performance_score,
-        score_label,
+        performance_score: scored.score,
+        score_label: scored.label,
+        score_components: scored.components,
+        score_confidence: scored.confidence,
     };
 }

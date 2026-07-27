@@ -133,6 +133,9 @@ function formatMetrics(m: ComputedMetrics | null): string {
         `- Reach: ${fmtNum(m.reach, 0)}`,
         `- Frequency: ${fmtNum(m.frequency)}`,
         `- Performance score: ${fmtNum(m.performance_score, 0)} (${m.score_label})`,
+        // The score is a weighted blend; give the model the parts so it can explain the number
+        // instead of guessing at it.
+        ...m.score_components.map((c) => `  - ${c.label}: ${c.score}/100 (weight ${c.weight}) — ${c.detail}`),
     ].join("\n");
 }
 

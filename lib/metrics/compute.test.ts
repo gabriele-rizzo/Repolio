@@ -126,15 +126,110 @@ describe("computeMetrics", () => {
         expect(m!.cpa).toBe(25);
     });
 
-    it("scores lead-gen accounts in the MODERATE band instead of 0 or a fake 100", () => {
+    it("lets a good lead-gen account out of the old 55/65 ceiling", () => {
+        // 7.5% conversion rate, 2% link CTR, frequency 2.5 — a genuinely healthy account that the
+        // old scorer capped at 65 because lead-gen was hardcoded to anchor at 55.
         const leadGen = computeMetrics([
             day({ spend: 100, impressions: 20_000, reach: 8000, actions: { lead: 30, link_click: 400 } }),
         ]);
-        // ctr = 400/20000 = 2% → +10 boost; frequency 2.5 → no penalty ⇒ 65 MODERATE.
-        expect(leadGen!.performance_score).toBe(65);
-        expect(leadGen!.score_label).toBe("MODERATE");
+        expect(leadGen!.performance_score).toBeGreaterThanOrEqual(70);
+        expect(leadGen!.score_label).toBe("STRONG");
+    });
 
-        const nothing = computeMetrics([day({ spend: 10, impressions: 1000, clicks: 10 })]);
-        expect(nothing!.performance_score).toBe(50);
+    it("blends every measurable dimension instead of the old 50/55/65 constants", () => {
+        const m = computeMetrics([
+            day({ spend: 100, impressions: 20_000, reach: 8000, actions: { lead: 30, link_click: 400 } }),
+        ]);
+        // Single-day window: no consistency/momentum (needs 5+/6+ days), no ROI (no revenue).
+        expect(m!.score_components.map((c) => c.key).sort()).toEqual(["conversion_rate", "ctr", "frequency"]);
+        // 20k impressions ⇒ full volume confidence, but three of six dimensions ⇒ some breadth shrink.
+        expect(m!.score_confidence).toBeGreaterThan(0.8);
+        expect(m!.score_confidence).toBeLessThan(1);
+    });
+
+    it("separates two lead-gen accounts that the old score gave the same number", () => {
+        // Same conversion count and spend; one converts 7.5% of its clicks at a healthy frequency,
+        // the other 1.5% while burning its audience. Both scored exactly 65 before.
+        const good = computeMetrics([
+            day({ spend: 100, impressions: 20_000, reach: 9000, actions: { lead: 30, link_click: 400 } }),
+        ]);
+        const poor = computeMetrics([
+            day({ spend: 100, impressions: 20_000, reach: 3000, actions: { lead: 30, link_click: 2000 } }),
+        ]);
+        expect(good!.performance_score).toBeGreaterThan(poor!.performance_score + 10);
+    });
+
+    it("rewards ROAS on a curve rather than a straight line to 100", () => {
+        const ecom = (revenue: number) =>
+            computeMetrics([
+                day({
+                    spend: 1000,
+                    impressions: 100_000,
+                    clicks: 2000,
+                    reach: 50_000,
+                    actions: { purchase: 40, link_click: 1500 },
+                    actionValues: { purchase: revenue },
+                }),
+            ])!.performance_score;
+
+        expect(ecom(1000)).toBeLessThan(ecom(4000)); // 1x vs 4x ROAS
+        expect(ecom(4000)).toBeLessThan(ecom(10_000)); // 4x vs 10x
+        expect(ecom(10_000)).toBeGreaterThanOrEqual(70); // STRONG territory
+        // 0.5x ROAS drags the account below neutral even though its traffic metrics are fine —
+        // ROI carries 45 of the ~90 available weight once revenue is measured.
+        expect(ecom(500)).toBeLessThan(50);
+    });
+
+    it("penalises a window that bought real traffic and converted nobody", () => {
+        const noConversions = computeMetrics([
+            day({ spend: 500, impressions: 50_000, clicks: 900, reach: 20_000, actions: { link_click: 800 } }),
+        ]);
+        const cvr = noConversions!.score_components.find((c) => c.key === "conversion_rate");
+        expect(cvr?.score).toBe(0);
+        // Healthy CTR, frequency and delivery must not blend it back up to a passing grade.
+        expect(noConversions!.performance_score).toBeLessThan(40);
+        expect(noConversions!.score_label).toBe("NEEDS_IMPROVEMENT");
+    });
+
+    it("stays near neutral on thin traffic instead of scoring off noise", () => {
+        // A flattering 5% CTR on 400 impressions and nothing else measurable. Zero conversions on
+        // 20 clicks is too little to call, so the CVR dimension stays out, and both shrink factors
+        // (volume, breadth) pull what's left of the blend back toward 50.
+        const thin = computeMetrics([day({ spend: 10, impressions: 400, clicks: 20 })]);
+        expect(thin!.score_components.some((c) => c.key === "conversion_rate")).toBe(false);
+        expect(thin!.score_confidence).toBeLessThan(0.3);
+        expect(thin!.performance_score).toBeGreaterThan(45);
+        expect(thin!.performance_score).toBeLessThan(60);
+    });
+
+    it("scores delivery consistency and in-window trend over a multi-day window", () => {
+        const steady = Array.from({ length: 14 }, (_, i) =>
+            day(
+                { spend: 50, impressions: 5000, reach: 2500, actions: { lead: 5, link_click: 100 } },
+                `2026-07-${String(i + 1).padStart(2, "0")}`,
+            ),
+        );
+        const erratic = Array.from({ length: 14 }, (_, i) =>
+            day(
+                i % 3 === 0
+                    ? { spend: 200, impressions: 20_000, reach: 10_000, actions: { lead: 20, link_click: 400 } }
+                    : { spend: 0, impressions: 0, reach: 0 },
+                `2026-07-${String(i + 1).padStart(2, "0")}`,
+            ),
+        );
+
+        const s = computeMetrics(steady)!;
+        const e = computeMetrics(erratic)!;
+        expect(s.score_components.map((c) => c.key)).toContain("consistency");
+        expect(s.score_components.map((c) => c.key)).toContain("momentum");
+        expect(s.score_components.find((c) => c.key === "consistency")!.score).toBeGreaterThan(
+            e.score_components.find((c) => c.key === "consistency")!.score,
+        );
+    });
+
+    it("stays neutral when a window delivered nothing at all", () => {
+        const empty = computeMetrics([day({ spend: 0, impressions: 0, clicks: 0, reach: 0 })]);
+        expect(empty!.performance_score).toBe(50);
+        expect(empty!.score_components).toEqual([]);
     });
 });
