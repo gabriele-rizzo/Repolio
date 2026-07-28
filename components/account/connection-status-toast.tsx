@@ -1,18 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
-
-// Friendly copy for the error codes the connect callback can redirect with.
-const ERROR_MESSAGES: Record<string, string> = {
-    invalid_state: "Connection failed: the request expired or was invalid. Please try again.",
-    no_ad_accounts: "No ad accounts were found on that account.",
-    access_denied: "Connection cancelled.",
-    connection_failed: "We couldn't complete the connection. Please try again.",
-    plan_limit: "Connection limit reached. Please contact support to add more accounts.",
-    unsupported_platform: "That platform isn't available to connect yet.",
-};
 
 interface ConnectionStatusToastProps {
     connected?: boolean;
@@ -24,6 +15,7 @@ interface ConnectionStatusToastProps {
  * a toast, then strips the params so it doesn't fire again on refresh.
  */
 export function ConnectionStatusToast({ connected, error }: ConnectionStatusToastProps) {
+    const t = useTranslations("connect");
     const pathname = usePathname();
     const handled = useRef(false);
 
@@ -31,11 +23,12 @@ export function ConnectionStatusToast({ connected, error }: ConnectionStatusToas
         if (handled.current || (!connected && !error)) return;
         handled.current = true;
 
-        if (error) toast.error(ERROR_MESSAGES[error] ?? error);
-        else if (connected) toast.success("Account connected successfully.");
+        // Known error codes map to friendly copy; anything else is shown verbatim.
+        if (error) toast.error(t.has(error) ? t(error) : error);
+        else if (connected) toast.success(t("success"));
 
         window.history.replaceState(null, "", pathname);
-    }, [connected, error, pathname]);
+    }, [connected, error, pathname, t]);
 
     return null;
 }

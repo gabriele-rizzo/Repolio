@@ -1,6 +1,7 @@
 "use client";
 
 import { login } from "@/actions/auth/login";
+import { useTranslations } from "next-intl";
 import * as z from "zod";
 import { DynamicForm } from "../dynamic-form";
 
@@ -10,25 +11,27 @@ const schema = z.object({
 });
 
 export function LoginForm() {
+    const t = useTranslations("auth");
+
     return (
         <DynamicForm
             schema={schema}
             id="login-form"
-            title="Welcome Back"
-            description="Log in into your account to continue"
+            title={t("welcomeBack")}
+            description={t("subtitle")}
             action={async (data) => await login(data.email, data.password)}
             defaultValues={{ email: "", password: "" }}
-            submitLabel="Login"
+            submitLabel={t("login")}
             inputs={{
                 email: {
-                    label: "Email",
+                    label: t("email"),
                     placeholder: "m@example.com",
                     type: "email",
                     autoComplete: "email",
                     required: true,
                 },
                 password: {
-                    label: "Password",
+                    label: t("password"),
                     placeholder: "••••••••",
                     type: "password",
                     autoComplete: "current-password",

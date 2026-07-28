@@ -4,6 +4,7 @@ import type { Platform, Report } from "@/generated/prisma/browser";
 import type { WindowMetrics } from "@/lib/metrics/window";
 import type { ReportRef } from "@/lib/report/reports-page";
 import { Brain } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import useSWR from "swr";
 import { DateRangePicker } from "../date-range-picker";
@@ -69,6 +70,7 @@ export function ReportView({
     initial,
     readOnly = false,
 }: ReportViewProps) {
+    const t = useTranslations("report");
     const [to, setTo] = useState<Date>(() => localDayOf(initialTo));
     const [from, setFrom] = useState<Date>(() => localDayOf(initialFrom));
 
@@ -84,11 +86,11 @@ export function ReportView({
         <PageScaffold
             title={
                 <div className="flex flex-row items-center gap-3">
-                    <Typo as="title">{account?.name ?? "Report"}</Typo>
+                    <Typo as="title">{account?.name ?? t("fallbackTitle")}</Typo>
                     {account && <PlatformBadge platform={account.platform} />}
                 </div>
             }
-            description="The AI write-up is for this report. Metrics are computed live for the selected window, which defaults to the period this report covers."
+            description={t("description")}
             actions={
                 <div className="flex flex-row flex-wrap items-center justify-end gap-2">
                     {account && !readOnly && (
@@ -118,14 +120,14 @@ export function ReportView({
                                 render={
                                     <a
                                         href="#context"
-                                        aria-label="Add context"
+                                        aria-label={t("addContext")}
                                         className={buttonVariants({ variant: "outline", size: "icon" })}
                                     >
                                         <Brain />
                                     </a>
                                 }
                             />
-                            <TooltipContent>Add context</TooltipContent>
+                            <TooltipContent>{t("addContext")}</TooltipContent>
                         </Tooltip>
                     )}
 

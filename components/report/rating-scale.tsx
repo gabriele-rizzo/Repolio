@@ -1,5 +1,6 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { Typo } from "../typography";
 import { SCORE_COLORS } from "./score-badge";
 
@@ -9,10 +10,12 @@ interface RatingScaleProps {
 }
 
 export function RatingScale({ score, label }: RatingScaleProps) {
+    const t = useTranslations("report");
+
     return (
         <div className="flex flex-col w-full gap-2">
             <div className="flex flex-row items-center justify-between">
-                <Typo as="normal">Rating scale</Typo>
+                <Typo as="normal">{t("ratingScale")}</Typo>
 
                 <div className="flex flex-row gap-2 shrink-0">
                     <div className="flex flex-row gap-1 items-center">

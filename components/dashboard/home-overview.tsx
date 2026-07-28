@@ -10,6 +10,7 @@ import { accountFocus } from "@/lib/metrics/cards";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import { Link2Off } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -41,6 +42,12 @@ interface HomeOverviewProps {
 // Shared by the real /dashboard and the admin read-only simulation, which differ only in where the
 // cards link and whether the empty state offers a connect action.
 export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOverviewProps) {
+    const [t, tMetrics, tScore] = await Promise.all([
+        getTranslations("home"),
+        getTranslations("metrics"),
+        getTranslations("score"),
+    ]);
+
     const adAccounts = await prisma.adAccount.findMany({
         where: { connection: { client_id: clientId } },
         orderBy: { created_at: "asc" },
@@ -55,11 +62,8 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                         <Link2Off />
                     </EmptyMedia>
 
-                    <EmptyTitle>No Ad Accounts Yet</EmptyTitle>
-                    <EmptyDescription>
-                        Connect a platform to start pulling in your ad accounts. Each one gets its own performance
-                        reports.
-                    </EmptyDescription>
+                    <EmptyTitle>{t("noAccountsTitle")}</EmptyTitle>
+                    <EmptyDescription>{t("noAccountsBody")}</EmptyDescription>
                 </EmptyHeader>
 
                 {emptyAction && <EmptyContent>{emptyAction}</EmptyContent>}
@@ -91,12 +95,8 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
     return (
         <div className="space-y-6">
             <div className="space-y-1">
-                <Typo as="title">Home</Typo>
-                <Typo as="muted">
-                    A quick look at the {adAccounts.length} ad {adAccounts.length === 1 ? "account" : "accounts"} you
-                    manage across {platforms.size} {platforms.size === 1 ? "platform" : "platforms"}. Open one for live
-                    metrics and its latest report.
-                </Typo>
+                <Typo as="title">{t("title")}</Typo>
+                <Typo as="muted">{t("summary", { accounts: adAccounts.length, platforms: platforms.size })}</Typo>
             </div>
 
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -110,7 +110,7 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                             <div className="flex flex-row items-start justify-between gap-2">
                                 <div className="min-w-0">
                                     <Typo as="large" className="truncate">
-                                        {account.name ?? "Unnamed account"}
+                                        {account.name ?? t("unnamedAccount")}
                                     </Typo>
                                     <Typo as="muted" className="text-xs truncate">
                                         {account.external_id}
@@ -131,19 +131,19 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                                         </div>
 
                                         <Badge variant="secondary" className={SCORE_COLORS[metrics.score_label]}>
-                                            {metrics.score_label.replace("_", " ")}
+                                            {tScore(metrics.score_label)}
                                         </Badge>
                                     </div>
 
                                     <div className="grid grid-cols-3 gap-2 border-t pt-3">
                                         <Stat
-                                            label="Spend"
+                                            label={tMetrics("spend")}
                                             value={currencyFormatter(metrics.currency, 0).format(metrics.spend)}
                                         />
                                         {accountFocus(metrics) === "leadgen" ? (
                                             // Lead-gen accounts have no ROAS by definition — lead with CPL.
                                             <Stat
-                                                label="CPL"
+                                                label={tMetrics("cpl")}
                                                 value={
                                                     metrics.cpl != null
                                                         ? currencyFormatter(metrics.currency).format(metrics.cpl)
@@ -152,22 +152,24 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                                             />
                                         ) : (
                                             <Stat
-                                                label="ROAS"
+                                                label={tMetrics("roas")}
                                                 value={metrics.roas != null ? `${metrics.roas.toFixed(2)}x` : "—"}
                                             />
                                         )}
-                                        <Stat label="Conv." value={compact.format(metrics.conversions)} />
+                                        <Stat label={t("conv")} value={compact.format(metrics.conversions)} />
                                     </div>
 
                                     <Typo as="muted" className="text-xs">
-                                        Last 30 days ·{" "}
-                                        {lastReportAt ? `report ${dateFormatRelative(lastReportAt)}` : "no report yet"}
+                                        {t("last30")} ·{" "}
+                                        {lastReportAt
+                                            ? t("reportAge", { date: dateFormatRelative(lastReportAt) })
+                                            : t("noReportYet")}
                                     </Typo>
                                 </>
                             ) : (
                                 <div className="border-t pt-3">
                                     <Typo as="muted" className="text-sm">
-                                        No data in the last 30 days yet.
+                                        {t("noData")}
                                     </Typo>
                                 </div>
                             )}

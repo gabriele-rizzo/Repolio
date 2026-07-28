@@ -2,6 +2,7 @@ import type { Report } from "@/generated/prisma/browser";
 import { currencyFormatter } from "@/lib/format/currency";
 import { accountFocus, METRIC_CARD_DEFS, metricValue, selectKpiCards, type MetricFormat } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
+import { useTranslations } from "next-intl";
 import { MetricCard } from "../metric-card";
 import { AIInsights } from "../report/ai-insights";
 import { ReportContextEditor } from "../report/context-editor";
@@ -25,6 +26,9 @@ const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFra
 const formatCompact = (value: number) => compact.format(value);
 
 export function ReportWrapper({ report, current, previous, loading, readOnly }: ReportWrapperProps) {
+    const t = useTranslations("report");
+    const tMetrics = useTranslations("metrics");
+
     const recommendations = (report?.recommendations ?? []) as unknown as Recommendation[];
 
     // Currency comes from the account's metrics; fall back to EUR while metrics are still loading.
@@ -55,7 +59,7 @@ export function ReportWrapper({ report, current, previous, loading, readOnly }: 
 
             <div className="space-y-3">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                    Metrics
+                    {t("metrics")}
                 </Typo>
 
                 <div className="grid grid-cols-2 gap-4 *:h-24 md:grid-cols-3 xl:grid-cols-6 print:grid-cols-3">
@@ -64,7 +68,7 @@ export function ReportWrapper({ report, current, previous, loading, readOnly }: 
                         return (
                             <MetricCard
                                 key={key}
-                                title={def.label}
+                                title={tMetrics(key)}
                                 value={current ? metricValue(current, key) : undefined}
                                 previous={previous ? metricValue(previous, key) : undefined}
                                 format={formatters[def.format]}

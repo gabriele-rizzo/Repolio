@@ -1,5 +1,6 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
 import { Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
 import { Separator } from "../ui/separator";
@@ -15,6 +16,8 @@ interface ReportOverviewProps {
 }
 
 export function ReportOverview({ score, label, trendExplanation, loading }: ReportOverviewProps) {
+    const t = useTranslations("report");
+
     return (
         <Card className="flex flex-col xl:flex-row px-4 gap-4">
             {/* Stat column: score sits at the top, the rating scale is pinned to the bottom (justify-between),
@@ -22,7 +25,7 @@ export function ReportOverview({ score, label, trendExplanation, loading }: Repo
             <div className="flex w-full shrink-0 flex-col justify-between gap-6 xl:w-72">
                 <div className="flex flex-col gap-3">
                     <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                        Performance Score
+                        {t("performanceScore")}
                     </Typo>
 
                     <div className="flex flex-row flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -53,7 +56,7 @@ export function ReportOverview({ score, label, trendExplanation, loading }: Repo
             <div className="grow flex flex-col gap-2 min-w-64">
                 <div className="flex flex-row gap-1.5 items-center text-purple-700 dark:text-purple-300">
                     <Sparkles className="size-3.5" />
-                    <Typo as="small">AI Trend Explanation</Typo>
+                    <Typo as="small">{t("trendExplanation")}</Typo>
                 </div>
 
                 {loading ? (
@@ -64,7 +67,7 @@ export function ReportOverview({ score, label, trendExplanation, loading }: Repo
                     </div>
                 ) : (
                     <Typo as="muted" className="whitespace-pre-wrap">
-                        {trendExplanation || "No trend explanation for this report yet."}
+                        {trendExplanation || t("noTrend")}
                     </Typo>
                 )}
             </div>

@@ -3,6 +3,7 @@
 import { PLATFORM_META } from "@/lib/platform";
 import { CONNECTABLE_PLATFORMS } from "@/lib/zernio/platform-map";
 import { Plus } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "../ui/dropdown-menu";
@@ -26,12 +27,13 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
     const path = usePathname();
     const params = useSearchParams();
     const activeAccount = params.get("account");
+    const t = useTranslations("nav");
 
     const connectedGroups = groups.filter((group) => group.accounts.length > 0);
 
     return (
         <SidebarGroup>
-            <SidebarGroupLabel>Accounts</SidebarGroupLabel>
+            <SidebarGroupLabel>{t("accounts")}</SidebarGroupLabel>
 
             <SidebarMenu>
                 {connectedGroups.map(({ platform, accounts }) => {
@@ -78,6 +80,8 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
 // Entry point to start another Zernio connect. With a single connectable platform (Meta today) it
 // links straight to its OAuth; with several it opens a menu to pick which one to connect.
 function AddConnection() {
+    const t = useTranslations("nav");
+
     if (CONNECTABLE_PLATFORMS.length === 0) return null;
 
     if (CONNECTABLE_PLATFORMS.length === 1) {
@@ -85,11 +89,11 @@ function AddConnection() {
         return (
             <SidebarMenuItem>
                 <SidebarMenuButton
-                    tooltip="Add connection"
+                    tooltip={t("addConnection")}
                     render={
                         <a href={`/api/connect/${slug}`}>
                             <Plus />
-                            <span>Add connection</span>
+                            <span>{t("addConnection")}</span>
                         </a>
                     }
                 />
@@ -104,7 +108,7 @@ function AddConnection() {
                     render={
                         <SidebarMenuButton>
                             <Plus />
-                            <span>Add connection</span>
+                            <span>{t("addConnection")}</span>
                         </SidebarMenuButton>
                     }
                 />
@@ -118,7 +122,7 @@ function AddConnection() {
                                 render={
                                     <a href={`/api/connect/${slug}`}>
                                         <Icon />
-                                        Connect {label}
+                                        {t("connect", { platform: label })}
                                     </a>
                                 }
                             />

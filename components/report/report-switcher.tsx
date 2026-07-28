@@ -4,6 +4,7 @@ import { listReports } from "@/actions/report/list-reports";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import type { ReportRef } from "@/lib/report/reports-page";
 import { ChevronsUpDown } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -32,6 +33,7 @@ interface ReportSwitcherProps {
 /** Navigate between an account's reports. Each report keeps `?account` so the sidebar stays highlighted. */
 export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, accountId, hasMore: seedHasMore }: ReportSwitcherProps) {
     const router = useRouter();
+    const t = useTranslations("report");
     const [reports, setReports] = useState(seed);
     const [hasMore, setHasMore] = useState(seedHasMore);
     const [pending, startTransition] = useTransition();
@@ -46,7 +48,7 @@ export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, acc
                 setReports((prev) => [...prev, ...items]);
                 setHasMore(more);
             } catch {
-                toast.error("Could not load more reports.");
+                toast.error(t("loadMoreError"));
             }
         });
     };
@@ -87,7 +89,7 @@ export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, acc
                             onClick={loadMore}
                             className="justify-center text-muted-foreground"
                         >
-                            {pending ? "Loading…" : "Load more"}
+                            {pending ? t("loading") : t("loadMore")}
                         </DropdownMenuItem>
                     </>
                 )}

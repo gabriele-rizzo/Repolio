@@ -6,6 +6,7 @@ import { PLATFORM_META } from "@/lib/platform";
 import { cn } from "@/lib/utils";
 import { CONNECTABLE_PLATFORMS } from "@/lib/zernio/platform-map";
 import { LoaderCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 interface ConnectButtonsProps {
@@ -20,6 +21,7 @@ interface ConnectButtonsProps {
 // button shows a spinner until the browser leaves the page. Returns null when every connectable
 // platform is excluded.
 export function ConnectButtons({ exclude = [], className }: ConnectButtonsProps) {
+    const t = useTranslations("nav");
     const [pending, setPending] = useState<Platform | null>(null);
 
     const platforms = CONNECTABLE_PLATFORMS.filter((p) => !exclude.includes(p.platform));
@@ -39,7 +41,7 @@ export function ConnectButtons({ exclude = [], className }: ConnectButtonsProps)
                         className={cn(buttonVariants(), pending !== null && "pointer-events-none opacity-70")}
                     >
                         {isPending ? <LoaderCircle className="animate-spin" /> : <Icon />}
-                        {isPending ? "Connecting…" : `Connect ${label}`}
+                        {isPending ? t("connecting") : t("connect", { platform: label })}
                     </a>
                 );
             })}

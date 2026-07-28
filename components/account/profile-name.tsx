@@ -3,6 +3,7 @@
 import { updateName } from "@/actions/account/update-name";
 import { cn } from "@/lib/utils";
 import { LoaderCircle, Pen } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -10,6 +11,7 @@ import { toast } from "sonner";
 const FIELD = "rounded-md border border-transparent px-2 py-0.5 text-2xl font-semibold tracking-tight";
 
 export function ProfileName({ name }: { name: string }) {
+    const t = useTranslations("account.profile");
     const [value, setValue] = useState(name);
     const [loading, setLoading] = useState(false);
     const inputRef = useRef<HTMLInputElement>(null);
@@ -31,7 +33,7 @@ export function ProfileName({ name }: { name: string }) {
 
         if (trimmed.length === 0) {
             setValue(name);
-            toast.error("Name cannot be empty.");
+            toast.error(t("nameEmpty"));
             return;
         }
 
@@ -40,10 +42,10 @@ export function ProfileName({ name }: { name: string }) {
         try {
             await updateName(trimmed);
             setValue(trimmed);
-            toast.success("Name updated.");
+            toast.success(t("nameUpdated"));
         } catch (error) {
             setValue(name);
-            toast.error(error instanceof Error ? error.message : "Could not update name.");
+            toast.error(error instanceof Error ? error.message : t("nameError"));
         } finally {
             setLoading(false);
         }
@@ -74,7 +76,7 @@ export function ProfileName({ name }: { name: string }) {
                         }
                     }}
                     disabled={loading}
-                    aria-label="Edit your name"
+                    aria-label={t("editName")}
                     spellCheck={false}
                     maxLength={80}
                     className={cn(

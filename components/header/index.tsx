@@ -1,6 +1,7 @@
 "use client";
 
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Fragment, useMemo } from "react";
 import {
@@ -26,6 +27,7 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
     // The reports index is just a resolver that needs an account; keep the param so the
     // "Reports" crumb routes back to this account's latest report instead of the picker.
     const account = useSearchParams().get("account");
+    const t = useTranslations("nav");
 
     const secondaries = useMemo(() => {
         const segments = path === "/dashboard" ? ["dashboard", "overview"] : path.split("/").filter(Boolean);
@@ -34,7 +36,8 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
             const path = segments.slice(0, index + 1).join("/");
             const override = overrides[segment];
             const pending = !override && /^\d+$/.test(segment);
-            const content = pending ? <Skeleton className="h-4 w-24" /> : (override ?? segment);
+            const label = t.has(segment) ? t(segment) : segment;
+            const content = pending ? <Skeleton className="h-4 w-24" /> : (override ?? label);
 
             return (
                 <Fragment key={segment}>
@@ -59,7 +62,7 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
                 </Fragment>
             );
         });
-    }, [path, overrides, account]);
+    }, [path, overrides, account, t]);
 
     return (
         <div className={cn("h-12 w-full bg-background flex flex-row items-center gap-4 justify-between", className)}>
@@ -68,7 +71,7 @@ export function DashboardHeader({ children, className }: DashboardHeaderProps) {
                     <TooltipTrigger render={<SidebarTrigger size="icon-lg" />} />
 
                     <TooltipContent side="bottom" sideOffset={10}>
-                        <p>Toggle Sidebar</p>
+                        <p>{t("toggleSidebar")}</p>
                     </TooltipContent>
                 </Tooltip>
 

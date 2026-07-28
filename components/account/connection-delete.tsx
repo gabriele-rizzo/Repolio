@@ -5,6 +5,7 @@ import { Typo } from "@/components/typography";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { LoaderCircle, Trash } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -14,6 +15,7 @@ interface ConnectionDeleteProps {
 }
 
 export function ConnectionDelete({ connectionId, platform }: ConnectionDeleteProps) {
+    const t = useTranslations("account.connections");
     const [open, setOpen] = useState(false);
     const [loading, setLoading] = useState(false);
 
@@ -22,10 +24,10 @@ export function ConnectionDelete({ connectionId, platform }: ConnectionDeletePro
 
         try {
             await deleteConnection(connectionId);
-            toast.success("Connection removed.");
+            toast.success(t("removed"));
             setOpen(false);
         } catch (error) {
-            toast.error(error instanceof Error ? error.message : "Could not remove connection.");
+            toast.error(error instanceof Error ? error.message : t("removeError"));
         } finally {
             setLoading(false);
         }
@@ -38,7 +40,7 @@ export function ConnectionDelete({ connectionId, platform }: ConnectionDeletePro
                     <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label="Remove connection"
+                        aria-label={t("removeLabel")}
                         className="shrink-0 text-muted-foreground hover:text-destructive"
                     >
                         <Trash />
@@ -49,21 +51,20 @@ export function ConnectionDelete({ connectionId, platform }: ConnectionDeletePro
             <PopoverContent align="end" className="w-72 gap-3">
                 <div className="flex flex-col gap-1">
                     <Typo as="normal" className="text-sm font-medium">
-                        Remove this connection?
+                        {t("removeTitle")}
                     </Typo>
                     <Typo as="muted" className="text-xs">
-                        This deletes the {platform} connection along with its ad accounts and their snapshots. Existing
-                        reports are kept.
+                        {t("removeBody", { platform })}
                     </Typo>
                 </div>
 
                 <div className="flex flex-row justify-end gap-2">
                     <Button variant="outline" onClick={() => setOpen(false)} disabled={loading}>
-                        Cancel
+                        {t("cancel")}
                     </Button>
                     <Button variant="destructive" onClick={onDelete} disabled={loading}>
                         {loading && <LoaderCircle className="animate-spin" />}
-                        Remove
+                        {t("remove")}
                     </Button>
                 </div>
             </PopoverContent>
