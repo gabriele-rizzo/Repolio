@@ -1,0 +1,169 @@
+{
+    "account": {
+        "sections": {
+            "preferences": "Preferences",
+            "reporting": "Reporting",
+            "connections": "Account Connections"
+        },
+        "language": {
+            "title": "Language",
+            "description": "Language of the interface and new reports. Existing reports keep their text.",
+            "updated": "Language updated.",
+            "error": "Could not change the language."
+        },
+        "stats": {
+            "reports": "{count, plural, one {Report} other {Reports}}",
+            "snapshots": "{count, plural, one {Snapshot} other {Snapshots}}",
+            "managedAccounts": "{count, plural, one {Managed Account} other {Managed Accounts}}"
+        },
+        "profile": {
+            "editName": "Edit your name",
+            "nameEmpty": "Name cannot be empty.",
+            "nameUpdated": "Name updated.",
+            "nameError": "Could not update name."
+        },
+        "connections": {
+            "connected": "Connected",
+            "disconnected": "Disconnected",
+            "connectedAt": "Connected {date}",
+            "reconnect": "Reconnect",
+            "adAccounts": "{count, plural, one {# ad account} other {# ad accounts}}",
+            "noAdAccounts": "No ad accounts found for this connection.",
+            "unnamedAccount": "Unnamed account",
+            "removeTitle": "Remove this connection?",
+            "removeBody": "This deletes the {platform} connection along with its ad accounts and their snapshots. Existing reports are kept.",
+            "removeLabel": "Remove connection",
+            "cancel": "Cancel",
+            "remove": "Remove",
+            "removed": "Connection removed.",
+            "removeError": "Could not remove connection."
+        },
+        "cadence": {
+            "title": "Report cadence",
+            "description": "How often we generate a new report for each connected ad account. Currently every {days} {days, plural, one {day} other {days}}.",
+            "weekly": "Weekly",
+            "biweekly": "Every 2 weeks",
+            "monthly": "Monthly",
+            "quarterly": "Quarterly",
+            "updated": "Reporting cadence updated.",
+            "error": "Could not update cadence."
+        }
+    },
+    "locale": {
+        "de": "Deutsch",
+        "en": "English",
+        "it": "Italiano"
+    },
+    "report": {
+        "fallbackTitle": "Report",
+        "description": "The AI write-up is for this report. Metrics are computed live for the selected window, which defaults to the period this report covers.",
+        "addContext": "Add context",
+        "metrics": "Metrics",
+        "performanceScore": "Performance Score",
+        "trendExplanation": "AI Trend Explanation",
+        "noTrend": "No trend explanation for this report yet.",
+        "ratingScale": "Rating scale",
+        "aiInsights": "AI Insights",
+        "executiveSummary": "Executive Summary",
+        "noSummary": "No executive summary was generated for this report.",
+        "recommendations": "Recommendations",
+        "noRecommendationsTitle": "No recommendations",
+        "noRecommendationsBody": "Things look stable this period - nothing actionable was flagged.",
+        "context": "Context",
+        "optional": "Optional",
+        "helpsAi": "Helps the AI",
+        "contextPlaceholder": "Help the AI by giving more context to this reporting period. Holidays, creative changes, budget changes, campaign launches…",
+        "saveContext": "Save context",
+        "contextSaved": "Context saved.",
+        "contextError": "Could not save context.",
+        "loadMore": "Load more",
+        "loading": "Loading…",
+        "loadMoreError": "Could not load more reports.",
+        "new": "new"
+    },
+    "metrics": {
+        "spend": "Spend",
+        "roas": "ROAS",
+        "cpa": "CPA",
+        "conversions": "Conversions",
+        "leads": "Leads",
+        "cpl": "CPL",
+        "ctr": "CTR",
+        "cpc": "CPC",
+        "cpm": "CPM",
+        "reach": "Reach",
+        "frequency": "Frequency",
+        "impressions": "Impressions"
+    },
+    "score": {
+        "STRONG": "Strong",
+        "MODERATE": "Moderate",
+        "NEEDS_IMPROVEMENT": "Needs improvement"
+    },
+    "priority": {
+        "IMMEDIATE": "Immediate",
+        "THIS_WEEK": "This week",
+        "MONITOR": "Monitor"
+    },
+    "category": {
+        "BUDGET": "Budget",
+        "CREATIVE": "Creative",
+        "TARGETING": "Targeting",
+        "BIDDING": "Bidding"
+    },
+    "auth": {
+        "welcomeBack": "Welcome back",
+        "subtitle": "Log in to your account to continue",
+        "login": "Login",
+        "email": "Email",
+        "password": "Password"
+    },
+    "home": {
+        "title": "Home",
+        "summary": "A quick look at the {accounts, plural, one {# ad account} other {# ad accounts}} you manage across {platforms, plural, one {# platform} other {# platforms}}. Open one for live metrics and its latest report.",
+        "noAccountsTitle": "No ad accounts yet",
+        "noAccountsBody": "Connect a platform to start pulling in your ad accounts. Each one gets its own performance reports.",
+        "conv": "Conv.",
+        "last30": "Last 30 days",
+        "reportAge": "report {date}",
+        "noReportYet": "no report yet",
+        "noData": "No data in the last 30 days yet.",
+        "unnamedAccount": "Unnamed account"
+    },
+    "nav": {
+        "home": "Home",
+        "accounts": "Accounts",
+        "addConnection": "Add connection",
+        "connect": "Connect {platform}",
+        "toggleSidebar": "Toggle sidebar",
+        "notifications": "Notifications",
+        "unreadCount": "{count, plural, one {# new notification} other {# new notifications}}",
+        "dashboard": "Dashboard",
+        "overview": "Overview",
+        "reports": "Reports",
+        "account": "Account",
+        "connecting": "Connecting…"
+    },
+    "connect": {
+        "success": "Account connected successfully.",
+        "invalid_state": "Connection failed: the request expired or was invalid. Please try again.",
+        "no_ad_accounts": "No ad accounts were found on that account.",
+        "access_denied": "Connection cancelled.",
+        "connection_failed": "We couldn't complete the connection. Please try again.",
+        "plan_limit": "Connection limit reached. Please contact support to add more accounts.",
+        "unsupported_platform": "That platform isn't available to connect yet."
+    },
+    "notifications": {
+        "title": "Notifications",
+        "description": "Updates about your reports and connected accounts.",
+        "emptyTitle": "No notifications yet",
+        "emptyBody": "When a new report is ready, it will show up here."
+    },
+    "email": {
+        "performanceReport": "Performance report",
+        "viewFullReport": "View full report",
+        "sentBy": "Sent by Repolio · metrics cover {period}.",
+        "subject": "{account} — performance report ({period})",
+        "nothingFlagged": "Nothing actionable was flagged this period."
+    }
+}
