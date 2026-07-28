@@ -7,6 +7,9 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { metricsForWindow } from "@/lib/metrics/window";
 import { PLATFORM_META } from "@/lib/platform";
 import type { Client } from "@/generated/prisma/browser";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { prisma } from "@/lib/prisma";
+import { getTranslations } from "next-intl/server";
 
 export interface RenderedReportEmail {
     subject: string;
@@ -25,12 +28,18 @@ export async function renderReportEmail(reportId: number, clientId: Client["id"]
 
     const { report, account, from, to } = fetched;
 
+    // Render in the recipient client's saved language.
+    const clientRow = await prisma.client.findUnique({ where: { id: clientId }, select: { locale: true } });
+    const locale = isLocale(clientRow?.locale) ? clientRow.locale : DEFAULT_LOCALE;
+    const tRaw = await getTranslations({ locale });
+    const t = (key: string, values?: Record<string, string | number>) => tRaw(key as never, values as never);
+
     // Same KPIs the report page shows: live over the report's covered period, plus the prior window.
     const { current, previous } = account
         ? await metricsForWindow(account.id, from, to)
         : { current: null, previous: null };
 
-    const accountName = account?.name ?? "Ad account";
+    const accountName = account?.name ?? t("account.connections.unnamedAccount");
     const platformLabel = account ? PLATFORM_META[account.connection.platform].label : "";
     const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
 
@@ -54,8 +63,10 @@ export async function renderReportEmail(reportId: number, clientId: Client["id"]
                 trendExplanation={report.trend_explanation}
                 contextComment={report.context_comment}
                 viewUrl={viewUrl}
+                t={t}
+                locale={locale}
             />,
         );
 
-    return { subject: `${accountName} — performance report (${period})`, html };
+    return { subject: t("email.subject", { account: accountName, period }), html };
 }

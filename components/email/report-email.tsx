@@ -10,11 +10,15 @@ import {
 } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 
+/** Minimal translator shape — the real next-intl `t` (for the client's locale) is passed in. */
+type Translator = (key: string, values?: Record<string, string | number>) => string;
+
 /**
  * Email-safe rendering of a report. Standalone from the dashboard UI on purpose: email clients
  * don't load Tailwind / theme CSS, so everything here is inline styles + table layout. The visual
  * language mirrors the app — neutral palette, square corners (the app uses --radius: 0), purple AI
- * accents. Rendered to an HTML string on the server via `renderReportEmail`.
+ * accents. Rendered to an HTML string on the server via `renderReportEmail`, in the recipient
+ * client's language (its `t` and `locale` are passed in).
  */
 export interface ReportEmailProps {
     accountName: string;
@@ -27,6 +31,8 @@ export interface ReportEmailProps {
     trendExplanation: string;
     contextComment: string | null;
     viewUrl: string | null;
+    t: Translator;
+    locale: string;
 }
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -40,6 +46,7 @@ const metricDefs = (
     current: ComputedMetrics | null,
     previous: ComputedMetrics | null,
     money: Intl.NumberFormat,
+    t: Translator,
 ): { key: MetricCardKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] => {
     const formats: Record<MetricFormat, (v: number) => string> = {
         currency: (v) => money.format(v),
@@ -52,7 +59,7 @@ const metricDefs = (
 
     return selectKpiCards(accountFocus(current, previous)).map((key) => {
         const def = METRIC_CARD_DEFS[key];
-        return { key, label: def.label, format: formats[def.format], betterWhen: def.betterWhen };
+        return { key, label: t(`metrics.${key}`), format: formats[def.format], betterWhen: def.betterWhen };
     });
 };
 
@@ -68,23 +75,16 @@ const primaryFg = "#fafafa";
 const accent = "#7e22ce"; // purple-700, used for AI-generated sections
 const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
-const SCORE_LABEL_STYLE: Record<ScoreLabel, { color: string; bg: string; label: string }> = {
-    STRONG: { color: "#15803d", bg: "#f0fdf4", label: "Strong" },
-    MODERATE: { color: "#b45309", bg: "#fffbeb", label: "Moderate" },
-    NEEDS_IMPROVEMENT: { color: "#b91c1c", bg: "#fef2f2", label: "Needs improvement" },
+const SCORE_LABEL_STYLE: Record<ScoreLabel, { color: string; bg: string }> = {
+    STRONG: { color: "#15803d", bg: "#f0fdf4" },
+    MODERATE: { color: "#b45309", bg: "#fffbeb" },
+    NEEDS_IMPROVEMENT: { color: "#b91c1c", bg: "#fef2f2" },
 };
 
-const PRIORITY_STYLE: Record<string, { color: string; bg: string; rail: string; label: string }> = {
-    IMMEDIATE: { color: "#b91c1c", bg: "#fef2f2", rail: "#ef4444", label: "Immediate" },
-    THIS_WEEK: { color: "#b45309", bg: "#fffbeb", rail: "#f59e0b", label: "This week" },
-    MONITOR: { color: "#1d4ed8", bg: "#eff6ff", rail: "#3b82f6", label: "Monitor" },
-};
-
-const CATEGORY_LABEL: Record<string, string> = {
-    BUDGET: "Budget",
-    CREATIVE: "Creative",
-    TARGETING: "Targeting",
-    BIDDING: "Bidding",
+const PRIORITY_STYLE: Record<string, { color: string; bg: string; rail: string }> = {
+    IMMEDIATE: { color: "#b91c1c", bg: "#fef2f2", rail: "#ef4444" },
+    THIS_WEEK: { color: "#b45309", bg: "#fffbeb", rail: "#f59e0b" },
+    MONITOR: { color: "#1d4ed8", bg: "#eff6ff", rail: "#3b82f6" },
 };
 
 const labelBase: React.CSSProperties = {
@@ -132,18 +132,19 @@ function delta(cur: number | null | undefined, prev: number | null | undefined, 
 }
 
 export function ReportEmail(props: ReportEmailProps) {
-    const { current, previous } = props;
-    const cols = metricDefs(current, previous, currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"));
+    const { current, previous, t } = props;
+    const cols = metricDefs(current, previous, currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"), t);
     const score = current?.performance_score;
-    const labelStyle = current?.score_label ? SCORE_LABEL_STYLE[current.score_label] : null;
+    const scoreLabel = current?.score_label;
+    const labelStyle = scoreLabel ? SCORE_LABEL_STYLE[scoreLabel] : null;
 
     return (
-        <html lang="en">
+        <html lang={props.locale}>
             {/* eslint-disable-next-line @next/next/no-head-element -- standalone email document, not a Next page */}
             <head>
                 <meta charSet="utf-8" />
                 <meta name="viewport" content="width=device-width, initial-scale=1" />
-                <title>{`${props.accountName} — performance report`}</title>
+                <title>{`${props.accountName} — ${t("email.performanceReport")}`}</title>
             </head>
 
             <body
@@ -162,7 +163,8 @@ export function ReportEmail(props: ReportEmailProps) {
                     {/* Header */}
                     <div style={{ marginBottom: 16 }}>
                         <div style={{ ...sectionLabel, margin: 0, color: muted }}>
-                            {props.platformLabel ? `${props.platformLabel} · ` : ""}Performance report
+                            {props.platformLabel ? `${props.platformLabel} · ` : ""}
+                            {t("email.performanceReport")}
                         </div>
                         <h1 style={{ margin: "6px 0 2px", fontSize: 22, fontWeight: 700, color: ink }}>
                             {props.accountName}
@@ -172,7 +174,7 @@ export function ReportEmail(props: ReportEmailProps) {
 
                     {/* Score */}
                     <div style={{ ...card, padding: 20, marginBottom: 16 }}>
-                        <div style={sectionLabel}>Performance score</div>
+                        <div style={sectionLabel}>{t("report.performanceScore")}</div>
                         <table role="presentation" width="100%" cellPadding={0} cellSpacing={0}>
                             <tbody>
                                 <tr>
@@ -183,8 +185,10 @@ export function ReportEmail(props: ReportEmailProps) {
                                         <span style={{ fontSize: 18, color: muted }}> / 100</span>
                                     </td>
                                     <td style={{ textAlign: "right", verticalAlign: "bottom" }}>
-                                        {labelStyle && (
-                                            <span style={badge(labelStyle.color, labelStyle.bg)}>{labelStyle.label}</span>
+                                        {labelStyle && scoreLabel && (
+                                            <span style={badge(labelStyle.color, labelStyle.bg)}>
+                                                {t(`score.${scoreLabel}`)}
+                                            </span>
                                         )}
                                     </td>
                                 </tr>
@@ -194,7 +198,7 @@ export function ReportEmail(props: ReportEmailProps) {
 
                     {/* Metrics */}
                     <div style={{ marginBottom: 16 }}>
-                        <div style={sectionLabel}>Metrics</div>
+                        <div style={sectionLabel}>{t("report.metrics")}</div>
                         <table
                             role="presentation"
                             width="100%"
@@ -227,27 +231,25 @@ export function ReportEmail(props: ReportEmailProps) {
 
                     {/* Executive summary (AI) */}
                     <div style={{ marginBottom: 16 }}>
-                        <div style={aiLabel}>✦ Executive summary</div>
+                        <div style={aiLabel}>✦ {t("report.executiveSummary")}</div>
                         <p style={props.executiveSummary ? paragraph : emptyParagraph}>
-                            {props.executiveSummary || "No executive summary was generated for this report."}
+                            {props.executiveSummary || t("report.noSummary")}
                         </p>
                     </div>
 
                     {/* Recommendations (AI) */}
                     <div style={{ marginBottom: 16 }}>
-                        <div style={aiLabel}>✦ Recommendations</div>
+                        <div style={aiLabel}>✦ {t("report.recommendations")}</div>
 
                         {props.recommendations.length === 0 ? (
-                            <p style={emptyParagraph}>Nothing actionable was flagged this period.</p>
+                            <p style={emptyParagraph}>{t("email.nothingFlagged")}</p>
                         ) : (
                             props.recommendations.map((rec, i) => {
                                 const p = PRIORITY_STYLE[rec.priority] ?? {
                                     color: muted,
                                     bg: "#f5f5f5",
                                     rail: muted,
-                                    label: rec.priority,
                                 };
-                                const category = CATEGORY_LABEL[rec.category] ?? rec.category;
 
                                 return (
                                     <div key={i} style={{ ...card, borderLeft: `3px solid ${p.rail}`, marginBottom: 8 }}>
@@ -255,10 +257,12 @@ export function ReportEmail(props: ReportEmailProps) {
                                             <tbody>
                                                 <tr>
                                                     <td>
-                                                        <span style={badge(p.color, p.bg)}>{p.label}</span>
+                                                        <span style={badge(p.color, p.bg)}>
+                                                            {t(`priority.${rec.priority}`)}
+                                                        </span>
                                                     </td>
                                                     <td style={{ textAlign: "right", fontSize: 12, color: muted }}>
-                                                        {category}
+                                                        {t(`category.${rec.category}`)}
                                                     </td>
                                                 </tr>
                                             </tbody>
@@ -275,16 +279,16 @@ export function ReportEmail(props: ReportEmailProps) {
 
                     {/* Trend explanation (AI) */}
                     <div style={{ marginBottom: 16 }}>
-                        <div style={aiLabel}>✦ AI trend explanation</div>
+                        <div style={aiLabel}>✦ {t("report.trendExplanation")}</div>
                         <p style={props.trendExplanation ? paragraph : emptyParagraph}>
-                            {props.trendExplanation || "No trend explanation for this report yet."}
+                            {props.trendExplanation || t("report.noTrend")}
                         </p>
                     </div>
 
                     {/* Context (only if the client added one) */}
                     {props.contextComment && (
                         <div style={{ marginBottom: 16 }}>
-                            <div style={sectionLabel}>Context</div>
+                            <div style={sectionLabel}>{t("report.context")}</div>
                             <p style={paragraph}>{props.contextComment}</p>
                         </div>
                     )}
@@ -304,11 +308,11 @@ export function ReportEmail(props: ReportEmailProps) {
                                     fontWeight: 600,
                                 }}
                             >
-                                View full report
+                                {t("email.viewFullReport")}
                             </a>
                         )}
                         <div style={{ marginTop: 12, fontSize: 12, color: muted }}>
-                            Sent by Repolio · metrics cover {props.period}.
+                            {t("email.sentBy", { period: props.period })}
                         </div>
                     </div>
                 </div>
