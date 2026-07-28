@@ -142,7 +142,8 @@
         "overview": "Panoramica",
         "reports": "Report",
         "account": "Account",
-        "connecting": "Collegamento…"
+        "connecting": "Collegamento…",
+        "logout": "Esci"
     },
     "connect": {
         "success": "Account collegato correttamente.",

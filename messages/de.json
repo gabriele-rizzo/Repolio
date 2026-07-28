@@ -142,7 +142,8 @@
         "overview": "Übersicht",
         "reports": "Reports",
         "account": "Konto",
-        "connecting": "Verbinden…"
+        "connecting": "Verbinden…",
+        "logout": "Abmelden"
     },
     "connect": {
         "success": "Konto erfolgreich verbunden.",

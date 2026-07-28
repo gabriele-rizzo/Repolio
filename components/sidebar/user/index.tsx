@@ -3,6 +3,7 @@
 import { logout } from "@/actions/auth/logout";
 import { cn } from "@/lib/utils";
 import { BadgeCheck, Bell, ChevronsUpDown, LogOut } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import {
     DropdownMenu,
@@ -18,6 +19,7 @@ import type { WithClientProps } from "../config";
 import { DashboardSidebarUserInfos } from "./infos";
 
 export function DashboardSidebarUser({ client }: WithClientProps) {
+    const t = useTranslations("nav");
     const { open, isMobile } = useSidebar();
     const infos = <DashboardSidebarUserInfos client={client} />;
 
@@ -53,7 +55,7 @@ export function DashboardSidebarUser({ client }: WithClientProps) {
                                 render={
                                     <Link href="/dashboard/account">
                                         <BadgeCheck />
-                                        Account
+                                        {t("account")}
                                     </Link>
                                 }
                             />
@@ -62,7 +64,7 @@ export function DashboardSidebarUser({ client }: WithClientProps) {
                                 render={
                                     <Link href="/dashboard/notifications">
                                         <Bell />
-                                        Notifications
+                                        {t("notifications")}
                                     </Link>
                                 }
                             />
@@ -72,7 +74,7 @@ export function DashboardSidebarUser({ client }: WithClientProps) {
 
                         <DropdownMenuItem onClick={logout} className="text-destructive">
                             <LogOut />
-                            Log out
+                            {t("logout")}
                         </DropdownMenuItem>
                     </DropdownMenuContent>
                 </DropdownMenu>

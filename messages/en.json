@@ -142,7 +142,8 @@
         "overview": "Overview",
         "reports": "Reports",
         "account": "Account",
-        "connecting": "Connecting…"
+        "connecting": "Connecting…",
+        "logout": "Log out"
     },
     "connect": {
         "success": "Account connected successfully.",
