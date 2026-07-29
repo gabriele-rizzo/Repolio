@@ -1,12 +1,14 @@
 "use client";
 
 import { House } from "lucide-react";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { SidebarGroup, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 
 export function DashboardSidebarMain() {
     const path = usePathname();
+    const t = useTranslations("nav");
 
     return (
         <SidebarGroup>
@@ -17,7 +19,7 @@ export function DashboardSidebarMain() {
                         render={
                             <Link href="/dashboard">
                                 <House />
-                                <span>Home</span>
+                                <span>{t("home")}</span>
                             </Link>
                         }
                     />

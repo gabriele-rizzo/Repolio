@@ -5,17 +5,19 @@ import { Typo } from "@/components/typography";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { LoaderCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { toast } from "sonner";
 
 const PRESETS = [
-    { label: "Weekly", days: 7 },
-    { label: "Every 2 weeks", days: 14 },
-    { label: "Monthly", days: 30 },
-    { label: "Quarterly", days: 90 },
-];
+    { key: "weekly", days: 7 },
+    { key: "biweekly", days: 14 },
+    { key: "monthly", days: 30 },
+    { key: "quarterly", days: 90 },
+] as const;
 
 export function RecurrenceSettings({ ndays }: { ndays: number }) {
+    const t = useTranslations("account.cadence");
     const [optimistic, setOptimistic] = useState<number | null>(null);
     const [pending, setPending] = useState<number | null>(null);
 
@@ -29,10 +31,10 @@ export function RecurrenceSettings({ ndays }: { ndays: number }) {
 
         try {
             await updateRecurrence(days);
-            toast.success("Reporting cadence updated.");
+            toast.success(t("updated"));
         } catch (error) {
             setOptimistic(null);
-            toast.error(error instanceof Error ? error.message : "Could not update cadence.");
+            toast.error(error instanceof Error ? error.message : t("error"));
         } finally {
             setPending(null);
         }
@@ -42,11 +44,10 @@ export function RecurrenceSettings({ ndays }: { ndays: number }) {
         <Card className="gap-4 p-4">
             <div className="space-y-1">
                 <Typo as="large" className="text-base">
-                    Report cadence
+                    {t("title")}
                 </Typo>
                 <Typo as="muted" className="text-sm">
-                    How often we generate a new report for each connected ad account. Currently every {current}{" "}
-                    {current === 1 ? "day" : "days"}.
+                    {t("description", { days: current })}
                 </Typo>
             </div>
 
@@ -62,7 +63,7 @@ export function RecurrenceSettings({ ndays }: { ndays: number }) {
                             disabled={pending !== null}
                         >
                             {pending === preset.days && <LoaderCircle className="animate-spin" />}
-                            {preset.label}
+                            {t(preset.key)}
                         </Button>
                     );
                 })}

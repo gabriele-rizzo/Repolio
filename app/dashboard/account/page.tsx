@@ -2,6 +2,7 @@ import { authorize } from "@/actions/auth/authorize";
 import { ConnectButtons } from "@/components/account/connect-buttons";
 import { ConnectionDelete } from "@/components/account/connection-delete";
 import { ProfileAvatar } from "@/components/account/profile-avatar";
+import { LanguageSettings } from "@/components/account/language-settings";
 import { ProfileName } from "@/components/account/profile-name";
 import { RecurrenceSettings } from "@/components/account/recurrence-settings";
 import { Typo } from "@/components/typography";
@@ -14,9 +15,15 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
+import { getTranslations } from "next-intl/server";
 
 export default async function AccountPage() {
     const client = await authorize();
+    const [tSections, tStats, tConn] = await Promise.all([
+        getTranslations("account.sections"),
+        getTranslations("account.stats"),
+        getTranslations("account.connections"),
+    ]);
     const [nreports, nsnapshots, connections, avatar, recurrence] = await Promise.all([
         prisma.report.count({
             where: { snapshots: { some: { ad_account: { connection: { client_id: client.id } } } } },
@@ -49,36 +56,44 @@ export default async function AccountPage() {
                 <div className="h-20 bg-muted border flex flex-row">
                     <div className="flex-1 flex p-4 justify-center flex-col">
                         <Typo as="large">{nreports}</Typo>
-                        <Typo as="muted">{nreports === 1 ? "Report" : "Reports"}</Typo>
+                        <Typo as="muted">{tStats("reports", { count: nreports })}</Typo>
                     </div>
 
                     <Separator orientation="vertical" />
 
                     <div className="flex-1 flex p-4 justify-center flex-col">
                         <Typo as="large">{nsnapshots}</Typo>
-                        <Typo as="muted">{nsnapshots === 1 ? "Snapshot" : "Snapshots"}</Typo>
+                        <Typo as="muted">{tStats("snapshots", { count: nsnapshots })}</Typo>
                     </div>
 
                     <Separator orientation="vertical" />
 
                     <div className="flex-1 flex p-4 justify-center flex-col">
                         <Typo as="large">{managedAccounts}</Typo>
-                        <Typo as="muted">{managedAccounts === 1 ? "Managed Account" : "Managed Accounts"}</Typo>
+                        <Typo as="muted">{tStats("managedAccounts", { count: managedAccounts })}</Typo>
                     </div>
                 </div>
             </Card>
 
             <section id="recurrence" className="space-y-3 scroll-mt-20">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                    Reporting
+                    {tSections("reporting")}
                 </Typo>
 
                 <RecurrenceSettings ndays={ndays} />
             </section>
 
+            <section id="language" className="space-y-3 scroll-mt-20">
+                <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
+                    {tSections("preferences")}
+                </Typo>
+
+                <LanguageSettings locale={client.locale} />
+            </section>
+
             <div className="space-y-3">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                    Account Connections
+                    {tSections("connections")}
                 </Typo>
 
                 <div className="space-y-3">
@@ -102,19 +117,19 @@ export default async function AccountPage() {
                                                     {label}
                                                 </Typo>
                                                 {disconnected ? (
-                                                    <Badge variant="destructive">Disconnected</Badge>
+                                                    <Badge variant="destructive">{tConn("disconnected")}</Badge>
                                                 ) : (
                                                     <Badge
                                                         variant="secondary"
                                                         className="bg-emerald-500/15 text-emerald-700 dark:text-emerald-400"
                                                     >
-                                                        Connected
+                                                        {tConn("connected")}
                                                     </Badge>
                                                 )}
                                             </div>
 
                                             <Typo as="muted" className="text-xs">
-                                                Connected {dateFormatRelative(connection.created_at)}
+                                                {tConn("connectedAt", { date: dateFormatRelative(connection.created_at) })}
                                             </Typo>
 
                                             {disconnected && slug && (
@@ -126,7 +141,7 @@ export default async function AccountPage() {
                                                         className: "mt-2",
                                                     })}
                                                 >
-                                                    Reconnect
+                                                    {tConn("reconnect")}
                                                 </a>
                                             )}
                                         </div>
@@ -137,12 +152,12 @@ export default async function AccountPage() {
 
                                 <div className="space-y-2 border-t bg-muted/30 p-4">
                                     <Typo as="muted" className="text-[10px] font-medium tracking-wide uppercase">
-                                        {count} ad {count === 1 ? "account" : "accounts"}
+                                        {tConn("adAccounts", { count })}
                                     </Typo>
 
                                     {count === 0 ? (
                                         <Typo as="muted" className="text-sm">
-                                            No ad accounts found for this connection.
+                                            {tConn("noAdAccounts")}
                                         </Typo>
                                     ) : (
                                         <div className="space-y-1.5">
@@ -152,7 +167,7 @@ export default async function AccountPage() {
                                                     className="flex flex-row items-center justify-between gap-3 rounded-md border bg-background px-3 py-2"
                                                 >
                                                     <Typo as="normal" className="truncate text-sm font-medium">
-                                                        {account.name ?? "Unnamed account"}
+                                                        {account.name ?? tConn("unnamedAccount")}
                                                     </Typo>
                                                     <span className="shrink-0 font-mono text-xs text-muted-foreground">
                                                         {account.external_id}

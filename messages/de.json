@@ -1,0 +1,170 @@
+{
+    "account": {
+        "sections": {
+            "preferences": "Präferenzen",
+            "reporting": "Reporting",
+            "connections": "Kontoverbindungen"
+        },
+        "language": {
+            "title": "Sprache",
+            "description": "Sprache der Oberfläche und neuer Reports. Bestehende Reports behalten ihren Text.",
+            "updated": "Sprache aktualisiert.",
+            "error": "Sprache konnte nicht geändert werden."
+        },
+        "stats": {
+            "reports": "{count, plural, one {Report} other {Reports}}",
+            "snapshots": "{count, plural, one {Snapshot} other {Snapshots}}",
+            "managedAccounts": "{count, plural, one {Verwaltetes Konto} other {Verwaltete Konten}}"
+        },
+        "profile": {
+            "editName": "Namen bearbeiten",
+            "nameEmpty": "Der Name darf nicht leer sein.",
+            "nameUpdated": "Name aktualisiert.",
+            "nameError": "Name konnte nicht aktualisiert werden."
+        },
+        "connections": {
+            "connected": "Verbunden",
+            "disconnected": "Getrennt",
+            "connectedAt": "Verbunden {date}",
+            "reconnect": "Neu verbinden",
+            "adAccounts": "{count, plural, one {# Werbekonto} other {# Werbekonten}}",
+            "noAdAccounts": "Für diese Verbindung wurden keine Werbekonten gefunden.",
+            "unnamedAccount": "Unbenanntes Konto",
+            "removeTitle": "Diese Verbindung entfernen?",
+            "removeBody": "Dies löscht die {platform}-Verbindung samt Werbekonten und deren Snapshots. Bestehende Reports bleiben erhalten.",
+            "removeLabel": "Verbindung entfernen",
+            "cancel": "Abbrechen",
+            "remove": "Entfernen",
+            "removed": "Verbindung entfernt.",
+            "removeError": "Verbindung konnte nicht entfernt werden."
+        },
+        "cadence": {
+            "title": "Report-Rhythmus",
+            "description": "Wie oft wir für jedes verbundene Werbekonto einen neuen Report erstellen. Aktuell alle {days} {days, plural, one {Tag} other {Tage}}.",
+            "weekly": "Wöchentlich",
+            "biweekly": "Alle 2 Wochen",
+            "monthly": "Monatlich",
+            "quarterly": "Vierteljährlich",
+            "updated": "Report-Rhythmus aktualisiert.",
+            "error": "Rhythmus konnte nicht aktualisiert werden."
+        }
+    },
+    "locale": {
+        "de": "Deutsch",
+        "en": "English",
+        "it": "Italiano"
+    },
+    "report": {
+        "fallbackTitle": "Report",
+        "description": "Der KI-Text bezieht sich auf diesen Report. Die Kennzahlen werden live für das gewählte Zeitfenster berechnet, das standardmäßig den Berichtszeitraum abdeckt.",
+        "addContext": "Kontext hinzufügen",
+        "metrics": "Kennzahlen",
+        "performanceScore": "Performance-Score",
+        "trendExplanation": "KI-Trendanalyse",
+        "noTrend": "Für diesen Report liegt noch keine Trendanalyse vor.",
+        "ratingScale": "Bewertungsskala",
+        "aiInsights": "KI-Insights",
+        "executiveSummary": "Zusammenfassung",
+        "noSummary": "Für diesen Report wurde keine Zusammenfassung erstellt.",
+        "recommendations": "Empfehlungen",
+        "noRecommendationsTitle": "Keine Empfehlungen",
+        "noRecommendationsBody": "Diese Periode wirkt stabil – es wurde nichts Umsetzbares markiert.",
+        "context": "Kontext",
+        "optional": "Optional",
+        "helpsAi": "Hilft der KI",
+        "contextPlaceholder": "Gib der KI mehr Kontext zu diesem Zeitraum: Feiertage, neue Creatives, Budgetänderungen, Kampagnenstarts…",
+        "saveContext": "Kontext speichern",
+        "contextSaved": "Kontext gespeichert.",
+        "contextError": "Kontext konnte nicht gespeichert werden.",
+        "loadMore": "Mehr laden",
+        "loading": "Lädt…",
+        "loadMoreError": "Weitere Reports konnten nicht geladen werden.",
+        "new": "neu"
+    },
+    "metrics": {
+        "spend": "Ausgaben",
+        "roas": "ROAS",
+        "cpa": "CPA",
+        "conversions": "Conversions",
+        "leads": "Leads",
+        "cpl": "CPL",
+        "ctr": "CTR",
+        "cpc": "CPC",
+        "cpm": "CPM",
+        "reach": "Reichweite",
+        "frequency": "Frequenz",
+        "impressions": "Impressionen"
+    },
+    "score": {
+        "STRONG": "Stark",
+        "MODERATE": "Moderat",
+        "NEEDS_IMPROVEMENT": "Verbesserungswürdig"
+    },
+    "priority": {
+        "IMMEDIATE": "Sofort",
+        "THIS_WEEK": "Diese Woche",
+        "MONITOR": "Beobachten"
+    },
+    "category": {
+        "BUDGET": "Budget",
+        "CREATIVE": "Creative",
+        "TARGETING": "Targeting",
+        "BIDDING": "Gebote"
+    },
+    "auth": {
+        "welcomeBack": "Willkommen zurück",
+        "subtitle": "Melde dich an, um fortzufahren",
+        "login": "Anmelden",
+        "email": "E-Mail",
+        "password": "Passwort"
+    },
+    "home": {
+        "title": "Start",
+        "summary": "Ein kurzer Überblick über {accounts, plural, one {# Werbekonto} other {# Werbekonten}} auf {platforms, plural, one {# Plattform} other {# Plattformen}}. Öffne eines für Live-Kennzahlen und den aktuellen Report.",
+        "noAccountsTitle": "Noch keine Werbekonten",
+        "noAccountsBody": "Verbinde eine Plattform, um deine Werbekonten einzubinden. Jedes bekommt eigene Performance-Reports.",
+        "conv": "Conv.",
+        "last30": "Letzte 30 Tage",
+        "reportAge": "Report {date}",
+        "noReportYet": "noch kein Report",
+        "noData": "Noch keine Daten in den letzten 30 Tagen.",
+        "unnamedAccount": "Unbenanntes Konto"
+    },
+    "nav": {
+        "home": "Start",
+        "accounts": "Konten",
+        "addConnection": "Verbindung hinzufügen",
+        "connect": "{platform} verbinden",
+        "toggleSidebar": "Seitenleiste umschalten",
+        "notifications": "Benachrichtigungen",
+        "unreadCount": "{count, plural, one {# neue Benachrichtigung} other {# neue Benachrichtigungen}}",
+        "dashboard": "Dashboard",
+        "overview": "Übersicht",
+        "reports": "Reports",
+        "account": "Konto",
+        "connecting": "Verbinden…",
+        "logout": "Abmelden"
+    },
+    "connect": {
+        "success": "Konto erfolgreich verbunden.",
+        "invalid_state": "Verbindung fehlgeschlagen: Die Anfrage ist abgelaufen oder ungültig. Bitte erneut versuchen.",
+        "no_ad_accounts": "Auf diesem Konto wurden keine Werbekonten gefunden.",
+        "access_denied": "Verbindung abgebrochen.",
+        "connection_failed": "Die Verbindung konnte nicht abgeschlossen werden. Bitte erneut versuchen.",
+        "plan_limit": "Verbindungslimit erreicht. Bitte kontaktiere den Support, um weitere Konten hinzuzufügen.",
+        "unsupported_platform": "Diese Plattform kann noch nicht verbunden werden."
+    },
+    "notifications": {
+        "title": "Benachrichtigungen",
+        "description": "Updates zu deinen Reports und verbundenen Konten.",
+        "emptyTitle": "Noch keine Benachrichtigungen",
+        "emptyBody": "Sobald ein neuer Report fertig ist, erscheint er hier."
+    },
+    "email": {
+        "performanceReport": "Performance-Report",
+        "viewFullReport": "Vollständigen Report ansehen",
+        "sentBy": "Gesendet von Repolio · Kennzahlen für {period}.",
+        "subject": "{account} — Performance-Report ({period})",
+        "nothingFlagged": "In dieser Periode wurde nichts Umsetzbares markiert."
+    }
+}

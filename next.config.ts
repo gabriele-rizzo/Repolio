@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
-export default {
+const withNextIntl = createNextIntlPlugin("./i18n/request.ts");
+
+const config = {
     reactCompiler: true,
     experimental: {
         serverActions: {
@@ -9,3 +12,5 @@ export default {
         },
     },
 } satisfies NextConfig;
+
+export default withNextIntl(config);

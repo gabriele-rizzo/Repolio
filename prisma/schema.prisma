@@ -17,6 +17,8 @@ model Client {
     company    String?
     image      String?
     active     Boolean  @default(true)
+    // UI + report language for this client (ISO 639-1). Drives next-intl and the AI report prompt.
+    locale     String   @default("de")
     created_at DateTime @default(now())
 
     // Zernio Profile that owns this client's ad connections. Lazily created on first connect.

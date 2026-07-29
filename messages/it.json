@@ -1,0 +1,170 @@
+{
+    "account": {
+        "sections": {
+            "preferences": "Preferenze",
+            "reporting": "Reporting",
+            "connections": "Collegamenti account"
+        },
+        "language": {
+            "title": "Lingua",
+            "description": "Lingua dell'interfaccia e dei nuovi report. I report esistenti mantengono il loro testo.",
+            "updated": "Lingua aggiornata.",
+            "error": "Impossibile cambiare la lingua."
+        },
+        "stats": {
+            "reports": "{count, plural, one {Report} other {Report}}",
+            "snapshots": "{count, plural, one {Snapshot} other {Snapshot}}",
+            "managedAccounts": "{count, plural, one {Account gestito} other {Account gestiti}}"
+        },
+        "profile": {
+            "editName": "Modifica il nome",
+            "nameEmpty": "Il nome non può essere vuoto.",
+            "nameUpdated": "Nome aggiornato.",
+            "nameError": "Impossibile aggiornare il nome."
+        },
+        "connections": {
+            "connected": "Collegato",
+            "disconnected": "Scollegato",
+            "connectedAt": "Collegato {date}",
+            "reconnect": "Ricollega",
+            "adAccounts": "{count, plural, one {# account pubblicitario} other {# account pubblicitari}}",
+            "noAdAccounts": "Nessun account pubblicitario trovato per questo collegamento.",
+            "unnamedAccount": "Account senza nome",
+            "removeTitle": "Rimuovere questo collegamento?",
+            "removeBody": "Questo elimina il collegamento {platform} con i suoi account pubblicitari e i relativi snapshot. I report esistenti vengono mantenuti.",
+            "removeLabel": "Rimuovi collegamento",
+            "cancel": "Annulla",
+            "remove": "Rimuovi",
+            "removed": "Collegamento rimosso.",
+            "removeError": "Impossibile rimuovere il collegamento."
+        },
+        "cadence": {
+            "title": "Frequenza dei report",
+            "description": "Con quale frequenza generiamo un nuovo report per ogni account collegato. Attualmente ogni {days} {days, plural, one {giorno} other {giorni}}.",
+            "weekly": "Settimanale",
+            "biweekly": "Ogni 2 settimane",
+            "monthly": "Mensile",
+            "quarterly": "Trimestrale",
+            "updated": "Frequenza dei report aggiornata.",
+            "error": "Impossibile aggiornare la frequenza."
+        }
+    },
+    "locale": {
+        "de": "Deutsch",
+        "en": "English",
+        "it": "Italiano"
+    },
+    "report": {
+        "fallbackTitle": "Report",
+        "description": "Il testo AI si riferisce a questo report. Le metriche sono calcolate in tempo reale per l'intervallo selezionato, che per impostazione predefinita copre il periodo del report.",
+        "addContext": "Aggiungi contesto",
+        "metrics": "Metriche",
+        "performanceScore": "Performance Score",
+        "trendExplanation": "Analisi del trend AI",
+        "noTrend": "Nessuna analisi del trend per questo report.",
+        "ratingScale": "Scala di valutazione",
+        "aiInsights": "AI Insights",
+        "executiveSummary": "Sintesi",
+        "noSummary": "Nessuna sintesi generata per questo report.",
+        "recommendations": "Raccomandazioni",
+        "noRecommendationsTitle": "Nessuna raccomandazione",
+        "noRecommendationsBody": "Periodo stabile – nulla di rilevante da segnalare.",
+        "context": "Contesto",
+        "optional": "Facoltativo",
+        "helpsAi": "Aiuta l'AI",
+        "contextPlaceholder": "Fornisci più contesto all'AI per questo periodo: festività, nuove creatività, modifiche di budget, lanci di campagne…",
+        "saveContext": "Salva contesto",
+        "contextSaved": "Contesto salvato.",
+        "contextError": "Impossibile salvare il contesto.",
+        "loadMore": "Carica altro",
+        "loading": "Caricamento…",
+        "loadMoreError": "Impossibile caricare altri report.",
+        "new": "nuovo"
+    },
+    "metrics": {
+        "spend": "Spesa",
+        "roas": "ROAS",
+        "cpa": "CPA",
+        "conversions": "Conversioni",
+        "leads": "Lead",
+        "cpl": "CPL",
+        "ctr": "CTR",
+        "cpc": "CPC",
+        "cpm": "CPM",
+        "reach": "Copertura",
+        "frequency": "Frequenza",
+        "impressions": "Impressioni"
+    },
+    "score": {
+        "STRONG": "Forte",
+        "MODERATE": "Moderato",
+        "NEEDS_IMPROVEMENT": "Da migliorare"
+    },
+    "priority": {
+        "IMMEDIATE": "Immediato",
+        "THIS_WEEK": "Questa settimana",
+        "MONITOR": "Monitorare"
+    },
+    "category": {
+        "BUDGET": "Budget",
+        "CREATIVE": "Creatività",
+        "TARGETING": "Targeting",
+        "BIDDING": "Offerte"
+    },
+    "auth": {
+        "welcomeBack": "Bentornato",
+        "subtitle": "Accedi al tuo account per continuare",
+        "login": "Accedi",
+        "email": "Email",
+        "password": "Password"
+    },
+    "home": {
+        "title": "Home",
+        "summary": "Una rapida panoramica su {accounts, plural, one {# account pubblicitario} other {# account pubblicitari}} su {platforms, plural, one {# piattaforma} other {# piattaforme}}. Aprine uno per metriche in tempo reale e l'ultimo report.",
+        "noAccountsTitle": "Ancora nessun account pubblicitario",
+        "noAccountsBody": "Collega una piattaforma per importare i tuoi account pubblicitari. Ognuno riceve i propri report di performance.",
+        "conv": "Conv.",
+        "last30": "Ultimi 30 giorni",
+        "reportAge": "report {date}",
+        "noReportYet": "ancora nessun report",
+        "noData": "Ancora nessun dato negli ultimi 30 giorni.",
+        "unnamedAccount": "Account senza nome"
+    },
+    "nav": {
+        "home": "Home",
+        "accounts": "Account",
+        "addConnection": "Aggiungi collegamento",
+        "connect": "Collega {platform}",
+        "toggleSidebar": "Attiva/disattiva barra laterale",
+        "notifications": "Notifiche",
+        "unreadCount": "{count, plural, one {# nuova notifica} other {# nuove notifiche}}",
+        "dashboard": "Dashboard",
+        "overview": "Panoramica",
+        "reports": "Report",
+        "account": "Account",
+        "connecting": "Collegamento…",
+        "logout": "Esci"
+    },
+    "connect": {
+        "success": "Account collegato correttamente.",
+        "invalid_state": "Collegamento non riuscito: la richiesta è scaduta o non valida. Riprova.",
+        "no_ad_accounts": "Nessun account pubblicitario trovato su quell'account.",
+        "access_denied": "Collegamento annullato.",
+        "connection_failed": "Non è stato possibile completare il collegamento. Riprova.",
+        "plan_limit": "Limite di collegamenti raggiunto. Contatta il supporto per aggiungere altri account.",
+        "unsupported_platform": "Questa piattaforma non è ancora disponibile per il collegamento."
+    },
+    "notifications": {
+        "title": "Notifiche",
+        "description": "Aggiornamenti sui tuoi report e account collegati.",
+        "emptyTitle": "Ancora nessuna notifica",
+        "emptyBody": "Quando un nuovo report è pronto, apparirà qui."
+    },
+    "email": {
+        "performanceReport": "Report sulle performance",
+        "viewFullReport": "Visualizza il report completo",
+        "sentBy": "Inviato da Repolio · metriche per {period}.",
+        "subject": "{account} — report sulle performance ({period})",
+        "nothingFlagged": "Nulla di rilevante da segnalare in questo periodo."
+    }
+}

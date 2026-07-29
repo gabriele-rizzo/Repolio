@@ -1,4 +1,5 @@
 import { ScrollText, Sparkles } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "../ui/empty";
@@ -12,18 +13,20 @@ interface AIInsightsProps {
 }
 
 export function AIInsights({ summary, recommendations = [], loading }: AIInsightsProps) {
+    const t = useTranslations("report");
+
     return (
         <div className="flex flex-col gap-4">
             <div className="flex flex-row gap-1.5 items-center text-purple-700 dark:text-purple-300">
                 <Sparkles className="size-3.5" />
-                <Typo as="small">AI Insights</Typo>
+                <Typo as="small">{t("aiInsights")}</Typo>
             </div>
 
             <Card className="px-4 gap-3">
                 <div className="flex flex-row items-center gap-2 text-muted-foreground">
                     <ScrollText className="size-3.5" />
                     <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                        Executive Summary
+                        {t("executiveSummary")}
                     </Typo>
                 </div>
 
@@ -40,14 +43,14 @@ export function AIInsights({ summary, recommendations = [], loading }: AIInsight
                     </Typo>
                 ) : (
                     <Typo as="muted" className="italic">
-                        No executive summary was generated for this report.
+                        {t("noSummary")}
                     </Typo>
                 )}
             </Card>
 
             <div className="flex flex-row items-center gap-2 mt-2 text-muted-foreground">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                    Recommendations
+                    {t("recommendations")}
                 </Typo>
                 {!loading && recommendations.length > 0 && (
                     <Typo as="muted" className="text-xs">
@@ -76,10 +79,8 @@ export function AIInsights({ summary, recommendations = [], loading }: AIInsight
                         <EmptyMedia variant="icon">
                             <Sparkles />
                         </EmptyMedia>
-                        <EmptyTitle>No recommendations</EmptyTitle>
-                        <EmptyDescription>
-                            Things look stable this period - nothing actionable was flagged.
-                        </EmptyDescription>
+                        <EmptyTitle>{t("noRecommendationsTitle")}</EmptyTitle>
+                        <EmptyDescription>{t("noRecommendationsBody")}</EmptyDescription>
                     </EmptyHeader>
                 </Empty>
             ) : (

@@ -1,5 +1,6 @@
 import { cn } from "@/lib/utils";
 import { Minus, TrendingDown, TrendingUp } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { Typo } from "./typography";
 import { Card } from "./ui/card";
 import { Skeleton } from "./ui/skeleton";
@@ -83,6 +84,8 @@ interface ComparisonChipProps {
 }
 
 function ComparisonChip({ value, previous, betterWhen, loading }: ComparisonChipProps) {
+    const t = useTranslations("report");
+
     if (loading) return <Skeleton className="h-3.5 w-10" />;
 
     // No prior report at all — render nothing.
@@ -93,7 +96,7 @@ function ComparisonChip({ value, previous, betterWhen, loading }: ComparisonChip
 
     // No prior recorded value but we do have a current one: signal "new".
     if (previous === null) {
-        return <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">new</span>;
+        return <span className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{t("new")}</span>;
     }
 
     // Previous was zero; percentage change is undefined. Show the raw direction without a number.

@@ -1,17 +1,20 @@
 import { cn } from "@/lib/utils";
 import { Bell } from "lucide-react";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 import { buttonVariants } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export function NotificationsBell({ unread }: { unread: number }) {
+export async function NotificationsBell({ unread }: { unread: number }) {
+    const t = await getTranslations("nav");
+
     return (
         <Tooltip>
             <TooltipTrigger
                 render={
                     <Link
                         href="/dashboard/notifications"
-                        aria-label="Notifications"
+                        aria-label={t("notifications")}
                         className={cn(buttonVariants({ variant: "ghost", size: "icon-lg" }), "relative")}
                     >
                         <Bell />
@@ -23,7 +26,7 @@ export function NotificationsBell({ unread }: { unread: number }) {
             />
 
             <TooltipContent side="bottom" sideOffset={10}>
-                <p>{unread > 0 ? `${unread} new notification${unread === 1 ? "" : "s"}` : "Notifications"}</p>
+                <p>{unread > 0 ? t("unreadCount", { count: unread }) : t("notifications")}</p>
             </TooltipContent>
         </Tooltip>
     );

@@ -1,4 +1,5 @@
 import type { ScoreLabel } from "@/generated/prisma/browser";
+import { useTranslations } from "next-intl";
 import { Badge } from "../ui/badge";
 import { Skeleton } from "../ui/skeleton";
 
@@ -9,12 +10,14 @@ export const SCORE_COLORS: Record<ScoreLabel, string> = {
 };
 
 export function ReportScoreBadge({ label, loading }: { label?: ScoreLabel; loading?: boolean }) {
+    const t = useTranslations("score");
+
     if (loading) return <Skeleton className="h-5 w-20" />;
     if (!label) return null;
 
     return (
         <Badge variant="secondary" className={SCORE_COLORS[label]}>
-            {label.replace("_", " ")}
+            {t(label)}
         </Badge>
     );
 }

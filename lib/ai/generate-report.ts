@@ -2,9 +2,13 @@ import type { Recommendation } from "@/components/report/recommendation-card";
 import type { Report, Snapshot } from "@/generated/prisma/browser";
 import type { Prisma } from "@/generated/prisma/client";
 import { getAnthropic } from "@/lib/ai/anthropic";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/request";
 import { computeMetrics, type ComputedMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import type Anthropic from "@anthropic-ai/sdk";
+
+// Report language sent to the model. Keyed by the client's stored locale.
+const LANGUAGE_NAMES: Record<Locale, string> = { de: "German", en: "English", it: "Italian" };
 
 // Sonnet 5: structured outputs (output_config.format, used below) are not supported on Sonnet 4.6,
 // so a batch request on 4.6 errored and the report rendered with empty AI sections. Sonnet 5 keeps
@@ -84,7 +88,7 @@ Rules:
 - When targets are provided, judge performance against them (CPA above target is bad; ROAS above target is good).
 - Be honest about weak performance and acknowledge genuine improvement; avoid generic marketing platitudes. Every sentence should say something specific.
 - Currency amounts are in the account's own currency — do not assume a symbol.
-- Write in clear, professional English.`;
+- Write in clear, professional prose, in the target language specified at the end of the request.`;
 
 const dateOnly = (d: Date | string): string => new Date(d).toISOString().slice(0, 10);
 
@@ -145,7 +149,7 @@ function formatPriorRecommendations(value: unknown): string | null {
     return lines.length > 0 ? `Recommendations made at the time:\n${lines.join("\n")}` : null;
 }
 
-function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapshots[]): string {
+function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapshots[], languageName: string): string {
     const parts: string[] = [
         "# CURRENT PERIOD",
         periodLine(current),
@@ -179,6 +183,9 @@ function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapsho
         });
     }
 
+    parts.push(
+        `Write the entire report — executive_summary, trend_explanation and every recommendation — in ${languageName}.`,
+    );
     parts.push("Produce the report as JSON matching the required schema.");
     return parts.join("\n\n");
 }
@@ -225,6 +232,13 @@ export async function buildReportParams(reportId: number): Promise<Anthropic.Mes
     const adAccountId = report.snapshots[0]?.ad_account_id;
     if (adAccountId == null) throw new Error(`Report ${reportId} has no snapshots to base the report on`);
 
+    // The report is written in the owning client's saved language.
+    const adAccount = await prisma.adAccount.findUnique({
+        where: { id: adAccountId },
+        select: { connection: { select: { client: { select: { locale: true } } } } },
+    });
+    const locale = isLocale(adAccount?.connection.client.locale) ? adAccount.connection.client.locale : DEFAULT_LOCALE;
+
     const priorReports = await prisma.report.findMany({
         where: { id: { not: reportId }, snapshots: { some: { ad_account_id: adAccountId } } },
         orderBy: { created_at: "desc" },
@@ -239,7 +253,7 @@ export async function buildReportParams(reportId: number): Promise<Anthropic.Mes
         // Stable prefix → cached across the many reports generated in one run/batch.
         system: [{ type: "text", text: SYSTEM_PROMPT, cache_control: { type: "ephemeral" } }],
         output_config: { effort: "medium", format: { type: "json_schema", schema: REPORT_SCHEMA } },
-        messages: [{ role: "user", content: buildUserPrompt(report, priorReports) }],
+        messages: [{ role: "user", content: buildUserPrompt(report, priorReports, LANGUAGE_NAMES[locale]) }],
     };
 }
 

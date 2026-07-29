@@ -9,6 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { Bell, FileText, Link2Off, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
+import { getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -22,7 +23,7 @@ const NOTIFICATION_ICON: Record<NotificationType, LucideIcon> = {
 };
 
 export default async function NotificationsPage() {
-    const client = await authorize();
+    const [client, t] = await Promise.all([authorize(), getTranslations("notifications")]);
 
     const notifications = await prisma.notification.findMany({
         where: { client_id: client.id },
@@ -31,7 +32,7 @@ export default async function NotificationsPage() {
     });
 
     return (
-        <PageScaffold title="Notifications" description="Updates about your reports and connected accounts.">
+        <PageScaffold title={t("title")} description={t("description")}>
             <MarkNotificationsReadOnView />
 
             {notifications.length === 0 ? (
@@ -41,8 +42,8 @@ export default async function NotificationsPage() {
                             <Bell />
                         </EmptyMedia>
 
-                        <EmptyTitle>No notifications yet</EmptyTitle>
-                        <EmptyDescription>When a new report is ready, it will show up here.</EmptyDescription>
+                        <EmptyTitle>{t("emptyTitle")}</EmptyTitle>
+                        <EmptyDescription>{t("emptyBody")}</EmptyDescription>
                     </EmptyHeader>
                 </Empty>
             ) : (
