@@ -29,7 +29,12 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
     const period = `${dateFormatRelative(from)} - ${dateFormatRelative(to)}`;
 
     const accountView = account
-        ? { id: account.id, name: account.name, platform: account.connection.platform }
+        ? {
+              id: account.id,
+              name: account.name,
+              platform: account.connection.platform,
+              contextNote: account.context_note,
+          }
         : null;
 
     return (

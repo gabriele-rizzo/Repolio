@@ -242,6 +242,15 @@ model AdAccount {
     timezone    String?
     active      Boolean @default(true)
 
+    // Standing context about this ad account, fed into EVERY report's AI prompt for it (business
+    // model, what to judge it on, known seasonality). Distinct from Report.context_comment, which is a
+    // note about one specific period and is written after that report was generated — so the model
+    // never sees it. This field is read at prompt-build time, which is what makes it actually reach
+    // the model. Client-supplied text: the system prompt treats it as background, never instructions.
+    // Deliberately NOT exposed as a template variable — it can hold internal guidance that shouldn't
+    // print in a client-facing PDF.
+    context_note String?
+
     // Stamped after each fully-successful snapshot upsert; null or stale (>48h) on an active
     // account means its sync is silently failing — check SyncError.
     last_synced_at DateTime?

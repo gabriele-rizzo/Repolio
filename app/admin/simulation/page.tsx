@@ -145,7 +145,12 @@ async function SimulationPreview({ client, accountParam }: { client: SelectedCli
           ];
 
     const accountView = reportAccount
-        ? { id: reportAccount.id, name: reportAccount.name, platform: reportAccount.connection.platform }
+        ? {
+              id: reportAccount.id,
+              name: reportAccount.name,
+              platform: reportAccount.connection.platform,
+              contextNote: reportAccount.context_note,
+          }
         : null;
 
     return (

@@ -1,4 +1,5 @@
-import type { Report } from "@/generated/prisma/browser";
+import type { Platform, Report } from "@/generated/prisma/browser";
+import { AccountContextEditor } from "../report/account-context-editor";
 import { currencyFormatter } from "@/lib/format/currency";
 import { accountFocus, METRIC_CARD_DEFS, metricValue, selectKpiCards, type MetricFormat } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
@@ -13,6 +14,8 @@ import { Typo } from "../typography";
 interface ReportWrapperProps {
     /** The AI report (executive summary, recommendations, trend explanation, context). */
     report?: Report;
+    /** The owning account, for its standing context editor. */
+    account?: { id: number; name: string | null; platform: Platform; contextNote: string | null } | null;
     /** Live metrics for the selected window. */
     current?: ComputedMetrics | null;
     /** Live metrics for the preceding equal-length window (for deltas). */
@@ -25,7 +28,7 @@ interface ReportWrapperProps {
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 const formatCompact = (value: number) => compact.format(value);
 
-export function ReportWrapper({ report, current, previous, loading, readOnly }: ReportWrapperProps) {
+export function ReportWrapper({ report, account, current, previous, loading, readOnly }: ReportWrapperProps) {
     const t = useTranslations("report");
     const tMetrics = useTranslations("metrics");
 
@@ -82,7 +85,19 @@ export function ReportWrapper({ report, current, previous, loading, readOnly }: 
 
             <AIInsights summary={report?.executive_summary} recommendations={recommendations} loading={loading} />
 
-            {report && !readOnly && <ReportContextEditor reportId={report.id} initial={report.context_comment} />}
+            {report && !readOnly && (
+                <div className="space-y-8">
+                    <ReportContextEditor reportId={report.id} initial={report.context_comment} />
+
+                    {account && (
+                        <AccountContextEditor
+                            adAccountId={account.id}
+                            accountName={account.name ?? t("fallbackTitle")}
+                            initial={account.contextNote}
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 }

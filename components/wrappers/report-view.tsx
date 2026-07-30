@@ -21,7 +21,7 @@ interface ReportViewProps {
     /** The AI report being viewed (executive summary, recommendations, trend, context). */
     report: Report;
     /** The account this report belongs to. Null only for legacy reports with no resolvable account. */
-    account: { id: number; name: string | null; platform: Platform } | null;
+    account: { id: number; name: string | null; platform: Platform; contextNote: string | null } | null;
     /** The first page of the account's reports, newest first, seeding the switcher. */
     reports: ReportRef[];
     /** Whether more reports exist beyond the seeded page (drives the switcher's "Load more"). */
@@ -137,6 +137,7 @@ export function ReportView({
         >
             <ReportWrapper
                 report={report}
+                account={account}
                 current={data?.current}
                 previous={data?.previous}
                 loading={!data}

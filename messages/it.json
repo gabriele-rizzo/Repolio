@@ -101,7 +101,12 @@
         "loadMore": "Carica altro",
         "loading": "Caricamento…",
         "loadMoreError": "Impossibile caricare altri report.",
-        "new": "nuovo"
+        "new": "nuovo",
+        "accountContext": "Su questo account",
+        "accountContextHelp": "Contesto permanente per {account}, usato ogni volta che l'AI scrive un report per questo account — di cosa si tratta, su cosa valutarlo, la stagionalità che conosci. Non modifica i report già esistenti.",
+        "accountContextPlaceholder": "Account di lead generation — valutateci sul costo per lead, non sul ROAS. Il CPL target è 35 €. Ogni novembre facciamo una spinta stagionale…",
+        "accountContextSaved": "Contesto dell'account salvato.",
+        "appliesToFuture": "Vale per i report futuri"
     },
     "metrics": {
         "spend": "Spesa",

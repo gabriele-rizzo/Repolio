@@ -101,7 +101,12 @@
         "loadMore": "Mehr laden",
         "loading": "Lädt…",
         "loadMoreError": "Weitere Reports konnten nicht geladen werden.",
-        "new": "neu"
+        "new": "neu",
+        "accountContext": "Über dieses Konto",
+        "accountContextHelp": "Dauerhafter Hintergrund zu {account}, den die KI bei jedem Report für dieses Konto nutzt — worum es geht, woran es gemessen werden soll, bekannte Saisonalität. Bereits erstellte Reports ändern sich dadurch nicht.",
+        "accountContextPlaceholder": "Lead-Generierung — bewertet uns nach Cost per Lead, nicht nach ROAS. Ziel-CPL ist 35 €. Jeden November läuft eine Saisonkampagne…",
+        "accountContextSaved": "Kontext des Kontos gespeichert.",
+        "appliesToFuture": "Gilt für künftige Reports"
     },
     "metrics": {
         "spend": "Ausgaben",

@@ -1,3 +1,4 @@
+import { AccountContextForm } from "@/components/admin/account-context-form";
 import { ClientPicker } from "@/components/admin/client-picker";
 import { TemplateAdminEditor } from "@/components/admin/template-admin-editor";
 import { PlatformBadge } from "@/components/platform-badge";
@@ -39,8 +40,9 @@ export default async function AdminTemplatesPage({
             <div className="space-y-1">
                 <Typo as="title">Templates</Typo>
                 <Typo as="muted">
-                    The layout of a client&apos;s report PDF. Set their default, override a single ad account, or apply
-                    a preset. Clients can edit the same templates themselves — last save wins.
+                    Per-account report setup: the layout of the report PDF, and the standing context the AI is given
+                    when it writes. Set a client default, override a single ad account, or apply a preset. Clients can
+                    edit the same things themselves — last save wins.
                 </Typo>
             </div>
 
@@ -84,6 +86,7 @@ async function ClientTemplates({
             select: {
                 id: true,
                 name: true,
+                context_note: true,
                 connection: { select: { platform: true } },
                 report_template: { select: { body: true } },
             },
@@ -141,6 +144,16 @@ async function ClientTemplates({
                         {selected.name ?? `Account #${selected.id}`}
                     </Typo>
                 </div>
+            )}
+
+            {selected && (
+                <AccountContextForm
+                    key={selected.id}
+                    clientId={clientId}
+                    adAccountId={selected.id}
+                    accountName={selected.name ?? `Account #${selected.id}`}
+                    initial={selected.context_note}
+                />
             )}
 
             <TemplateAdminEditor

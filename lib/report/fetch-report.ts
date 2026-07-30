@@ -49,7 +49,7 @@ export async function fetchReport(id: string, { clientId, allowUnreleased = fals
     const account = first
         ? await prisma.adAccount.findUnique({
               where: { id: first.ad_account_id },
-              select: { id: true, name: true, connection: { select: { platform: true } } },
+              select: { id: true, name: true, context_note: true, connection: { select: { platform: true } } },
           })
         : null;
 

@@ -101,7 +101,12 @@
         "loadMore": "Load more",
         "loading": "Loading…",
         "loadMoreError": "Could not load more reports.",
-        "new": "new"
+        "new": "new",
+        "accountContext": "About this account",
+        "accountContextHelp": "Standing background for {account}, used every time the AI writes a report for it — what the account is, what to judge it on, seasonality you know about. This won't change reports that already exist.",
+        "accountContextPlaceholder": "Lead-generation account — judge us on cost per lead, not ROAS. Target CPL is €35. We run a seasonal push every November…",
+        "accountContextSaved": "Account context saved.",
+        "appliesToFuture": "Used for future reports"
     },
     "metrics": {
         "spend": "Spend",
