@@ -5,6 +5,7 @@ import { getAnthropic } from "@/lib/ai/anthropic";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/request";
 import { computeMetrics, type ComputedMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
+import { RELEASED_REPORT } from "@/lib/report/visibility";
 import type Anthropic from "@anthropic-ai/sdk";
 
 // Report language sent to the model. Keyed by the client's stored locale.
@@ -40,7 +41,7 @@ const REPORT_SCHEMA = {
         },
         trend_explanation: {
             type: "string",
-            description: "1-2 paragraphs on the trajectory across the available reports and its drivers.",
+            description: "1-2 paragraphs on the account's trajectory and its drivers.",
         },
         recommendations: {
             type: "array",
@@ -65,14 +66,14 @@ const SYSTEM_PROMPT = `You are a senior performance-marketing analyst at a digit
 
 You are given:
 - METRICS FOR THE CURRENT PERIOD: KPIs aggregated from the account's ad platform data.
-- The LAST UP TO 3 REPORTS for the same account (most recent first): each with its period, its KPIs, and the narrative + recommendations written at the time.
+- The LAST UP TO 3 REPORTS for the same account, if any exist yet (most recent first): each with its period, its KPIs, and the narrative + recommendations written at the time.
 - Optionally, CLIENT TARGETS (target CPA / target ROAS) and a CONTEXT NOTE from the account manager.
 
-Produce three things, grounded in how performance has TRENDED across these reports — not the current period in isolation:
+Produce three things. Where previous reports are provided, ground them in how performance has TRENDED across those reports rather than the current period in isolation:
 
-1. executive_summary — 2-4 short paragraphs of plain prose addressed to the client. Explain how the account performed this period, what changed versus the previous reports, and what it means in business terms. Lead with the headline and be specific with the numbers provided.
+1. executive_summary — 2-4 short paragraphs of plain prose addressed to the client. Explain how the account performed this period and what it means in business terms; where previous reports are provided, also explain what changed versus them. Lead with the headline and be specific with the numbers provided.
 
-2. trend_explanation — 1-2 paragraphs on the trajectory across the available reports (improving, declining, volatile, flat) and the most likely drivers, referencing the metric movements. If there are fewer than 3 prior reports, say so and work with what is available.
+2. trend_explanation — 1-2 paragraphs on the trajectory (improving, declining, volatile, flat) and the most likely drivers, referencing the metric movements. When prior reports are available, read the trajectory across them. When they are not, characterise the account's current trajectory from the shape of the current period itself — the mix of spend, efficiency and volume, and performance against targets — and state that read directly.
 
 3. recommendations — 2-5 concrete, actionable recommendations. Each has:
    - priority: IMMEDIATE (act now — performance at risk or a clear opportunity), THIS_WEEK (important, not urgent), or MONITOR (watch, no action yet).
@@ -87,6 +88,8 @@ Rules:
 - Metric blocks of previous reports are recomputed with the current methodology, so their narrative text may cite figures that no longer match. Where a previous narrative and the numbers disagree, trust the numbers.
 - When targets are provided, judge performance against them (CPA above target is bad; ROAS above target is good).
 - Be honest about weak performance and acknowledge genuine improvement; avoid generic marketing platitudes. Every sentence should say something specific.
+- Never comment on the reporting history itself. Do not mention that this is a first or early report, how many prior reports you were given, that history is limited or absent, or that a later report will be more accurate. Do not hedge the analysis on the amount of history available, and do not promise what future reports will cover. Analyse whatever data you were given at full confidence, with no meta-commentary about the inputs.
+- Cover only what the data supports. If a question cannot be answered from the metrics provided, leave it out — do not substitute a proxy topic, a generic best practice, or a speculative angle to fill space. Fewer, well-grounded points beat padded ones.
 - Currency amounts are in the account's own currency — do not assume a symbol.
 - Write in clear, professional prose, in the target language specified at the end of the request.`;
 
@@ -165,7 +168,7 @@ function buildUserPrompt(current: ReportWithSnapshots, priors: ReportWithSnapsho
     parts.push("# PREVIOUS REPORTS (most recent first)");
     if (priors.length === 0) {
         parts.push(
-            "None — this is the first report for this account. Base your analysis on the current period alone and set expectations for future reporting.",
+            "None available. Analyse the current period on its own terms, and do not refer to the absence of previous reports anywhere in the output.",
         );
     } else {
         priors.forEach((r, i) => {
@@ -239,8 +242,10 @@ export async function buildReportParams(reportId: number): Promise<Anthropic.Mes
     });
     const locale = isLocale(adAccount?.connection.client.locale) ? adAccount.connection.client.locale : DEFAULT_LOCALE;
 
+    // Released reports only. An unvalidated or admin-excluded report was never delivered, so letting
+    // it into the history would let a new report reference a narrative the client never received.
     const priorReports = await prisma.report.findMany({
-        where: { id: { not: reportId }, snapshots: { some: { ad_account_id: adAccountId } } },
+        where: { id: { not: reportId }, snapshots: { some: { ad_account_id: adAccountId } }, ...RELEASED_REPORT },
         orderBy: { created_at: "desc" },
         take: HISTORY_DEPTH,
         include: { snapshots: true },

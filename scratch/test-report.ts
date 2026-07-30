@@ -14,6 +14,7 @@
  * Usage:
  *   pnpm dlx tsx scratch/test-report.ts list
  *   pnpm dlx tsx scratch/test-report.ts generate <adAccountId> --yes
+ *   pnpm dlx tsx scratch/test-report.ts show <reportId>
  *   pnpm dlx tsx scratch/test-report.ts delete <reportId> --yes
  */
 
@@ -173,6 +174,61 @@ async function main() {
         console.log(`  Raw report    : /dashboard/reports/${report.id}?account=${account.id}  (client-visible path!)`);
         console.log(`\n  TEAR DOWN WHEN DONE:`);
         console.log(`  pnpm dlx tsx scratch/test-report.ts delete ${report.id} --yes\n`);
+        return;
+    }
+
+    if (mode === "show") {
+        // READ-ONLY. Dumps the generated AI section + live-computed KPIs as plain text, so the
+        // report can be reviewed without opening the admin UI.
+        const reportId = Number(arg);
+        if (!Number.isInteger(reportId)) throw new Error("show needs a numeric <reportId>");
+
+        const report = await prisma.report.findUnique({
+            where: { id: reportId },
+            include: { snapshots: { orderBy: { start_date: "asc" } } },
+        });
+        if (!report) throw new Error(`Report ${reportId} not found`);
+
+        const m = computeMetrics(report.snapshots);
+        const acct = report.snapshots[0]
+            ? await prisma.adAccount.findUnique({
+                  where: { id: report.snapshots[0].ad_account_id },
+                  select: { id: true, name: true },
+              })
+            : null;
+
+        console.log(`\n${"=".repeat(78)}`);
+        console.log(`REPORT ${reportId} — ${acct?.name ?? "(unknown account)"} (acct ${acct?.id ?? "?"})`);
+        console.log(`Period: ${fmt(report.snapshots[0]?.start_date ?? null)} → ${fmt(report.snapshots.at(-1)?.start_date ?? null)} (${report.snapshots.length} days)`);
+        console.log(`ai_pending=${report.ai_pending} batch_id=${report.batch_id ?? "none (live call)"}`);
+        console.log(`${"=".repeat(78)}`);
+
+        console.log(`\n--- KPIs (computed live, same as the report page) ---`);
+        if (!m) {
+            console.log("No metrics.");
+        } else {
+            console.log(
+                `spend=${m.spend} ${m.currency} | revenue=${m.revenue ?? "n/a"} | roas=${m.roas ?? "n/a"} | ` +
+                    `conv=${m.conversions} (${m.purchases}p+${m.leads}l) | cpa=${m.cpa ?? "n/a"} | cpl=${m.cpl ?? "n/a"}\n` +
+                    `impr=${m.impressions} | clicks=${m.clicks} | linkClicks=${m.linkClicks ?? "n/a"} | ` +
+                    `ctr=${m.ctr ?? "n/a"} | cpc=${m.cpc ?? "n/a"} | cpm=${m.cpm ?? "n/a"}\n` +
+                    `reach=${m.reach ?? "n/a"} | frequency=${m.frequency ?? "n/a"} | ` +
+                    `score=${m.performance_score} (${m.score_label}) conf=${m.score_confidence}`,
+            );
+            for (const c of m.score_components) {
+                console.log(`  - ${c.label}: ${c.score}/100 (w ${c.weight}) — ${c.detail}`);
+            }
+        }
+
+        console.log(`\n--- EXECUTIVE SUMMARY ---\n${report.executive_summary || "(empty)"}`);
+        console.log(`\n--- TREND EXPLANATION ---\n${report.trend_explanation || "(empty)"}`);
+        console.log(`\n--- RECOMMENDATIONS ---`);
+        const recs = Array.isArray(report.recommendations) ? report.recommendations : [];
+        if (recs.length === 0) console.log("(none)");
+        for (const r of recs as Array<Record<string, unknown>>) {
+            console.log(`\n[${r.priority}/${r.category}] ${r.title}\n  ${r.body}`);
+        }
+        console.log("\nNo writes performed.\n");
         return;
     }
 

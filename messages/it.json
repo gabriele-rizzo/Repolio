@@ -46,7 +46,18 @@
             "monthly": "Mensile",
             "quarterly": "Trimestrale",
             "updated": "Frequenza dei report aggiornata.",
-            "error": "Impossibile aggiornare la frequenza."
+            "error": "Impossibile aggiornare la frequenza.",
+            "customLabel": "Cadenza personalizzata",
+            "daysUnit": "giorni",
+            "apply": "Applica",
+            "customActive": "Personalizzata — ogni {days} giorni.",
+            "customInvalid": "Inserisci un numero intero di giorni tra {min} e {max}.",
+            "startLabel": "Data del primo report",
+            "startHelp": "Il giorno in cui viene generato il tuo primo report. Tutti i report successivi mantengono lo stesso giorno della settimana, contando da questa data.",
+            "startClear": "Cancella",
+            "startNext": "Prossimi report:",
+            "startNone": "Nessuna data di inizio impostata — i report seguono la data di iscrizione.",
+            "startUpdated": "Data di inizio dei report aggiornata."
         }
     },
     "locale": {
@@ -158,13 +169,25 @@
         "title": "Notifiche",
         "description": "Aggiornamenti sui tuoi report e account collegati.",
         "emptyTitle": "Ancora nessuna notifica",
-        "emptyBody": "Quando un nuovo report è pronto, apparirà qui."
+        "emptyBody": "Quando un nuovo report è pronto, apparirà qui.",
+        "reportBatch": {
+            "title": "{count, plural, one {Nuovo report pronto} other {# nuovi report pronti}}",
+            "body": "{count, plural, one {Il tuo ultimo report sulle performance è disponibile.} other {I tuoi ultimi report sulle performance sono disponibili.}}"
+        }
     },
     "email": {
         "performanceReport": "Report sulle performance",
         "viewFullReport": "Visualizza il report completo",
         "sentBy": "Inviato da Repolio · metriche per {period}.",
         "subject": "{account} — report sulle performance ({period})",
-        "nothingFlagged": "Nulla di rilevante da segnalare in questo periodo."
+        "nothingFlagged": "Nulla di rilevante da segnalare in questo periodo.",
+        "batch": {
+            "subject": "{count, plural, one {Il tuo report sulle performance} other {I tuoi # report sulle performance}} ({period})",
+            "heading": "{count, plural, one {Il tuo report sulle performance} other {I tuoi report sulle performance}}",
+            "intro": "Ciao {name} — {count, plural, one {il tuo nuovo report è pronto} other {i tuoi nuovi report sono pronti}}. Qui trovi la sintesi; il report completo di ogni account è allegato in PDF.",
+            "flagged": "{count, plural, one {# raccomandazione} other {# raccomandazioni}} · {urgent, plural, =0 {nessuna immediata} one {# immediata} other {# immediate}}",
+            "attachedAs": "allegato come {file}",
+            "openDashboard": "Apri la dashboard"
+        }
     }
 }

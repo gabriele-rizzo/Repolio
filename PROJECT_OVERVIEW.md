@@ -8,15 +8,15 @@ _Last compiled: 2026-07-07 · Source: full codebase read (Next.js 16 app, Prisma
 
 **Repolio is a B2B SaaS product that automates AI-written advertising performance reports for marketing agencies.**
 
-The core promise: an agency connects a client's ad accounts once, and Repolio then automatically pulls the ad data every day, and on a recurring cadence (default monthly) generates a polished, AI-authored performance report — executive summary, trend analysis, a 0–100 performance score, and prioritized recommendations — and delivers it to the client by email and in an in-app dashboard. No analyst has to assemble the report by hand.
+The core promise: an agency connects a client's ad accounts once, and Repolio then automatically pulls the ad data every day, and on a recurring cadence (default monthly) generates a polished, AI-authored performance report — executive summary, trend analysis, a 0–100 performance score, and prioritized recommendations — and holds it for an agency admin to validate. Once validated, the client receives **one email** covering all of their ad accounts, each report attached as a PDF, and the reports appear in their in-app dashboard. No analyst has to assemble the report by hand.
 
 **The problem it solves:** Marketing agencies spend hours every reporting cycle exporting numbers from Meta/Google/etc., interpreting them, and writing up a narrative for each client. Repolio turns that recurring manual labor into an automated pipeline.
 
 **Who uses it (two audiences):**
 | Audience | Role | What they do |
 |----------|------|--------------|
-| **Agency admin** (Repolio operator) | Internal staff | Enrolls new clients, protected by a TOTP code |
-| **Client** (the end user) | The agency's advertising client | Logs in, connects ad accounts, reads reports, sets report cadence |
+| **Agency admin** (Repolio operator) | Internal staff | Enrolls new clients, sets each client's report schedule, and validates generated report batches before they reach the client — all protected by a TOTP code |
+| **Client** (the end user) | The agency's advertising client | Logs in, connects ad accounts, reads validated reports, sets report cadence and start date |
 
 **Current maturity:** Version `0.1.0`, private/pre-release. Only the **Meta** ad platform is wired end-to-end today; Google, TikTok, LinkedIn, Pinterest, and X are declared in the data model and UI but not yet connected.
 
@@ -55,8 +55,9 @@ The whole system revolves around this chain:
 ```
 Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Report
    │                                                            (AI narrative)
-   ├──< Notification
-   └──1 Recurrence
+   ├──< Notification                                              │
+   ├──< ReportBatch ───────────────────────────────────────────< ─┘
+   └──1 Recurrence                                (validation + delivery unit)
 ```
 
 **Core entities:**
@@ -65,8 +66,9 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
 - **`PlatformConnection`** — one OAuth connection per `(client, platform)`. Holds *references* to Zernio account IDs (`zernio_account_id` = ads grant, `zernio_posting_account_id` = parent posting grant) and a `CONNECTED`/`DISCONNECTED` status. **Repolio never stores the actual OAuth tokens** — Zernio holds them.
 - **`AdAccount`** — a specific ad account under a connection (e.g. a Meta `act_<id>`). One connection can expose many. Stores `external_id`, `currency`, `timezone`, `name`, `active`.
 - **`Snapshot`** — **one row per ad account per calendar day**, storing that day's raw Zernio metrics as JSON (`spend`, `impressions`, `clicks`, `reach`, the `actions`/`actionValues` maps, plus Zernio's derived scalars kept as provenance only) and a stamped `currency`. Uniqueness enforced on `(start_date, ad_account_id)`. Indexed on `(ad_account_id, start_date)` for the hot dashboard/report query path. KPI-relevant facts (purchases, leads, revenue, link clicks) are derived from the action maps at compute time — see §5.3.
-- **`Report`** — an AI-generated write-up covering a set of snapshots. **Stores only the AI text**: `executive_summary`, `recommendations` (JSON), `trend_explanation`, plus snapshotted user inputs (`target_cpa`, `target_roas`, `context_comment`). **KPIs and scores are NOT stored** — they are recomputed live from the linked snapshots every time.
-- **`Recurrence`** — per-client report cadence (`ndays`, default 30).
+- **`Report`** — an AI-generated write-up covering a set of snapshots. **Stores only the AI text**: `executive_summary`, `recommendations` (JSON), `trend_explanation`, plus snapshotted user inputs (`target_cpa`, `target_roas`, `context_comment`) and its delivery state (`report_batch_id`, `approved`, `released_at`). **A report is invisible to its client until `released_at` is stamped by batch validation** — every client-facing query filters on it. **KPIs and scores are NOT stored** — they are recomputed live from the linked snapshots every time.
+- **`ReportBatch`** — one client's reports from a single generation run, and the unit of validation and delivery. Reports are generated into an unsent batch; an admin approves or excludes each one, and validating the batch sends the client **one** email and stamps `Report.released_at`. `sent_at` is the state (null = pending validation).
+- **`Recurrence`** — per-client report schedule: cadence in days (`ndays`, default 30) plus `start_date`, the anchor day the first report is due. Slots are phase-locked to the anchor (`anchor + k × ndays`), so a client anchored to a Saturday stays on Saturdays. Null anchor falls back to the client's `created_at`.
 - **`Notification`** — in-app notifications: `REPORT_READY`, `CONNECTION_EXPIRING`, `CONNECTION_EXPIRED`.
 
 **Enums:** `Platform` (META, GOOGLE, TIKTOK, LINKEDIN, PINTEREST, X), `ConnectionStatus`, `ScoreLabel` (STRONG / MODERATE / NEEDS_IMPROVEMENT), `NotificationType`.
@@ -145,18 +147,22 @@ Two daily cron jobs, authenticated with a timing-safe Bearer `CRON_SECRET` check
 | Job | Schedule (UTC) | Purpose |
 |-----|----------------|---------|
 | `/api/cron/daily` | `0 0 * * *` (midnight) | Snapshot pull for every active client, then report submission for "due" clients |
-| `/api/cron/collect` | `0 5 * * *` (5 AM) | Retrieve finished Anthropic batch results, write AI sections back, notify |
+| `/api/cron/collect` | `0 5 * * *` (5 AM) | Retrieve finished Anthropic batch results and write AI sections back (delivers nothing — that waits on admin validation) |
 
 (`/api/cron/snapshots` and `/api/cron/poll` remain live, unscheduled, for manual triggering.)
 
 **Snapshots phase:** for each active client (max 10 concurrent), syncs connection health from Zernio (flips `DISCONNECTED` and fires a rate-limited — once per 7 days — connection-expired email + notification), then pulls the Zernio timeline for each healthy ad account (max 6 concurrent per client, with retry/backoff on 429/5xx honoring `Retry-After`) and **upserts one snapshot per day**. First-ever pull backfills up to 730 days of history; every later pull **re-pulls the trailing 3 days** (so partial days and Meta's ~72h attribution restatements are overwritten daily), widening to 7 days on the Monday reconcile. Failures are recorded per account/stage in the internal **`SyncError`** table (30-day retention) and successful accounts get `AdAccount.last_synced_at` stamped — a silent skip is a one-query diagnosis. Reports connect **complete days only** — the just-started UTC day's near-empty row stays out of report KPIs and the AI narrative (the dashboard still shows live today).
 
-**Poll job:** calls the Postgres RPC **`due_clients()`** — a client is due when *calendar days* since its most recent report ≥ its `Recurrence.ndays` (default 30), falling back to the client's creation date if no report exists yet. For each due client it: self-heals missing snapshots, groups snapshots since the last report by ad account, creates one empty `Report` per account, runs `generateReportContent()` to fill the AI text, then sends a `REPORT_READY` in-app notification **and** a rendered HTML email via Resend. Every side-effect is best-effort — a failed AI call or email never aborts the run (the report still exists and renders live KPIs).
+**Poll job:** calls the Postgres RPC **`due_clients()`** — a client is due when the *current slot* (the latest `Recurrence.start_date + k × ndays` on or before today, falling back to the client's creation date when no anchor is set) has been reached and no report has been generated for it yet. Comparing against the slot rather than "today minus the cadence" makes the schedule drift-proof: a missed run is still owed the next day, and catching up late does not move the following slot off the anchor's weekday. The rule is mirrored in TypeScript by `lib/recurrence/schedule.ts` (unit-tested) for the UI's schedule previews — change one, change the other.
+
+For each due client it self-heals missing snapshots, groups snapshots since the last report by ad account, creates **one `ReportBatch` per client** and one empty `Report` per account inside it, and submits the AI sections to the Anthropic Batches API (50% cheaper than live calls). Zero-activity accounts (no spend, impressions or conversions) get a report row but skip the AI call entirely. **Nothing is emailed and nothing becomes client-visible here** — the batch waits for an admin at `/admin/validation`. Every side-effect is best-effort: a failed AI call never aborts the run (the report still exists and renders live KPIs).
 
 ### 5.5 Email & Notifications
 
 - **Resend** for transactional email; sender defaults to `Repolio <team@gj-automate.com>`.
-- **Report email** — React component rendered to static HTML, includes live KPIs for the report period + prior period, the AI summary, and recommendations, with a deep link to the report page.
+- **Batched report email** — the single email a client gets when an admin validates their batch: a compact summary row per ad account (score, three headline KPIs, what the AI flagged) plus **one PDF attachment per report** carrying the full write-up. PDFs are generated server-side with `@react-pdf/renderer` (no headless browser). Rendered in the client's language; sent by `lib/report/send-batch.ts`, which only releases the reports once Resend accepts the email.
+- **Single-report HTML render** — the same per-report layout as an HTML document, still served at `/api/reports/[id]/email` to power the client's in-page "Download PDF" button (printed in the browser).
+- **Admin PDF preview** — `/api/admin/reports/[id]/pdf` serves the byte-identical attachment for a not-yet-released report, so validation reviews the real artifact.
 - **Connection-expired email** — inline-styled HTML (email clients don't load external CSS) prompting the client to reconnect; rate-limited to once per 7 days.
 - **In-app notifications** — a bell in the header with unread count; a notifications page listing the latest 50, auto-marked read on view.
 
@@ -170,7 +176,7 @@ Two daily cron jobs, authenticated with a timing-safe Bearer `CRON_SECRET` check
   - **6 live KPI cards** (spend, ROAS, CPA, conversions, CTR, reach) with period-over-period delta indicators colored by whether "up" is good for that metric.
   - **AI Insights:** executive summary + a grid of prioritized, color-coded recommendation cards.
   - **Controls:** a **date-range picker** that re-windows the metrics live (SWR against `/api/metrics`), a report switcher (paginated history), a context editor, and a print-to-PDF button.
-- **Account (`/dashboard/account`)** — profile (name/avatar), lifetime stats, **report cadence** picker (Weekly / Bi-weekly / Monthly / Quarterly), and per-platform connection management (status, reconnect, delete, list of ad accounts).
+- **Account (`/dashboard/account`)** — profile (name/avatar), lifetime stats, **report schedule** (cadence presets Weekly / Bi-weekly / Monthly / Quarterly, any custom whole-day cadence, and the start date that anchors the cycle, with a preview of the next dates), language, and per-platform connection management (status, reconnect, delete, list of ad accounts).
 
 ---
 
@@ -181,12 +187,16 @@ Two daily cron jobs, authenticated with a timing-safe Bearer `CRON_SECRET` check
 2. Client sets password, logs in
 3. Client connects Meta  →  Zernio OAuth  →  ad accounts imported
 4. Daily 00:00 UTC: snapshots cron pulls each ad account's timeline → Snapshot rows
-5. Every ndays (default 30), 02:00 UTC: poll cron finds the client "due"
-        → creates a Report per ad account
-        → Claude writes summary / trends / recommendations
-        → REPORT_READY notification + Resend email
-6. Client opens the report: live KPIs + AI narrative, re-windowable, printable
-7. If a connection breaks: health sync flips it DISCONNECTED + reconnect email (≤1/week)
+5. On each scheduled slot (start_date + k × ndays), 00:00 UTC: poll cron finds the client "due"
+        → creates one ReportBatch for the client, one Report per ad account inside it
+        → Claude writes summary / trends / recommendations (Batches API, collected at 05:00)
+        → nothing is sent; the batch is invisible to the client
+6. Agency admin opens /admin/validation, reviews each report (PDF preview), excludes any that
+   shouldn't go out, and clicks "Validate & send"
+        → ONE email to the client, one PDF attached per approved report
+        → approved reports are released and appear in the dashboard
+7. Client opens the report: live KPIs + AI narrative, re-windowable, printable
+8. If a connection breaks: health sync flips it DISCONNECTED + reconnect email (≤1/week)
 ```
 
 ---
@@ -224,8 +234,10 @@ Two daily cron jobs, authenticated with a timing-safe Bearer `CRON_SECRET` check
 | Metrics/scoring | `lib/metrics/compute.ts`, `lib/metrics/window.ts` |
 | Zernio | `lib/zernio/**`, `app/api/connect/**` |
 | Cron/automation | `app/api/cron/poll/route.ts`, `app/api/cron/snapshots/route.ts`, `actions/snapshot/**`, `vercel.json` |
-| `due_clients()` | `prisma/migrations/20260602120000_due_clients_calendar_days/migration.sql` |
+| `due_clients()` | `prisma/migrations/20260730130000_recurrence_start_date/migration.sql` (+ TS twin `lib/recurrence/schedule.ts`) |
+| Validation & delivery | `app/admin/validation/`, `actions/admin/validation.ts`, `lib/report/send-batch.ts`, `lib/report/visibility.ts` |
+| Scheduling | `app/admin/schedule/`, `actions/admin/schedule.ts`, `actions/account/update-recurrence.ts`, `lib/recurrence/**` |
 | Auth/admin | `actions/admin/**`, `actions/auth/**`, `lib/admin/auth.ts`, `lib/supabase/**` |
-| Email | `lib/email/**`, `lib/resend.ts`, `components/email/report-email.tsx` |
+| Email | `lib/email/**`, `lib/resend.ts`, `components/email/report-email.tsx`, `components/email/batch-email.tsx`, `lib/email/report-pdf.tsx` |
 | Dashboard UI | `app/dashboard/**`, `components/report/**`, `components/sidebar/**`, `components/account/**` |
 | Legal | `app/(legal)/**`, `app/data-deletion/page.tsx` |

@@ -21,9 +21,11 @@ export interface ClientOption {
 interface ClientPickerProps {
     clients: ClientOption[];
     selectedId: number | null;
+    /** Admin page the selection navigates to; the client id is appended as `?client=`. */
+    basePath?: string;
 }
 
-export function ClientPicker({ clients, selectedId }: ClientPickerProps) {
+export function ClientPicker({ clients, selectedId, basePath = "/admin/simulation" }: ClientPickerProps) {
     const selected = clients.find((c) => c.id === selectedId) ?? null;
 
     return (
@@ -53,7 +55,7 @@ export function ClientPicker({ clients, selectedId }: ClientPickerProps) {
                     clients.map((client) => (
                         <DropdownMenuItem
                             key={client.id}
-                            render={<Link href={`/admin/simulation?client=${client.id}`} />}
+                            render={<Link href={`${basePath}?client=${client.id}`} />}
                         >
                             <Check
                                 className={cn("size-3.5 shrink-0", client.id === selectedId ? "opacity-100" : "opacity-0")}

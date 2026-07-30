@@ -2,16 +2,19 @@ import { getAnthropic } from "@/lib/ai/anthropic";
 import { applyGeneratedReport } from "@/lib/ai/generate-report";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { prisma } from "@/lib/prisma";
-import { notifyReportReady } from "@/lib/report/notify";
 import { err } from "@/lib/try-catch";
 import { NextResponse, type NextRequest } from "next/server";
 import pLimit from "p-limit";
 
 // Collect phase of report generation. The poll cron submits report AI sections to the Anthropic
 // Batches API and marks those reports `ai_pending`. This route retrieves the batches that have
-// finished, writes the results back, clears `ai_pending`, and notifies the client. Reports whose
-// batch is still processing are left pending and picked up on a later run. Runs hourly — batches
-// usually finish within an hour (max 24h).
+// finished, writes the results back and clears `ai_pending`. Reports whose batch is still processing
+// are left pending and picked up on a later run. Runs hourly — batches usually finish within an hour
+// (max 24h).
+//
+// This route does NOT notify or email anyone. A finished report is only complete, not delivered: it
+// waits in its client's ReportBatch until an admin validates it at /admin/validation, which is what
+// releases it and sends the client's single batched email.
 
 const limit = pLimit(10);
 
@@ -25,22 +28,7 @@ export async function GET(request: NextRequest): Promise<ResultResponse<null, st
 
     const pending = await prisma.report.findMany({
         where: { ai_pending: true, batch_id: { not: null } },
-        select: {
-            id: true,
-            batch_id: true,
-            snapshots: {
-                take: 1,
-                select: {
-                    ad_account: {
-                        select: {
-                            id: true,
-                            name: true,
-                            connection: { select: { client: { select: { id: true, email: true, name: true } } } },
-                        },
-                    },
-                },
-            },
-        },
+        select: { id: true, batch_id: true },
     });
 
     if (pending.length === 0) return new NextResponse(null, { status: 204 });
@@ -69,7 +57,7 @@ export async function GET(request: NextRequest): Promise<ResultResponse<null, st
         // Not finished yet — leave these reports pending for a later run.
         if (status !== "ended") continue;
 
-        const metaById = new Map(reports.map((r) => [r.id, r]));
+        const stillPending = new Set(reports.map((r) => r.id));
 
         let results;
         try {
@@ -82,8 +70,7 @@ export async function GET(request: NextRequest): Promise<ResultResponse<null, st
         const tasks: Promise<void>[] = [];
         for await (const result of results) {
             const reportId = Number(result.custom_id);
-            const meta = metaById.get(reportId);
-            if (!meta) continue; // not one of our still-pending reports (already finalized)
+            if (!stillPending.has(reportId)) continue; // already finalized on an earlier run
 
             tasks.push(
                 limit(async () => {
@@ -100,17 +87,6 @@ export async function GET(request: NextRequest): Promise<ResultResponse<null, st
                     }
 
                     await prisma.report.update({ where: { id: reportId }, data: { ai_pending: false } });
-
-                    const adAccount = meta.snapshots[0]?.ad_account;
-                    const client = adAccount?.connection.client;
-                    if (adAccount && client) {
-                        await notifyReportReady({
-                            reportId,
-                            adAccountId: adAccount.id,
-                            adAccountName: adAccount.name,
-                            client,
-                        });
-                    }
                 }),
             );
         }

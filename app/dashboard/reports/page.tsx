@@ -1,6 +1,7 @@
 import { authorize } from "@/actions/auth/authorize";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { prisma } from "@/lib/prisma";
+import { RELEASED_REPORT } from "@/lib/report/visibility";
 import { Inbox, ScrollText } from "lucide-react";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
@@ -40,7 +41,7 @@ export default async function DashboardReportsPage({ searchParams }: { searchPar
     if (!account) notFound();
 
     const latest = await prisma.report.findFirst({
-        where: { snapshots: { some: { ad_account_id: account.id } } },
+        where: { snapshots: { some: { ad_account_id: account.id } }, ...RELEASED_REPORT },
         orderBy: { created_at: "desc" },
         select: { id: true },
     });

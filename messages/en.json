@@ -46,7 +46,18 @@
             "monthly": "Monthly",
             "quarterly": "Quarterly",
             "updated": "Reporting cadence updated.",
-            "error": "Could not update cadence."
+            "error": "Could not update cadence.",
+            "customLabel": "Custom cadence",
+            "daysUnit": "days",
+            "apply": "Apply",
+            "customActive": "Custom — every {days} days.",
+            "customInvalid": "Enter a whole number of days between {min} and {max}.",
+            "startLabel": "First report date",
+            "startHelp": "The day your first report is generated. Every later report keeps to the same weekday, counting on from this date.",
+            "startClear": "Clear",
+            "startNext": "Next reports:",
+            "startNone": "No start date set — reports follow your signup date.",
+            "startUpdated": "Report start date updated."
         }
     },
     "locale": {
@@ -158,13 +169,25 @@
         "title": "Notifications",
         "description": "Updates about your reports and connected accounts.",
         "emptyTitle": "No notifications yet",
-        "emptyBody": "When a new report is ready, it will show up here."
+        "emptyBody": "When a new report is ready, it will show up here.",
+        "reportBatch": {
+            "title": "{count, plural, one {New report ready} other {# new reports ready}}",
+            "body": "{count, plural, one {Your latest performance report is ready to view.} other {Your latest performance reports are ready to view.}}"
+        }
     },
     "email": {
         "performanceReport": "Performance report",
         "viewFullReport": "View full report",
         "sentBy": "Sent by Repolio · metrics cover {period}.",
         "subject": "{account} — performance report ({period})",
-        "nothingFlagged": "Nothing actionable was flagged this period."
+        "nothingFlagged": "Nothing actionable was flagged this period.",
+        "batch": {
+            "subject": "{count, plural, one {Your performance report} other {Your # performance reports}} ({period})",
+            "heading": "{count, plural, one {Your performance report} other {Your performance reports}}",
+            "intro": "Hi {name} — {count, plural, one {your latest report is ready} other {your latest reports are ready}}. Here's the short version; the full write-up for each account is attached as a PDF.",
+            "flagged": "{count, plural, one {# recommendation} other {# recommendations}} · {urgent, plural, =0 {none immediate} other {# immediate}}",
+            "attachedAs": "attached as {file}",
+            "openDashboard": "Open dashboard"
+        }
     }
 }

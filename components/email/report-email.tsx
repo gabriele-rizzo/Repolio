@@ -1,17 +1,21 @@
-import type { ScoreLabel } from "@/generated/prisma/browser";
 import type { Recommendation } from "@/components/report/recommendation-card";
-import { currencyFormatter } from "@/lib/format/currency";
 import {
-    accountFocus,
-    METRIC_CARD_DEFS,
-    selectKpiCards,
-    type MetricCardKey,
-    type MetricFormat,
-} from "@/lib/metrics/cards";
+    accent,
+    bodyText,
+    border,
+    deltaColor,
+    fontStack,
+    ink,
+    muted,
+    pageBg,
+    primary,
+    primaryFg,
+    priorityStyle,
+    SCORE_LABEL_STYLE,
+    white,
+} from "@/lib/email/theme";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
-
-/** Minimal translator shape — the real next-intl `t` (for the client's locale) is passed in. */
-type Translator = (key: string, values?: Record<string, string | number>) => string;
+import { deltaArrow, metricColumns, type Translator } from "@/lib/metrics/present";
 
 /**
  * Email-safe rendering of a report. Standalone from the dashboard UI on purpose: email clients
@@ -34,58 +38,6 @@ export interface ReportEmailProps {
     t: Translator;
     locale: string;
 }
-
-const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
-
-type BetterWhen = "up" | "down" | "neutral";
-
-// The card set and metric metadata come from lib/metrics/cards.ts (shared with the report page);
-// only the string formatters are email-specific. Built per-render so money columns format in the
-// account's own currency.
-const metricDefs = (
-    current: ComputedMetrics | null,
-    previous: ComputedMetrics | null,
-    money: Intl.NumberFormat,
-    t: Translator,
-): { key: MetricCardKey; label: string; format: (v: number) => string; betterWhen: BetterWhen }[] => {
-    const formats: Record<MetricFormat, (v: number) => string> = {
-        currency: (v) => money.format(v),
-        percent: (v) => `${v.toFixed(2)}%`,
-        multiplier: (v) => `${v.toFixed(2)}x`,
-        count: (v) => v.toLocaleString("en-US"),
-        compact: (v) => compact.format(v),
-        decimal: (v) => v.toFixed(2),
-    };
-
-    return selectKpiCards(accountFocus(current, previous)).map((key) => {
-        const def = METRIC_CARD_DEFS[key];
-        return { key, label: t(`metrics.${key}`), format: formats[def.format], betterWhen: def.betterWhen };
-    });
-};
-
-// Neutral palette + accents, matching the app's light theme (Tailwind neutral scale, --radius: 0).
-const ink = "#0a0a0a"; // foreground
-const bodyText = "#404040"; // neutral-700
-const muted = "#737373"; // muted-foreground
-const border = "#e5e5e5"; // border
-const pageBg = "#fafafa";
-const white = "#ffffff";
-const primary = "#171717"; // primary (dark)
-const primaryFg = "#fafafa";
-const accent = "#7e22ce"; // purple-700, used for AI-generated sections
-const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
-
-const SCORE_LABEL_STYLE: Record<ScoreLabel, { color: string; bg: string }> = {
-    STRONG: { color: "#15803d", bg: "#f0fdf4" },
-    MODERATE: { color: "#b45309", bg: "#fffbeb" },
-    NEEDS_IMPROVEMENT: { color: "#b91c1c", bg: "#fef2f2" },
-};
-
-const PRIORITY_STYLE: Record<string, { color: string; bg: string; rail: string }> = {
-    IMMEDIATE: { color: "#b91c1c", bg: "#fef2f2", rail: "#ef4444" },
-    THIS_WEEK: { color: "#b45309", bg: "#fffbeb", rail: "#f59e0b" },
-    MONITOR: { color: "#1d4ed8", bg: "#eff6ff", rail: "#3b82f6" },
-};
 
 const labelBase: React.CSSProperties = {
     fontSize: 11,
@@ -121,19 +73,9 @@ const badge = (color: string, bg: string): React.CSSProperties => ({
     backgroundColor: bg,
 });
 
-function delta(cur: number | null | undefined, prev: number | null | undefined, betterWhen: BetterWhen) {
-    if (cur == null || prev == null || prev === 0) return null;
-    const pct = ((cur - prev) / Math.abs(prev)) * 100;
-    if (!isFinite(pct) || Math.abs(pct) < 0.5) return { text: "0%", color: muted };
-    const up = pct > 0;
-    const good = betterWhen === "neutral" ? null : betterWhen === "up" ? up : !up;
-    const color = good == null ? muted : good ? "#15803d" : "#b91c1c";
-    return { text: `${up ? "▲" : "▼"} ${Math.abs(pct).toFixed(0)}%`, color };
-}
-
 export function ReportEmail(props: ReportEmailProps) {
     const { current, previous, t } = props;
-    const cols = metricDefs(current, previous, currencyFormatter(current?.currency ?? previous?.currency ?? "EUR"), t);
+    const cols = metricColumns(current, previous, t);
     const score = current?.performance_score;
     const scoreLabel = current?.score_label;
     const labelStyle = scoreLabel ? SCORE_LABEL_STYLE[scoreLabel] : null;
@@ -209,20 +151,19 @@ export function ReportEmail(props: ReportEmailProps) {
                             <tbody>
                                 {[0, 2, 4].map((row) => (
                                     <tr key={row}>
-                                        {[cols[row], cols[row + 1]].map((m) => {
-                                            const value = current?.[m.key];
-                                            const d = delta(value, previous?.[m.key], m.betterWhen);
-
-                                            return (
-                                                <td key={m.key} style={{ ...card, width: "50%", padding: 12, verticalAlign: "top" }}>
-                                                    <div style={{ fontSize: 11, color: muted }}>{m.label}</div>
-                                                    <div style={{ fontSize: 18, fontWeight: 700, margin: "2px 0", color: ink }}>
-                                                        {value == null ? "—" : m.format(value)}
+                                        {[cols[row], cols[row + 1]].map((m) => (
+                                            <td key={m.key} style={{ ...card, width: "50%", padding: 12, verticalAlign: "top" }}>
+                                                <div style={{ fontSize: 11, color: muted }}>{m.label}</div>
+                                                <div style={{ fontSize: 18, fontWeight: 700, margin: "2px 0", color: ink }}>
+                                                    {m.value}
+                                                </div>
+                                                {m.delta && (
+                                                    <div style={{ fontSize: 12, color: deltaColor(m.delta.good) }}>
+                                                        {deltaArrow(m.delta)}
                                                     </div>
-                                                    {d && <div style={{ fontSize: 12, color: d.color }}>{d.text}</div>}
-                                                </td>
-                                            );
-                                        })}
+                                                )}
+                                            </td>
+                                        ))}
                                     </tr>
                                 ))}
                             </tbody>
@@ -245,11 +186,7 @@ export function ReportEmail(props: ReportEmailProps) {
                             <p style={emptyParagraph}>{t("email.nothingFlagged")}</p>
                         ) : (
                             props.recommendations.map((rec, i) => {
-                                const p = PRIORITY_STYLE[rec.priority] ?? {
-                                    color: muted,
-                                    bg: "#f5f5f5",
-                                    rail: muted,
-                                };
+                                const p = priorityStyle(rec.priority);
 
                                 return (
                                     <div key={i} style={{ ...card, borderLeft: `3px solid ${p.rail}`, marginBottom: 8 }}>

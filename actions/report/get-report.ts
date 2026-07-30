@@ -1,39 +1,18 @@
 "use server";
 
 import type { Client } from "@/generated/prisma/browser";
-import { prisma } from "@/lib/prisma";
+import { fetchReport } from "@/lib/report/fetch-report";
 
-export type FetchedReport = NonNullable<Awaited<ReturnType<typeof getReport>>>;
+export type { FetchedReport } from "@/lib/report/fetch-report";
 
-// A report now carries only the AI output. We also resolve the account it belongs
-// to and the period it covered, so the page can compute KPIs live for that window.
+/**
+ * The client-facing report read: scoped to `client_id` and to reports an admin has released. Both
+ * options are pinned here on purpose — this module is a "use server" boundary, so anything it accepts
+ * as an argument is reachable from the browser.
+ *
+ * Admin-gated server code that needs to read an unreleased report (the validation screen) calls
+ * `fetchReport` directly instead.
+ */
 export async function getReport(id: string, client_id: Client["id"]) {
-    if (isNaN(+id)) return null;
-
-    const report = await prisma.report.findFirst({
-        where: { id: parseInt(id), snapshots: { some: { ad_account: { connection: { client_id } } } } },
-        include: {
-            snapshots: {
-                orderBy: { start_date: "asc" },
-                select: { start_date: true, ad_account_id: true, platform: true },
-            },
-        },
-    });
-
-    if (!report) return null;
-
-    const first = report.snapshots[0];
-    const from = first?.start_date ?? report.created_at;
-    // End on the last day the report actually covers (reports connect complete days only), not the
-    // creation instant — otherwise the default window bleeds into the partial day after the period.
-    const to = report.snapshots.at(-1)?.start_date ?? report.created_at;
-
-    const account = first
-        ? await prisma.adAccount.findUnique({
-              where: { id: first.ad_account_id },
-              select: { id: true, name: true, connection: { select: { platform: true } } },
-          })
-        : null;
-
-    return { report, account, from, to };
+    return fetchReport(id, { clientId: client_id });
 }

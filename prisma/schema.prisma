@@ -24,10 +24,30 @@ model Client {
     // Zernio Profile that owns this client's ad connections. Lazily created on first connect.
     zernio_profile_id String? @unique
 
-    recurrence    Recurrence?
-    connections   PlatformConnection[]
-    notifications Notification[]
-    sync_errors   SyncError[]
+    recurrence     Recurrence?
+    connections    PlatformConnection[]
+    notifications  Notification[]
+    sync_errors    SyncError[]
+    report_batches ReportBatch[]
+}
+
+// One client's reports from a single generation run, held for admin review before delivery.
+// Reports in a batch are invisible to the client until an admin validates the batch, at which point
+// every approved report is released and the client receives ONE email covering all of them.
+// `sent_at` is the state: null = pending validation, set = validated and delivered.
+model ReportBatch {
+    id         Int      @id @default(autoincrement())
+    created_at DateTime @default(now())
+
+    client_id Int
+    client    Client @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+    sent_at DateTime?
+
+    reports Report[]
+
+    @@index([client_id, created_at])
+    @@index([sent_at, created_at])
 }
 
 // Internal-only trace of pipeline failures (per account where known, else per client). Written
@@ -116,10 +136,25 @@ model Report {
     ai_pending Boolean @default(false)
     batch_id   String?
 
+    // --- VALIDATION / DELIVERY ---
+    // Reports are generated into a per-client ReportBatch and stay invisible to the client until an
+    // admin validates that batch. `approved` is the admin's per-report decision inside a pending
+    // batch (defaults to true — validating sends everything that wasn't explicitly excluded).
+    // `released_at` is stamped when the batch is sent and is the ONLY thing that makes a report
+    // client-visible: every client-facing query filters on it. An excluded report keeps
+    // released_at = null and is never shown or emailed. Reports predating this feature were
+    // backfilled with released_at = created_at, so nothing already delivered disappeared.
+    report_batch_id Int?
+    report_batch    ReportBatch? @relation(fields: [report_batch_id], references: [id], onDelete: SetNull)
+    approved        Boolean      @default(true)
+    released_at     DateTime?
+
     // --- F: USER INPUT (snapshotted at report time) ---
     target_cpa      Float? // #36
     target_roas     Float? // #37
     context_comment String? // #38
+
+    @@index([report_batch_id])
 }
 
 enum ScoreLabel {
@@ -128,11 +163,19 @@ enum ScoreLabel {
     NEEDS_IMPROVEMENT
 }
 
+// When a client's reports are generated: every `ndays`, phase-locked to `start_date`.
+//
+// `start_date` is the anchor — the day the FIRST report is due — and it fixes the phase of every slot
+// after it (anchor + k × ndays), so a client anchored to a Saturday keeps being reported on Saturdays
+// even if a cron run lands late. It is a calendar day, stored at UTC midnight like Snapshot.start_date.
+// Null means no anchor was ever set, and the client's created_at stands in for it (the historical
+// behaviour). The rule lives in the due_clients() SQL function, mirrored in lib/recurrence/schedule.ts.
 model Recurrence {
     client_id Int    @id
     client    Client @relation(fields: [client_id], references: [id])
 
-    ndays Float @default(30)
+    ndays      Float     @default(30)
+    start_date DateTime?
 }
 
 // OAuth credential for a platform. One per (client, platform); a single

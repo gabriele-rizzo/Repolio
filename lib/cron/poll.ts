@@ -5,7 +5,6 @@ import { buildReportParams } from "@/lib/ai/generate-report";
 import { startOfUtcDay } from "@/lib/date/start-of-day";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
-import { notifyReportReady } from "@/lib/report/notify";
 import { logSyncError } from "@/lib/sync-error";
 import { createAdminClient } from "@/lib/supabase/admin/server";
 import pLimit from "p-limit";
@@ -13,12 +12,17 @@ import pLimit from "p-limit";
 // Submit phase of report generation for clients whose recurrence is due. Snapshots are collected
 // daily by runSnapshots; this back-fills any due client missing today's snapshots, creates one
 // report per ad account for the period, and submits the AI section to the Anthropic Batches API
-// (50% cheaper than live calls). The collect cron writes the results back and notifies.
+// (50% cheaper than live calls). The collect cron writes the results back.
+//
+// Nothing here reaches the client. Every report is created into a per-client ReportBatch that starts
+// unsent, and a report is invisible to its client until `released_at` is stamped — which only happens
+// when an admin validates the batch from /admin/validation, at which point the client gets ONE email
+// covering all of their accounts (see lib/report/send-batch.ts).
 //
 // Zero-activity accounts (no spend and no impressions this period) get a report row too — the KPIs
 // render live on the report page regardless — but skip the AI call entirely: the report is created
-// empty and the client is notified immediately here, so we never pay tokens narrating "nothing
-// happened".
+// empty, so we never pay tokens narrating "nothing happened". It still joins the client's batch, so
+// an admin can exclude it if it isn't worth sending.
 //
 // Extracted from the route so it can run both standalone (/api/cron/poll) and as the second phase
 // of the combined /api/cron/daily job.
@@ -66,6 +70,9 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
         await Promise.all(
             dueClients.map((c) =>
                 limit(async () => {
+                    // Deliberately NOT filtered to released reports: this is period bookkeeping, not
+                    // client-facing. A report still awaiting validation already covers its days, and
+                    // ignoring it would re-report the same period on the next run.
                     const last = await prisma.report.findFirst({
                         where: { snapshots: { some: { ad_account: { connection: { client_id: c.id } } } } },
                         orderBy: { created_at: "desc" },
@@ -107,34 +114,53 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
 
     const groupEntries = Array.from(groups.entries());
 
-    // Resolve the owning client + display name for each ad account so we can notify.
+    // Resolve the owning client for each ad account, so each report lands in that client's batch.
     const adAccountIds = groupEntries.map(([id]) => id);
     const adAccounts = await prisma.adAccount.findMany({
         where: { id: { in: adAccountIds } },
-        select: { id: true, name: true, connection: { select: { client_id: true } } },
+        select: { id: true, connection: { select: { client_id: true } } },
     });
     const accounts = new Map(adAccounts.map((a) => [a.id, a]));
 
-    // client_id -> Client, for the report email recipient. Due clients own all these accounts.
-    const clientsById = new Map(dueClients.map((c) => [c.id, c]));
+    // Fan the per-account work out by owning client: each client gets exactly ONE ReportBatch for
+    // this run, so validating it delivers a single email covering every one of their ad accounts.
+    // Accounts whose owner didn't resolve are dropped — without a client there's no one to deliver to.
+    const work = groupEntries.flatMap(([adAccountId, group]) => {
+        const clientId = accounts.get(adAccountId)?.connection.client_id;
+        return clientId == null ? [] : [{ clientId, group }];
+    });
 
-    // One report per ad account. Zero-activity accounts are finished here (empty + notified); the
-    // rest produce a batch request keyed by report id so the collect cron can match results back.
+    if (work.length === 0) return { status: 204, error: null };
+
+    // Batch rows first, in their own flat pass. Deliberately NOT nested inside the report loop below:
+    // both use the same limiter, and an outer task holding a slot while awaiting inner tasks that
+    // need one deadlocks as soon as there are more due clients than slots.
+    const batchIdByClient = new Map<number, number>();
+    await Promise.all(
+        Array.from(new Set(work.map((w) => w.clientId))).map((clientId) =>
+            limit(async () => {
+                const batch = await prisma.reportBatch.create({ data: { client_id: clientId } });
+                batchIdByClient.set(clientId, batch.id);
+            }),
+        ),
+    );
+
+    // One report per ad account, each attached to its client's batch and unreleased. Zero-activity
+    // accounts stop here (empty report, no tokens spent); the rest produce an Anthropic batch request
+    // keyed by report id so the collect cron can match results back.
     type BatchRequest = { custom_id: string; params: Awaited<ReturnType<typeof buildReportParams>> };
     const pending = await Promise.all(
-        groupEntries.map(([adAccountId, group]) =>
+        work.map(({ clientId, group }) =>
             limit(async (): Promise<{ reportId: number; request: BatchRequest } | null> => {
                 const report = await prisma.report.create({
                     data: {
                         executive_summary: "",
                         recommendations: [],
                         trend_explanation: "",
+                        report_batch_id: batchIdByClient.get(clientId),
                         snapshots: { connect: group.map((s) => ({ id: s.id })) },
                     },
                 });
-
-                const account = accounts.get(adAccountId);
-                const client = account ? clientsById.get(account.connection.client_id) : undefined;
 
                 const metrics = computeMetrics(group);
                 // Conversions guard is defensive: Meta attributes actions to impression/click days,
@@ -143,18 +169,8 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
                 const zeroActivity =
                     !metrics || (metrics.spend === 0 && metrics.impressions === 0 && metrics.conversions === 0);
 
-                if (zeroActivity) {
-                    // Empty report, no AI call. Notify now — there's nothing to wait for.
-                    if (account && client) {
-                        await notifyReportReady({
-                            reportId: report.id,
-                            adAccountId,
-                            adAccountName: account.name,
-                            client,
-                        });
-                    }
-                    return null;
-                }
+                // Nothing to narrate and nothing to wait for — it sits in the batch as-is.
+                if (zeroActivity) return null;
 
                 try {
                     const params = await buildReportParams(report.id);

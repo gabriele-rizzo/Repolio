@@ -8,6 +8,7 @@ import { ReportView } from "@/components/wrappers/report-view";
 import { metricsForWindow, type WindowMetrics } from "@/lib/metrics/window";
 import { prisma } from "@/lib/prisma";
 import { queryReportsPage, type ReportPage } from "@/lib/report/reports-page";
+import { RELEASED_REPORT } from "@/lib/report/visibility";
 import { ArrowLeft, ScrollText, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
@@ -101,8 +102,10 @@ async function SimulationPreview({ client, accountParam }: { client: SelectedCli
         />
     );
 
+    // Released only — the simulation's whole point is to show what the client actually sees, which
+    // excludes reports still waiting on validation. Use /admin/validation to preview those.
     const latest = await prisma.report.findFirst({
-        where: { snapshots: { some: { ad_account_id: account.id } } },
+        where: { snapshots: { some: { ad_account_id: account.id } }, ...RELEASED_REPORT },
         orderBy: { created_at: "desc" },
         select: { id: true },
     });

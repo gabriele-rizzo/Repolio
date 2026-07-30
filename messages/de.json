@@ -46,7 +46,18 @@
             "monthly": "Monatlich",
             "quarterly": "Vierteljährlich",
             "updated": "Report-Rhythmus aktualisiert.",
-            "error": "Rhythmus konnte nicht aktualisiert werden."
+            "error": "Rhythmus konnte nicht aktualisiert werden.",
+            "customLabel": "Eigener Rhythmus",
+            "daysUnit": "Tage",
+            "apply": "Übernehmen",
+            "customActive": "Individuell — alle {days} Tage.",
+            "customInvalid": "Gib eine ganze Zahl von Tagen zwischen {min} und {max} ein.",
+            "startLabel": "Datum des ersten Reports",
+            "startHelp": "Der Tag, an dem dein erster Report erstellt wird. Alle weiteren Reports bleiben beim selben Wochentag und zählen von diesem Datum weiter.",
+            "startClear": "Löschen",
+            "startNext": "Nächste Reports:",
+            "startNone": "Kein Startdatum gesetzt — die Reports richten sich nach deinem Anmeldedatum.",
+            "startUpdated": "Startdatum der Reports aktualisiert."
         }
     },
     "locale": {
@@ -158,13 +169,25 @@
         "title": "Benachrichtigungen",
         "description": "Updates zu deinen Reports und verbundenen Konten.",
         "emptyTitle": "Noch keine Benachrichtigungen",
-        "emptyBody": "Sobald ein neuer Report fertig ist, erscheint er hier."
+        "emptyBody": "Sobald ein neuer Report fertig ist, erscheint er hier.",
+        "reportBatch": {
+            "title": "{count, plural, one {Neuer Report fertig} other {# neue Reports fertig}}",
+            "body": "{count, plural, one {Dein neuester Performance-Report kann jetzt angesehen werden.} other {Deine neuesten Performance-Reports können jetzt angesehen werden.}}"
+        }
     },
     "email": {
         "performanceReport": "Performance-Report",
         "viewFullReport": "Vollständigen Report ansehen",
         "sentBy": "Gesendet von Repolio · Kennzahlen für {period}.",
         "subject": "{account} — Performance-Report ({period})",
-        "nothingFlagged": "In dieser Periode wurde nichts Umsetzbares markiert."
+        "nothingFlagged": "In dieser Periode wurde nichts Umsetzbares markiert.",
+        "batch": {
+            "subject": "{count, plural, one {Dein Performance-Report} other {Deine # Performance-Reports}} ({period})",
+            "heading": "{count, plural, one {Dein Performance-Report} other {Deine Performance-Reports}}",
+            "intro": "Hallo {name} — {count, plural, one {dein neuer Report ist fertig} other {deine neuen Reports sind fertig}}. Hier die Kurzfassung; der vollständige Report je Konto liegt als PDF im Anhang.",
+            "flagged": "{count, plural, one {# Empfehlung} other {# Empfehlungen}} · {urgent, plural, =0 {keine sofort} other {# sofort}}",
+            "attachedAs": "im Anhang als {file}",
+            "openDashboard": "Dashboard öffnen"
+        }
     }
 }

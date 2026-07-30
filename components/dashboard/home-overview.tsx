@@ -9,6 +9,7 @@ import { currencyFormatter } from "@/lib/format/currency";
 import { accountFocus } from "@/lib/metrics/cards";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
+import { RELEASED_REPORT } from "@/lib/report/visibility";
 import { Link2Off } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
@@ -80,7 +81,8 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
             const [snapshots, lastReport] = await Promise.all([
                 prisma.snapshot.findMany({ where: { ad_account_id: account.id, start_date: { gte: since } } }),
                 prisma.report.findFirst({
-                    where: { snapshots: { some: { ad_account_id: account.id } } },
+                    // Released only: an unvalidated report must not age the "last report" line.
+                    where: { snapshots: { some: { ad_account_id: account.id } }, ...RELEASED_REPORT },
                     orderBy: { created_at: "desc" },
                     select: { created_at: true },
                 }),
