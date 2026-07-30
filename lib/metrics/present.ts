@@ -48,6 +48,28 @@ export interface MetricColumn {
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
 
 /**
+ * The value formatter for each metric shape, bound to an account's currency. Shared by every surface
+ * that prints a metric offline (report email, PDF, template variables) so "€12,480.55" is spelled the
+ * same way everywhere.
+ */
+export function metricFormatters(currency: string): Record<MetricFormat, (v: number) => string> {
+    const money = currencyFormatter(currency);
+
+    return {
+        currency: (v) => money.format(v),
+        percent: (v) => `${v.toFixed(2)}%`,
+        multiplier: (v) => `${v.toFixed(2)}x`,
+        count: (v) => v.toLocaleString("en-US"),
+        compact: (v) => compact.format(v),
+        decimal: (v) => v.toFixed(2),
+    };
+}
+
+/** The currency to print an account's money in, falling back across windows then to EUR. */
+export const resolveCurrency = (current: ComputedMetrics | null, previous: ComputedMetrics | null): string =>
+    current?.currency ?? previous?.currency ?? "EUR";
+
+/**
  * Period-over-period change for one metric. Returns null when there's nothing honest to compare
  * (either side missing, or a zero baseline that would divide to Infinity); sub-0.5% reads as flat
  * rather than a misleading "0%" arrow.
@@ -80,16 +102,7 @@ export function metricColumns(
     previous: ComputedMetrics | null,
     t: Translator,
 ): MetricColumn[] {
-    const money = currencyFormatter(current?.currency ?? previous?.currency ?? "EUR");
-
-    const formats: Record<MetricFormat, (v: number) => string> = {
-        currency: (v) => money.format(v),
-        percent: (v) => `${v.toFixed(2)}%`,
-        multiplier: (v) => `${v.toFixed(2)}x`,
-        count: (v) => v.toLocaleString("en-US"),
-        compact: (v) => compact.format(v),
-        decimal: (v) => v.toFixed(2),
-    };
+    const formats = metricFormatters(resolveCurrency(current, previous));
 
     return selectKpiCards(accountFocus(current, previous)).map((key) => {
         const def = METRIC_CARD_DEFS[key];

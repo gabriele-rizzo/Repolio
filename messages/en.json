@@ -58,6 +58,17 @@
             "startNext": "Next reports:",
             "startNone": "No start date set — reports follow your signup date.",
             "startUpdated": "Report start date updated."
+        },
+        "template": {
+            "title": "Report template",
+            "description": "Design the report document your PDF is built from. Sections and your own wording, with {{ .variables }} that fill in from each period's data. Your dashboard report view isn't affected.",
+            "scopeDefault": "All accounts",
+            "scopeDefaultHelp": "Used for every ad account that has no template of its own.",
+            "scopeAccountHelp": "Overrides your default for this ad account only. Reset it to go back to the default.",
+            "custom": "Custom",
+            "unnamedAccount": "Unnamed account",
+            "saved": "Report template saved.",
+            "resetConfirm": "Confirm reset"
         }
     },
     "locale": {
@@ -154,7 +165,8 @@
         "reports": "Reports",
         "account": "Account",
         "connecting": "Connecting…",
-        "logout": "Log out"
+        "logout": "Log out",
+        "reportTemplate": "Report template"
     },
     "connect": {
         "success": "Account connected successfully.",

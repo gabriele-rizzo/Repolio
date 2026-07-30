@@ -9,6 +9,8 @@ import { metricColumns, type MetricColumn, type Translator } from "@/lib/metrics
 import { metricsForWindow } from "@/lib/metrics/window";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
+import { buildReportDocument } from "@/lib/report/template/document";
+import { resolveTemplate } from "@/lib/report/template/resolve";
 import { getTranslations } from "next-intl/server";
 
 export interface RenderedReportPdf {
@@ -45,7 +47,8 @@ function pdfFilename(accountName: string, from: Date, to: Date): string {
 }
 
 /**
- * Renders one report to PDF bytes, in the owning client's language, along with the summary figures
+ * Renders one report to PDF bytes, using the template that governs its ad account (account override ->
+ * client default -> built-in preset), in the owning client's language, along with the summary figures
  * the batch email quotes for it.
  *
  * The single source of the PDF: the batch send path attaches exactly this, and the admin validation
@@ -68,11 +71,17 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         select: {
             id: true,
             name: true,
-            connection: { select: { platform: true, client: { select: { locale: true } } } },
+            connection: {
+                select: {
+                    platform: true,
+                    client: { select: { id: true, name: true, company: true, locale: true } },
+                },
+            },
         },
     });
 
-    const stored = account?.connection.client.locale;
+    const client = account?.connection.client;
+    const stored = client?.locale;
     const locale = forceLocale ?? (isLocale(stored) ? stored : DEFAULT_LOCALE);
     const tRaw = await getTranslations({ locale });
     const t: Translator = (key, values) => tRaw(key as never, values as never);
@@ -90,25 +99,36 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
     const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
     const recommendations = (report.recommendations ?? []) as unknown as Recommendation[];
 
-    // Dynamic import: react-pdf is only needed on the send/preview paths, so keep it out of the
-    // static graph of everything that transitively imports this module.
-    const { renderToBuffer } = await import("@react-pdf/renderer");
+    // The client's own layout, falling back to the built-in preset when they've never set one.
+    const template = client ? await resolveTemplate(account?.id ?? null, client.id) : null;
 
-    const content = await renderToBuffer(
-        <ReportPdf
-            accountName={accountName}
-            platformLabel={platformLabel}
-            period={period}
-            current={current}
-            previous={previous}
-            executiveSummary={report.executive_summary}
-            recommendations={recommendations}
-            trendExplanation={report.trend_explanation}
-            contextComment={report.context_comment}
-            t={t}
-            locale={locale}
-        />,
-    );
+    const doc = buildReportDocument({
+        templateBody: template?.body,
+        accountName,
+        platformLabel,
+        clientName: client?.name ?? "",
+        company: client?.company ?? null,
+        period,
+        periodStart: dateFormatRelative(from),
+        periodEnd: dateFormatRelative(to),
+        days: report.snapshots.length,
+        generatedOn: dateFormatRelative(report.created_at),
+        current,
+        previous,
+        executiveSummary: report.executive_summary,
+        recommendations,
+        trendExplanation: report.trend_explanation,
+        contextComment: report.context_comment,
+        t,
+        locale,
+        // The PDF's built-in Helvetica cannot encode ▲ / ▼ — inline change placeholders must use +/-.
+        deltaStyle: "sign",
+    });
+
+    // Dynamic import: react-pdf is only needed on the send/preview paths, so keep it out of the static
+    // graph of everything that transitively imports this module.
+    const { renderToBuffer } = await import("@react-pdf/renderer");
+    const content = await renderToBuffer(<ReportPdf doc={doc} />);
 
     return {
         filename: pdfFilename(accountName, from, to),

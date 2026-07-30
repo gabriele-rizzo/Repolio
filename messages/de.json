@@ -58,6 +58,17 @@
             "startNext": "Nächste Reports:",
             "startNone": "Kein Startdatum gesetzt — die Reports richten sich nach deinem Anmeldedatum.",
             "startUpdated": "Startdatum der Reports aktualisiert."
+        },
+        "template": {
+            "title": "Report-Vorlage",
+            "description": "Gestalte das Report-Dokument, aus dem dein PDF entsteht. Abschnitte und eigene Texte, mit {{ .variables }}, die sich aus den Daten jeder Periode füllen. Die Report-Ansicht im Dashboard bleibt unverändert.",
+            "scopeDefault": "Alle Konten",
+            "scopeDefaultHelp": "Wird für jedes Werbekonto verwendet, das keine eigene Vorlage hat.",
+            "scopeAccountHelp": "Überschreibt deine Standardvorlage nur für dieses Werbekonto. Setze sie zurück, um wieder den Standard zu nutzen.",
+            "custom": "Individuell",
+            "unnamedAccount": "Unbenanntes Konto",
+            "saved": "Report-Vorlage gespeichert.",
+            "resetConfirm": "Zurücksetzen bestätigen"
         }
     },
     "locale": {
@@ -154,7 +165,8 @@
         "reports": "Reports",
         "account": "Konto",
         "connecting": "Verbinden…",
-        "logout": "Abmelden"
+        "logout": "Abmelden",
+        "reportTemplate": "Report-Vorlage"
     },
     "connect": {
         "success": "Konto erfolgreich verbunden.",

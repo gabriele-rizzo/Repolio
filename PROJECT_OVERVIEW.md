@@ -16,7 +16,7 @@ The core promise: an agency connects a client's ad accounts once, and Repolio th
 | Audience | Role | What they do |
 |----------|------|--------------|
 | **Agency admin** (Repolio operator) | Internal staff | Enrolls new clients, sets each client's report schedule, and validates generated report batches before they reach the client — all protected by a TOTP code |
-| **Client** (the end user) | The agency's advertising client | Logs in, connects ad accounts, reads validated reports, sets report cadence and start date |
+| **Client** (the end user) | The agency's advertising client | Logs in, connects ad accounts, reads validated reports, sets report cadence and start date, designs their own report template |
 
 **Current maturity:** Version `0.1.0`, private/pre-release. Only the **Meta** ad platform is wired end-to-end today; Google, TikTok, LinkedIn, Pinterest, and X are declared in the data model and UI but not yet connected.
 
@@ -68,6 +68,7 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
 - **`Snapshot`** — **one row per ad account per calendar day**, storing that day's raw Zernio metrics as JSON (`spend`, `impressions`, `clicks`, `reach`, the `actions`/`actionValues` maps, plus Zernio's derived scalars kept as provenance only) and a stamped `currency`. Uniqueness enforced on `(start_date, ad_account_id)`. Indexed on `(ad_account_id, start_date)` for the hot dashboard/report query path. KPI-relevant facts (purchases, leads, revenue, link clicks) are derived from the action maps at compute time — see §5.3.
 - **`Report`** — an AI-generated write-up covering a set of snapshots. **Stores only the AI text**: `executive_summary`, `recommendations` (JSON), `trend_explanation`, plus snapshotted user inputs (`target_cpa`, `target_roas`, `context_comment`) and its delivery state (`report_batch_id`, `approved`, `released_at`). **A report is invisible to its client until `released_at` is stamped by batch validation** — every client-facing query filters on it. **KPIs and scores are NOT stored** — they are recomputed live from the linked snapshots every time.
 - **`ReportBatch`** — one client's reports from a single generation run, and the unit of validation and delivery. Reports are generated into an unsent batch; an admin approves or excludes each one, and validating the batch sends the client **one** email and stamps `Report.released_at`. `sent_at` is the state (null = pending validation).
+- **`ReportTemplate`** — a client-authored layout for the report *deliverable* (the PDF attachment and the standalone HTML render), as plain text with Supabase-style `{{ .variable }}` placeholders. One row per owner: `client_id` set = the client's default, `ad_account_id` set = an override for one account. Resolution is account override → client default → the built-in preset in `lib/report/template/presets.ts`, so an empty table means every client keeps the layout they already had.
 - **`Recurrence`** — per-client report schedule: cadence in days (`ndays`, default 30) plus `start_date`, the anchor day the first report is due. Slots are phase-locked to the anchor (`anchor + k × ndays`), so a client anchored to a Saturday stays on Saturdays. Null anchor falls back to the client's `created_at`.
 - **`Notification`** — in-app notifications: `REPORT_READY`, `CONNECTION_EXPIRING`, `CONNECTION_EXPIRED`.
 
@@ -160,13 +161,39 @@ For each due client it self-heals missing snapshots, groups snapshots since the 
 ### 5.5 Email & Notifications
 
 - **Resend** for transactional email; sender defaults to `Repolio <team@gj-automate.com>`.
-- **Batched report email** — the single email a client gets when an admin validates their batch: a compact summary row per ad account (score, three headline KPIs, what the AI flagged) plus **one PDF attachment per report** carrying the full write-up. PDFs are generated server-side with `@react-pdf/renderer` (no headless browser). Rendered in the client's language; sent by `lib/report/send-batch.ts`, which only releases the reports once Resend accepts the email.
+- **Batched report email** — the single email a client gets when an admin validates their batch: a compact summary row per ad account (score, three headline KPIs, what the AI flagged) plus **one PDF attachment per report** carrying the full write-up. PDFs are generated server-side with `@react-pdf/renderer` (no headless browser). Rendered in the client's language; sent by `lib/report/send-batch.ts`, which only releases the reports once Resend accepts the email. The covering email's own layout is fixed — only the attached report document is templated.
 - **Single-report HTML render** — the same per-report layout as an HTML document, still served at `/api/reports/[id]/email` to power the client's in-page "Download PDF" button (printed in the browser).
 - **Admin PDF preview** — `/api/admin/reports/[id]/pdf` serves the byte-identical attachment for a not-yet-released report, so validation reviews the real artifact.
 - **Connection-expired email** — inline-styled HTML (email clients don't load external CSS) prompting the client to reconnect; rate-limited to once per 7 days.
 - **In-app notifications** — a bell in the header with unread count; a notifications page listing the latest 50, auto-marked read on view.
 
-### 5.6 Dashboard UI/UX (what the client sees)
+### 5.6 Report templates
+
+The report **deliverable** is rendered from a client-authored template, not a hardcoded layout. A
+template is plain text with `{{ .variable }}` placeholders plus a handful of line prefixes (`#`, `##`,
+`###`, `>`, `---`), parsed into blocks by `lib/report/template/parse.ts`.
+
+- **Why a block format, not HTML** (which is what Supabase's email templates are): the PDF is drawn by
+  react-pdf, which has its own primitives and cannot render arbitrary markup. A constrained block format
+  parses into blocks that BOTH the PDF and the HTML renderer can express — which is what lets one
+  template drive both. It also means template text reaches the page as React children, never as
+  `dangerouslySetInnerHTML`, so pasted markup prints as visible text instead of executing.
+- **Two placeholder kinds** — *scalars* (`{{ .spend }}`, `{{ .roasChange }}`, `{{ .accountName }}`)
+  substituted inline anywhere, and *sections* (`{{ .metricsTable }}`, `{{ .recommendations }}`, …) which
+  must sit alone on a line and expand to a designed block. Catalogue and resolution:
+  `lib/report/template/variables.ts`.
+- **Scope** — account override → client default → built-in preset. Presets live in code (no migration to
+  add one, always available, and applying one COPIES its body so editing a preset never rewrites what an
+  existing client receives).
+- **Not the dashboard** — the interactive report view at `/dashboard/reports/[id]` is untouched by
+  templates. It stays a live React surface with a re-windowable date range; templating it would mean
+  giving that up.
+- **Editing** — clients at `/dashboard/template`, admins for any client at `/admin/templates`. Both use
+  the same editor component and the same server-side renderer for the live preview, so the preview is the
+  real output. Parse issues (unknown placeholder, section used inline) are advisory: a template still
+  saves, and an unknown placeholder renders verbatim rather than vanishing, so a typo is self-diagnosing.
+
+### 5.7 Dashboard UI/UX (what the client sees)
 
 - **Home (`/dashboard`)** — a grid of ad-account cards, each showing platform badge, live 30-day spend/ROAS/conversions, a big performance score, and the last report time. Empty state prompts "Connect Meta."
 - **Sidebar** — accounts grouped by platform, an "add connection" affordance, and a user menu (Account, Notifications, Logout).
@@ -176,6 +203,7 @@ For each due client it self-heals missing snapshots, groups snapshots since the 
   - **6 live KPI cards** (spend, ROAS, CPA, conversions, CTR, reach) with period-over-period delta indicators colored by whether "up" is good for that metric.
   - **AI Insights:** executive summary + a grid of prioritized, color-coded recommendation cards.
   - **Controls:** a **date-range picker** that re-windows the metrics live (SWR against `/api/metrics`), a report switcher (paginated history), a context editor, and a print-to-PDF button.
+- **Report template (`/dashboard/template`)** — the template editor: source on the left, server-rendered live preview on the right, preset library and clickable variable reference underneath. Tabs switch between the client default and a per-ad-account override.
 - **Account (`/dashboard/account`)** — profile (name/avatar), lifetime stats, **report schedule** (cadence presets Weekly / Bi-weekly / Monthly / Quarterly, any custom whole-day cadence, and the start date that anchors the cycle, with a preview of the next dates), language, and per-platform connection management (status, reconnect, delete, list of ad accounts).
 
 ---
@@ -239,5 +267,6 @@ For each due client it self-heals missing snapshots, groups snapshots since the 
 | Scheduling | `app/admin/schedule/`, `actions/admin/schedule.ts`, `actions/account/update-recurrence.ts`, `lib/recurrence/**` |
 | Auth/admin | `actions/admin/**`, `actions/auth/**`, `lib/admin/auth.ts`, `lib/supabase/**` |
 | Email | `lib/email/**`, `lib/resend.ts`, `components/email/report-email.tsx`, `components/email/batch-email.tsx`, `lib/email/report-pdf.tsx` |
+| Report templates | `lib/report/template/**`, `app/dashboard/template/`, `app/admin/templates/`, `components/report/template-editor.tsx` |
 | Dashboard UI | `app/dashboard/**`, `components/report/**`, `components/sidebar/**`, `components/account/**` |
 | Legal | `app/(legal)/**`, `app/data-deletion/page.tsx` |

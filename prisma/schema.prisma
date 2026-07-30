@@ -24,11 +24,36 @@ model Client {
     // Zernio Profile that owns this client's ad connections. Lazily created on first connect.
     zernio_profile_id String? @unique
 
-    recurrence     Recurrence?
-    connections    PlatformConnection[]
-    notifications  Notification[]
-    sync_errors    SyncError[]
-    report_batches ReportBatch[]
+    recurrence      Recurrence?
+    connections     PlatformConnection[]
+    notifications   Notification[]
+    sync_errors     SyncError[]
+    report_batches  ReportBatch[]
+    report_template ReportTemplate?
+}
+
+// A client-authored report layout. The body is plain text with Supabase-style `{{ .variable }}`
+// placeholders and a few line prefixes (see lib/report/template/types.ts); it is the source of the
+// DELIVERABLE — the PDF attachment and the standalone HTML render — not of the interactive dashboard
+// view, which stays a live React surface.
+//
+// Exactly one owner per row: a `client_id` row is that client's default, an `ad_account_id` row
+// overrides it for one account. Resolution is account override -> client default -> the built-in
+// preset in lib/report/template/presets.ts, so a client who never opens the editor still gets the
+// layout the report always had. Both FKs are nullable and unique — Postgres permits many NULLs in a
+// unique index, which enforces "at most one template per owner" without a partial index.
+model ReportTemplate {
+    id         Int      @id @default(autoincrement())
+    created_at DateTime @default(now())
+    updated_at DateTime @updatedAt
+
+    body String
+
+    client_id Int?    @unique
+    client    Client? @relation(fields: [client_id], references: [id], onDelete: Cascade)
+
+    ad_account_id Int?       @unique
+    ad_account    AdAccount? @relation(fields: [ad_account_id], references: [id], onDelete: Cascade)
 }
 
 // One client's reports from a single generation run, held for admin review before delivery.
@@ -224,8 +249,9 @@ model AdAccount {
     created_at DateTime @default(now())
     updated_at DateTime @updatedAt
 
-    snapshots   Snapshot[]
-    sync_errors SyncError[]
+    snapshots       Snapshot[]
+    sync_errors     SyncError[]
+    report_template ReportTemplate?
 
     @@unique([connection_id, external_id])
 }

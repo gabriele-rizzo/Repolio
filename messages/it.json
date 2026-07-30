@@ -58,6 +58,17 @@
             "startNext": "Prossimi report:",
             "startNone": "Nessuna data di inizio impostata — i report seguono la data di iscrizione.",
             "startUpdated": "Data di inizio dei report aggiornata."
+        },
+        "template": {
+            "title": "Modello di report",
+            "description": "Progetta il documento da cui nasce il tuo PDF. Sezioni e testi tuoi, con {{ .variables }} che si compilano dai dati di ogni periodo. La vista report nella dashboard non cambia.",
+            "scopeDefault": "Tutti gli account",
+            "scopeDefaultHelp": "Usato per ogni account pubblicitario che non ha un modello proprio.",
+            "scopeAccountHelp": "Sostituisce il modello predefinito solo per questo account pubblicitario. Reimpostalo per tornare al predefinito.",
+            "custom": "Personalizzato",
+            "unnamedAccount": "Account senza nome",
+            "saved": "Modello di report salvato.",
+            "resetConfirm": "Conferma reimpostazione"
         }
     },
     "locale": {
@@ -154,7 +165,8 @@
         "reports": "Report",
         "account": "Account",
         "connecting": "Collegamento…",
-        "logout": "Esci"
+        "logout": "Esci",
+        "reportTemplate": "Modello di report"
     },
     "connect": {
         "success": "Account collegato correttamente.",

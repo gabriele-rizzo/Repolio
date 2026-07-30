@@ -10,13 +10,14 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { CalendarClock, FlaskConical, MailCheck, UserPlus } from "lucide-react";
+import { CalendarClock, FlaskConical, LayoutTemplate, MailCheck, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 const NAV = [
     { href: "/admin/enrollment", label: "Enrollment", icon: UserPlus },
     { href: "/admin/schedule", label: "Schedule", icon: CalendarClock },
+    { href: "/admin/templates", label: "Templates", icon: LayoutTemplate },
     { href: "/admin/validation", label: "Validation", icon: MailCheck },
     { href: "/admin/simulation", label: "Simulation", icon: FlaskConical },
 ] as const;
