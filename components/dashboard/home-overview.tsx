@@ -8,8 +8,8 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { currencyFormatter } from "@/lib/format/currency";
 import { accountFocus } from "@/lib/metrics/cards";
 import { computeMetrics } from "@/lib/metrics/compute";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { RELEASED_REPORT } from "@/lib/report/visibility";
 import { Link2Off } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
@@ -76,21 +76,40 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
     // Server component renders once per request, so a request-time window is fine.
     // eslint-disable-next-line react-hooks/purity
     const since = new Date(Date.now() - 30 * DAY);
-    const cards = await Promise.all(
-        adAccounts.map(async (account) => {
-            const [snapshots, lastReport] = await Promise.all([
-                prisma.snapshot.findMany({ where: { ad_account_id: account.id, start_date: { gte: since } } }),
-                prisma.report.findFirst({
-                    // Released only: an unvalidated report must not age the "last report" line.
-                    where: { snapshots: { some: { ad_account_id: account.id } }, ...RELEASED_REPORT },
-                    orderBy: { created_at: "desc" },
-                    select: { created_at: true },
-                }),
-            ]);
+    const accountIds = adAccounts.map((a) => a.id);
 
-            return { account, metrics: computeMetrics(snapshots), lastReportAt: lastReport?.created_at ?? null };
-        }),
-    );
+    // Two queries for the whole page, not two per account. This is the client's landing page and the
+    // most-hit server render in the app; the previous shape issued 2N round trips, so a client with
+    // eight accounts paid sixteen sequential-ish DB waits before first byte.
+    const [snapshots, lastReports] = await Promise.all([
+        prisma.snapshot.findMany({ where: { ad_account_id: { in: accountIds }, start_date: { gte: since } } }),
+        // Newest RELEASED report per account. Expressed as raw SQL because Prisma can't express
+        // "max over a relation, grouped" — the alternative is loading every report row and reducing in
+        // memory, which grows without bound as a client accumulates history.
+        prisma.$queryRaw<{ ad_account_id: number; last_report_at: Date }[]>`
+            SELECT s.ad_account_id, MAX(r.created_at) AS last_report_at
+            FROM "Report" r
+            JOIN "Snapshot" s ON s.report_id = r.id
+            WHERE s.ad_account_id IN (${Prisma.join(accountIds)})
+              AND r.released_at IS NOT NULL
+            GROUP BY s.ad_account_id
+        `,
+    ]);
+
+    const snapshotsByAccount = new Map<number, typeof snapshots>();
+    for (const snapshot of snapshots) {
+        const bucket = snapshotsByAccount.get(snapshot.ad_account_id);
+        if (bucket) bucket.push(snapshot);
+        else snapshotsByAccount.set(snapshot.ad_account_id, [snapshot]);
+    }
+
+    const lastReportByAccount = new Map(lastReports.map((r) => [r.ad_account_id, r.last_report_at]));
+
+    const cards = adAccounts.map((account) => ({
+        account,
+        metrics: computeMetrics(snapshotsByAccount.get(account.id) ?? []),
+        lastReportAt: lastReportByAccount.get(account.id) ?? null,
+    }));
 
     const platforms = new Set(adAccounts.map((a) => a.connection.platform));
 

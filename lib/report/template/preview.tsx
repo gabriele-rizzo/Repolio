@@ -1,11 +1,10 @@
 import "server-only";
 
-import { ReportEmail } from "@/components/email/report-email";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { renderReportEmail } from "@/lib/email/render-report";
 import type { Translator } from "@/lib/metrics/present";
 import { prisma } from "@/lib/prisma";
-import { renderReportEmail } from "@/lib/email/render-report";
-import { buildReportDocument } from "@/lib/report/template/document";
+import { buildReportHtml } from "@/lib/report/template/build";
 import { RELEASED_REPORT } from "@/lib/report/visibility";
 import { getTranslations } from "next-intl/server";
 
@@ -63,8 +62,8 @@ export async function renderTemplatePreview({
 }
 
 /**
- * Preview HTML built from illustrative figures, for a client with no reports yet. Deliberately obvious
- * round-ish numbers rather than anything that could be mistaken for the account's real performance.
+ * Preview built from illustrative figures, for a client with no reports yet. Deliberately round numbers
+ * rather than anything that could be mistaken for the account's real performance.
  */
 async function renderSamplePreview(clientId: number, body: string): Promise<string> {
     const client = await prisma.client.findUnique({
@@ -100,7 +99,7 @@ async function renderSamplePreview(clientId: number, body: string): Promise<stri
         score_confidence: 0.8,
     };
 
-    const doc = buildReportDocument({
+    const { document } = buildReportHtml({
         templateBody: body,
         accountName: t("account.connections.unnamedAccount"),
         platformLabel: "Meta",
@@ -109,6 +108,7 @@ async function renderSamplePreview(clientId: number, body: string): Promise<stri
         period: "01 – 30",
         periodStart: "01",
         periodEnd: "30",
+        reportUrl: "",
         days: 30,
         generatedOn: "30",
         current,
@@ -129,7 +129,5 @@ async function renderSamplePreview(clientId: number, body: string): Promise<stri
         locale,
     });
 
-    // Dynamic import: Next 16 / Turbopack blocks a *static* import of react-dom/server in the app graph.
-    const { renderToStaticMarkup } = await import("react-dom/server");
-    return "<!DOCTYPE html>" + renderToStaticMarkup(<ReportEmail doc={doc} viewUrl={null} />);
+    return document;
 }

@@ -34,6 +34,7 @@ const ctx = (over: Partial<Parameters<typeof buildVariables>[0]> = {}) =>
         clientName: "Samuel",
         company: "Cinemepic Ltd",
         period: "01 July – 30 July",
+        reportUrl: "https://example.com/r/1",
         periodStart: "01 July",
         periodEnd: "30 July",
         days: 30,

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { toUtcDayString } from "@/lib/date/start-of-day";
+import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { currentSlot, normalizeNdays, upcomingSlots } from "@/lib/recurrence/schedule";
 import { CalendarClock, UsersRound } from "lucide-react";
@@ -102,28 +103,37 @@ async function AllSchedules({
     if (clients.length === 0) return null;
 
     // Last generated report per client, to show where each one actually stands against its schedule.
-    const lastReports = await Promise.all(
-        clients.map((c) =>
-            prisma.report.findFirst({
-                where: { snapshots: { some: { ad_account: { connection: { client_id: c.id } } } } },
-                orderBy: { created_at: "desc" },
-                select: { created_at: true, released_at: true },
-            }),
-        ),
-    );
+    // One grouped query rather than one per client — this table lists every client, so the previous
+    // shape scaled its round trips with the roster.
+    //
+    // Deliberately NOT filtered to released reports: this mirrors due_clients(), which schedules on
+    // generation time. A report awaiting validation has already consumed its slot.
+    const lastReports =
+        clients.length === 0
+            ? []
+            : await prisma.$queryRaw<{ client_id: number; last_report_at: Date }[]>`
+                  SELECT pc.client_id, MAX(r.created_at) AS last_report_at
+                  FROM "Report" r
+                  JOIN "Snapshot" s ON s.report_id = r.id
+                  JOIN "AdAccount" a ON a.id = s.ad_account_id
+                  JOIN "PlatformConnection" pc ON pc.id = a.connection_id
+                  WHERE pc.client_id IN (${Prisma.join(clients.map((c) => c.id))})
+                  GROUP BY pc.client_id
+              `;
 
-    const rows = clients.map((client, i) => {
+    const lastByClient = new Map(lastReports.map((r) => [r.client_id, r.last_report_at]));
+
+    const rows = clients.map((client) => {
         const ndays = normalizeNdays(client.recurrence?.ndays);
         const anchor = client.recurrence?.start_date ?? client.created_at;
         const anchored = client.recurrence?.start_date != null;
-        const last = lastReports[i];
+        const last = lastByClient.get(client.id) ?? null;
 
         const slot = currentSlot(anchor, ndays, utcDay(today));
         const next = upcomingSlots(anchor, ndays, utcDay(today), 1)[0];
 
         // Mirrors due_clients(): the current slot is reached and no report has been generated for it.
-        const due =
-            slot != null && (last == null || toUtcDayString(last.created_at) < toUtcDayString(slot));
+        const due = slot != null && (last == null || toUtcDayString(last) < toUtcDayString(slot));
 
         return { client, ndays, anchored, anchor, next, due, last };
     });
@@ -164,7 +174,7 @@ async function AllSchedules({
                             </Badge>
 
                             <Typo as="muted" className="text-xs">
-                                {last ? `last ${toUtcDayString(last.created_at)}` : "no reports yet"}
+                                {last ? `last ${toUtcDayString(last)}` : "no reports yet"}
                             </Typo>
                         </div>
                     </Card>

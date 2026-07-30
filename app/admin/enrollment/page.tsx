@@ -1,45 +1,79 @@
-"use client";
-
-import { enrollClient } from "@/actions/admin/enroll";
 import { EnrollmentForm } from "@/components/forms/enrollment-form";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { MailCheck } from "lucide-react";
-import { useState } from "react";
+import { Typo } from "@/components/typography";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
+import { dateFormatRelative } from "@/lib/date/format-relative";
+import { prisma } from "@/lib/prisma";
+import type { Metadata } from "next";
 
-export default function EnrollmentPage() {
-    const [sent, setSent] = useState(false);
+export const metadata: Metadata = {
+    title: "Enrollment | Repolio",
+};
 
-    if (!sent) {
-        return (
-            <div className="mx-auto w-full max-w-md">
-                <EnrollmentForm action={(data) => enrollClient(data)} onSuccess={() => setSent(true)} />
-            </div>
-        );
-    }
+// Laid out like the rest of the admin section: page heading, then the work, then a list of what's
+// already there. A server component so the recent-invite list is fetched here; only the form itself is
+// interactive.
+
+const RECENT_LIMIT = 8;
+
+export default async function EnrollmentPage() {
+    const [recent, total] = await Promise.all([
+        prisma.client.findMany({
+            orderBy: { created_at: "desc" },
+            take: RECENT_LIMIT,
+            select: { id: true, name: true, email: true, company: true, created_at: true, account_id: true },
+        }),
+        prisma.client.count(),
+    ]);
 
     return (
-        <Card className="mx-auto w-full max-w-md">
-            <CardContent>
-                <Empty>
-                    <EmptyHeader>
-                        <EmptyMedia variant="icon">
-                            <MailCheck />
-                        </EmptyMedia>
-                        <EmptyTitle>Invite Sent Successfully</EmptyTitle>
-                        <EmptyDescription>
-                            The invite was correctly sent to the specified email address.
-                        </EmptyDescription>
-                    </EmptyHeader>
+        <div className="space-y-6">
+            <div className="space-y-1">
+                <Typo as="title">Enrollment</Typo>
+                <Typo as="muted">
+                    Invite a new client. They get an email to set a password, then connect their own ad accounts.
+                </Typo>
+            </div>
 
-                    <EmptyContent className="flex-row justify-center gap-2">
-                        <Button type="button" onClick={() => setSent(false)}>
-                            Back
-                        </Button>
-                    </EmptyContent>
-                </Empty>
-            </CardContent>
-        </Card>
+            <EnrollmentForm />
+
+            {recent.length > 0 && (
+                <div className="space-y-3 pt-2">
+                    <div className="flex flex-row items-baseline justify-between gap-3">
+                        <Typo as="large">Recently enrolled</Typo>
+                        <Typo as="muted" className="text-xs">
+                            {total} {total === 1 ? "client" : "clients"} total
+                        </Typo>
+                    </div>
+
+                    <div className="space-y-2">
+                        {recent.map((client) => (
+                            <Card key={client.id} className="flex-row flex-wrap items-center justify-between gap-3 p-3">
+                                <div className="min-w-0">
+                                    <Typo as="normal" className="truncate text-sm font-medium">
+                                        {client.name}
+                                        {client.company && (
+                                            <span className="text-muted-foreground"> · {client.company}</span>
+                                        )}
+                                    </Typo>
+                                    <Typo as="muted" className="truncate text-xs">
+                                        {client.email}
+                                    </Typo>
+                                </div>
+
+                                <div className="flex shrink-0 flex-row items-center gap-2">
+                                    {/* account_id is the Supabase auth user; it exists from the invite, so
+                                        this reflects enrollment rather than whether they've signed in. */}
+                                    <Badge variant="outline">#{client.id}</Badge>
+                                    <Typo as="muted" className="text-xs">
+                                        {dateFormatRelative(client.created_at)}
+                                    </Typo>
+                                </div>
+                            </Card>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </div>
     );
 }

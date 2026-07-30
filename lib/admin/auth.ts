@@ -1,23 +1,30 @@
-import { Secret, TOTP } from "@otp-lib/authenticator";
-import { createHmac, timingSafeEqual } from "crypto";
+import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
 import { checkEnv } from "../env";
 
 export const ADMIN_COOKIE_NAME = "admin_session";
 export const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 hours
 
-let _authenticator: TOTP | undefined;
+/**
+ * Admin authentication: a single shared password from `ADMIN_PASSWORD`, exchanged for an HMAC-signed
+ * session cookie.
+ *
+ * This replaced a rotating TOTP code, which is a real reduction in strength: the secret is now static,
+ * long-lived, and lives wherever env vars live. What guards it instead is length (below), constant-time
+ * comparison, and the per-IP + global rate limits in `actions/admin/verify.ts` — those matter MORE than
+ * they did under TOTP, because a static password stays valid until someone rotates it.
+ *
+ * The password is compared in plaintext rather than against a stored hash on purpose: anyone who can
+ * read `ADMIN_PASSWORD` can also read `SESSION_SECRET` and forge a session cookie outright, so hashing
+ * would add a dependency and latency without changing what an env-var leak costs.
+ */
 
-function getAuthenticator(): TOTP {
-    if (_authenticator) return _authenticator;
-
-    return (_authenticator ??= new TOTP({
-        account: "admin",
-        issuer: "Repolio",
-        secret: Secret.fromBase32(checkEnv("TOTP_SECRET")),
-        digits: 6,
-    }));
-}
+/**
+ * Minimum length for `ADMIN_PASSWORD`. This one secret opens every client's data and the ability to
+ * email them, and it never rotates — so a guessable value is refused outright rather than warned about.
+ * Generate one with `openssl rand -base64 24`.
+ */
+export const MIN_ADMIN_PASSWORD_LENGTH = 16;
 
 function sign(payload: string) {
     const secret = checkEnv("SESSION_SECRET");
@@ -53,6 +60,26 @@ export async function isAdminAuthenticated() {
     return verifySessionToken(token);
 }
 
-export async function verifyOTP(code: string): Promise<boolean> {
-    return await getAuthenticator().verify(code);
+/**
+ * Checks a submitted admin password.
+ *
+ * Compares SHA-256 digests rather than the strings: `timingSafeEqual` throws on differing lengths, and
+ * comparing raw input would both crash on a wrong-length guess and leak the real password's length
+ * through that difference. Digests are always 32 bytes, so every comparison takes the same path.
+ *
+ * Throws — rather than returning false — when the configured password is missing or too short, so a
+ * misconfigured deployment fails loudly at the login attempt instead of quietly accepting a weak secret.
+ */
+export async function verifyAdminPassword(password: string): Promise<boolean> {
+    const expected = checkEnv("ADMIN_PASSWORD");
+
+    if (expected.length < MIN_ADMIN_PASSWORD_LENGTH) {
+        throw new Error(
+            `ADMIN_PASSWORD must be at least ${MIN_ADMIN_PASSWORD_LENGTH} characters. Admin access is disabled until it is.`,
+        );
+    }
+
+    const digest = (value: string) => createHash("sha256").update(value, "utf8").digest();
+
+    return timingSafeEqual(digest(password), digest(expected));
 }

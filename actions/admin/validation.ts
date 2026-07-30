@@ -36,7 +36,7 @@ export async function setReportApproval(reportId: number, approved: boolean): Pr
  * as a PDF) and releases those reports into the client's dashboard.
  *
  * Rate-limited per IP like the other admin action that sends mail — this one can attach a dozen PDFs,
- * so an accidental double-submit is worth blocking even behind the TOTP gate.
+ * so an accidental double-submit is worth blocking even behind the admin login.
  */
 export async function validateAndSendBatch(batchId: number): Promise<ActionResult> {
     const ip = clientIp((await headers()).get("x-forwarded-for"));

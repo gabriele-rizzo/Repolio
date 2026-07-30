@@ -3,7 +3,7 @@
 import { authorize } from "@/actions/auth/authorize";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseTemplate } from "@/lib/report/template/parse";
+import { checkTemplate } from "@/lib/report/template/render";
 import { renderTemplatePreview } from "@/lib/report/template/preview";
 import { MAX_TEMPLATE_LENGTH, type TemplateIssue } from "@/lib/report/template/types";
 import { revalidatePath } from "next/cache";
@@ -47,7 +47,7 @@ export async function saveReportTemplate(
 
     revalidatePath("/dashboard/template");
 
-    return { issues: parseTemplate(body).issues };
+    return { issues: checkTemplate(body) };
 }
 
 /**

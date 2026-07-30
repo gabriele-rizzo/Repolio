@@ -207,7 +207,7 @@ export function TemplateEditor({
                                 </div>
                                 {issues.map((issue, i) => (
                                     <Typo key={i} as="muted" className="text-xs">
-                                        Line {issue.line}: {issue.message}
+                                        {issue.message}
                                     </Typo>
                                 ))}
                             </div>
@@ -283,7 +283,7 @@ export function TemplateEditor({
                             Available variables
                         </Typo>
                         <Typo as="muted" className="text-sm">
-                            Click one to insert it at the cursor. Sections must sit on their own line.
+                            Click one to insert it at the cursor. Sections expand to a block of markup.
                         </Typo>
                     </div>
                     <Typo as="muted" className="shrink-0 text-xs">
@@ -294,7 +294,9 @@ export function TemplateEditor({
                 {showReference && (
                     <div className="space-y-4">
                         {VARIABLE_REFERENCE.map((group) => {
-                            const ownLine = group.group.includes("own line");
+                            // Sections expand to a block of markup, so give them their own line for
+                            // readability — inline scalars go exactly where the caret is.
+                            const ownLine = group.group === "Sections";
 
                             return (
                                 <div key={group.group} className="space-y-2">
@@ -323,19 +325,20 @@ export function TemplateEditor({
                             );
                         })}
 
-                        <div className="space-y-1 border-t pt-3">
+                        <div className="space-y-1.5 border-t pt-3">
                             <Typo as="muted" className="text-xs font-medium uppercase tracking-wide">
-                                Line syntax
+                                Writing the template
                             </Typo>
                             {[
-                                ["# Title", "Large heading"],
-                                ["## Subtitle", "Medium heading"],
-                                ["### LABEL", "Small uppercase label"],
-                                ["> note", "Small muted note"],
-                                ["---", "Horizontal divider"],
-                            ].map(([syntax, meaning]) => (
-                                <div key={syntax} className="flex flex-row items-baseline gap-2">
-                                    <code className="font-mono text-xs">{syntax}</code>
+                                ["It's HTML", "Write any markup and CSS — inline style attributes or a <style> block."],
+                                ["Design is yours", "Nothing here has to look like Repolio. Sections can be restyled via their rp- classes."],
+                                ["Removed for safety", "Scripts, event handlers, iframes and remote images are stripped. Embed images as data: URIs."],
+                                ["PDF is a subset", "No grid, floats, positioning or @media in the attached PDF — use flex and tables. You'll be warned on save."],
+                            ].map(([term, meaning]) => (
+                                <div key={term} className="space-y-0.5">
+                                    <Typo as="muted" className="text-[0.7rem] font-medium text-foreground">
+                                        {term}
+                                    </Typo>
                                     <Typo as="muted" className="text-[0.7rem]">
                                         {meaning}
                                     </Typo>

@@ -1,28 +1,24 @@
 /**
  * The report template format.
  *
- * A template is a plain-text document the client authors, with Supabase-style `{{ .variable }}`
- * placeholders. It is the source of the *deliverable* — the PDF attachment and the standalone HTML
- * render — so both are produced from the same parsed blocks and can't drift.
+ * A template is HTML the client authors, with Supabase-style `{{ .variable }}` placeholders. It is the
+ * source of the *deliverable* — the PDF attachment and the standalone HTML render — so both come out of
+ * the same final markup and can't drift.
  *
- * Why a block format rather than HTML (which is what Supabase's email templates are): the PDF is
- * rendered by react-pdf, which has its own primitives and cannot render arbitrary HTML. A constrained
- * line-based format parses into blocks that BOTH renderers can express, which is what makes one
- * template drive a PDF and an email at once.
+ * Two placeholder kinds:
+ *   - scalars, e.g. `{{ .spend }}` — substituted anywhere, HTML-escaped;
+ *   - sections, e.g. `{{ .metricsTable }}` — replaced by a pre-built markup fragment for that block.
  *
- * Line syntax:
- *   # Heading            level-1 heading
- *   ## Heading           level-2 heading
- *   ### LABEL            small uppercase section label (the app's own visual idiom)
- *   > note               small muted note
- *   ---                  horizontal divider
- *   {{ .scoreCard }}     a RICH BLOCK, alone on its line (see SECTION_BLOCKS)
- *   anything else        a paragraph; consecutive lines stay in the same paragraph
+ * Pipeline (order matters, see lib/report/template/render.ts): sanitize the client's HTML FIRST, then
+ * substitute. Sanitizing afterwards would strip our own trusted fragments; substituting first would let
+ * a client smuggle markup in through a value.
  *
- * Inline `{{ .spend }}`-style placeholders are substituted inside headings, paragraphs and notes.
+ * PDF caveat: the PDF is produced by mapping this HTML onto react-pdf primitives, which support only a
+ * subset of CSS. `UNSUPPORTED_PDF_CSS` below lists the properties that are silently dropped there, and
+ * the editor warns about them rather than letting a template look right on screen and wrong in the PDF.
  */
 
-/** Rich blocks: whole pre-designed sections, written alone on a line as `{{ .name }}`. */
+/** Whole pre-designed sections, written as `{{ .name }}` anywhere in the markup. */
 export const SECTION_BLOCKS = [
     "scoreCard",
     "metricsTable",
@@ -38,30 +34,49 @@ export function isSectionBlock(name: string): name is SectionBlock {
     return (SECTION_BLOCKS as readonly string[]).includes(name);
 }
 
-export type TemplateBlock =
-    | { kind: "heading"; level: 1 | 2 | 3; text: string }
-    | { kind: "paragraph"; text: string }
-    | { kind: "note"; text: string }
-    | { kind: "divider" }
-    | { kind: "section"; section: SectionBlock };
-
-/** A problem found while parsing a template. Surfaced in the editor, never thrown at render time. */
+/** A problem found while checking a template. Surfaced in the editor, never thrown at render time. */
 export interface TemplateIssue {
-    /** 1-indexed line in the template source. */
-    line: number;
-    kind: "unknown-variable" | "section-inline" | "empty";
+    kind: "unknown-variable" | "unsupported-pdf-css" | "stripped-markup" | "empty";
     message: string;
-}
-
-export interface ParsedTemplate {
-    blocks: TemplateBlock[];
-    issues: TemplateIssue[];
-    /** Which rich sections the template actually uses, for editor warnings about omitted AI output. */
-    sections: SectionBlock[];
 }
 
 /** Matches a Supabase-style placeholder: `{{ .name }}`, whitespace optional. */
 export const PLACEHOLDER = /\{\{\s*\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
 
-/** Templates are client-authored free text; cap the size so a paste can't blow up a PDF render. */
-export const MAX_TEMPLATE_LENGTH = 20_000;
+/** Templates are client-authored; cap the size so a paste can't blow up a PDF render. */
+export const MAX_TEMPLATE_LENGTH = 40_000;
+
+/**
+ * CSS the HTML render honours but the PDF cannot.
+ *
+ * Patterns use `(?<![\w-])` rather than `\b`: a word boundary also matches after the hyphen in
+ * `text-transform` and `backdrop-filter`, which flagged `text-transform: uppercase` — a property the PDF
+ * fully supports — as unsupported in every built-in preset.
+ *
+ * react-pdf implements its own layout engine with a subset of CSS — there is no grid, no floats, no
+ * positioning and no media queries. A template using these looks correct in the preview and in the
+ * downloaded HTML, then loses that styling in the attached PDF, which is the failure mode most likely to
+ * ship unnoticed. The editor scans for them and says so.
+ *
+ * A known-list heuristic, not an exhaustive check of react-pdf's supported properties.
+ */
+export const UNSUPPORTED_PDF_CSS: { pattern: RegExp; label: string; advice: string }[] = [
+    { pattern: /display\s*:\s*grid/i, label: "display: grid", advice: "use display: flex instead" },
+    { pattern: /grid-template/i, label: "grid-template", advice: "use display: flex instead" },
+    { pattern: /(?<![\w-])float\s*:\s*(left|right)/i, label: "float", advice: "use display: flex instead" },
+    { pattern: /position\s*:\s*(absolute|fixed|sticky)/i, label: "position", advice: "not supported in the PDF" },
+    { pattern: /@media/i, label: "@media", advice: "the PDF has one fixed page size" },
+    { pattern: /box-shadow/i, label: "box-shadow", advice: "use a border instead" },
+    { pattern: /border-collapse/i, label: "border-collapse", advice: "style the cell borders directly" },
+    { pattern: /(?<![\w-])transform\s*:/i, label: "transform", advice: "not supported in the PDF" },
+    { pattern: /(?<![\w-])filter\s*:/i, label: "filter", advice: "not supported in the PDF" },
+    { pattern: /background-image|linear-gradient/i, label: "background-image", advice: "use a solid background" },
+    // Not merely dropped — react-pdf cannot resolve em/rem for letter-spacing and THROWS, which would
+    // fail the whole PDF. renderReportPdf falls back to the default template if that happens, but the
+    // author should know before it ships.
+    {
+        pattern: /letter-spacing\s*:\s*[\d.]+\s*r?em/i,
+        label: "letter-spacing in em",
+        advice: "use px — em units break the PDF render entirely",
+    },
+];

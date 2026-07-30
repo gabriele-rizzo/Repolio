@@ -24,10 +24,10 @@ function makeLimiter(tokens: number, window: Parameters<typeof Ratelimit.sliding
 export const authLimiter = makeLimiter(5, "15 m", "rl:auth");
 
 /**
- * Global (all IPs combined) cap on admin OTP attempts — layered on top of the per-IP `authLimiter`
- * to defend against IP-rotation brute force against the small 6-digit TOTP keyspace. A single admin
- * won't fail this many times legitimately; the trade-off is that a flood could briefly lock out the
- * admin login (acceptable — admin login is rare, and unlimited OTP guessing is the worse outcome).
+ * Global (all IPs combined) cap on admin login attempts — layered on top of the per-IP `authLimiter` to
+ * defend against brute force spread across rotating IPs. A single admin won't fail this many times
+ * legitimately; the trade-off is that a flood could briefly lock out the admin login (acceptable — admin
+ * login is rare, and unlimited guessing at a static password is the worse outcome).
  */
 export const otpGlobalLimiter = makeLimiter(30, "15 m", "rl:otp-global");
 

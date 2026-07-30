@@ -3,7 +3,7 @@
 import { isAdminAuthenticated } from "@/lib/admin/auth";
 import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { parseTemplate } from "@/lib/report/template/parse";
+import { checkTemplate } from "@/lib/report/template/render";
 import { findPreset } from "@/lib/report/template/presets";
 import { renderTemplatePreview } from "@/lib/report/template/preview";
 import { MAX_TEMPLATE_LENGTH, type TemplateIssue } from "@/lib/report/template/types";
@@ -59,7 +59,7 @@ export async function setClientTemplate(
     revalidatePath("/admin/templates");
     revalidatePath("/dashboard/template");
 
-    return { issues: parseTemplate(body).issues };
+    return { issues: checkTemplate(body) };
 }
 
 /** Clears a stored template so the scope inherits again (account -> client -> built-in preset). */

@@ -9,7 +9,8 @@ import { metricColumns, type MetricColumn, type Translator } from "@/lib/metrics
 import { metricsForWindow } from "@/lib/metrics/window";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
-import { buildReportDocument } from "@/lib/report/template/document";
+import { buildReportHtml } from "@/lib/report/template/build";
+import { DEFAULT_TEMPLATE_BODY } from "@/lib/report/template/presets";
 import { resolveTemplate } from "@/lib/report/template/resolve";
 import { getTranslations } from "next-intl/server";
 
@@ -102,7 +103,10 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
     // The client's own layout, falling back to the built-in preset when they've never set one.
     const template = client ? await resolveTemplate(account?.id ?? null, client.id) : null;
 
-    const doc = buildReportDocument({
+    const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
+    const reportUrl = account && base ? `${base}/dashboard/reports/${report.id}?account=${account.id}` : "";
+
+    const documentInput = {
         templateBody: template?.body,
         accountName,
         platformLabel,
@@ -111,6 +115,7 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         period,
         periodStart: dateFormatRelative(from),
         periodEnd: dateFormatRelative(to),
+        reportUrl,
         days: report.snapshots.length,
         generatedOn: dateFormatRelative(report.created_at),
         current,
@@ -122,13 +127,31 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         t,
         locale,
         // The PDF's built-in Helvetica cannot encode ▲ / ▼ — inline change placeholders must use +/-.
-        deltaStyle: "sign",
-    });
+        deltaStyle: "sign" as const,
+    };
+
+    const { body } = buildReportHtml(documentInput);
 
     // Dynamic import: react-pdf is only needed on the send/preview paths, so keep it out of the static
     // graph of everything that transitively imports this module.
     const { renderToBuffer } = await import("@react-pdf/renderer");
-    const content = await renderToBuffer(<ReportPdf doc={doc} />);
+    const title = `${accountName} — ${t("email.performanceReport")}`;
+    const toPdf = (markup: string) =>
+        renderToBuffer(<ReportPdf html={markup} title={title} subject={period} locale={locale} />);
+
+    // A template can crash the PDF renderer outright, not merely render oddly — react-pdf throws
+    // "unsupported number: NaN" on CSS it can't resolve (em units on letter-spacing, for one). Left
+    // unhandled that would fail renderReportPdf, drop the report from its batch, and let one client's
+    // stylesheet block their own delivery. Fall back to the built-in template so the report still ships;
+    // the editor warns about the known offenders up front, and this catches the rest.
+    let content: Buffer;
+    try {
+        content = await toPdf(body);
+    } catch (error) {
+        console.error(`Report ${reportId}: template broke the PDF renderer, falling back to default:`, error);
+        const fallback = buildReportHtml({ ...documentInput, templateBody: DEFAULT_TEMPLATE_BODY });
+        content = await toPdf(fallback.body);
+    }
 
     return {
         filename: pdfFilename(accountName, from, to),

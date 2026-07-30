@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
-import { Toaster } from "sonner";
+import { Toaster } from "@/components/ui/sonner";
 
 import "./globals.css";
 
@@ -26,7 +26,10 @@ export default async function RootLayout({ children }: React.PropsWithChildren) 
                 <NextIntlClientProvider locale={locale} messages={messages}>
                     <ThemeProvider>
                         <TooltipProvider>{children}</TooltipProvider>
-                        <Toaster theme="system" richColors />
+                        {/* The themed wrapper, not sonner's raw Toaster: it reads next-themes and maps toasts onto the
+                            app's own CSS variables. The raw one was pinned to theme="system", so toasts followed the OS
+                            rather than the in-app theme toggle. */}
+                        <Toaster richColors />
                     </ThemeProvider>
                 </NextIntlClientProvider>
             </body>

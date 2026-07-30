@@ -11,7 +11,6 @@ import { Button } from "./ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card";
 import { Field, FieldError, FieldGroup, FieldLabel } from "./ui/field";
 import { Input } from "./ui/input";
-import { InputOTP, InputOTPGroup, InputOTPSeparator, InputOTPSlot } from "./ui/input-otp";
 
 type Data<S extends z.ZodRawShape> = {
     /* eslint-disable @typescript-eslint/no-explicit-any */
@@ -23,13 +22,18 @@ type Data<S extends z.ZodRawShape> = {
 
 interface DynamicFormProps<S extends z.ZodRawShape> {
     id: string;
-    title: string;
-    description: string;
+    /** Omit both when the surrounding page already carries the heading (the admin pages do). */
+    title?: string;
+    description?: string;
+    /** Overrides the default centred `w-full max-w-md` card, for full-width page layouts. */
+    className?: string;
+    /** Lay the fields out in columns instead of a single stack. Collapses to one column when narrow. */
+    columns?: 1 | 2 | 3;
     schema: z.ZodObject<S>;
     onSuccess?: () => void;
     action: (data: Data<S>) => ActionResult | Promise<ActionResult>;
     defaultValues: Data<S>;
-    inputs: Record<keyof S, React.ComponentProps<typeof Input> & { label: string; inputType?: "default" | "otp" }>;
+    inputs: Record<keyof S, React.ComponentProps<typeof Input> & { label: string }>;
     submitLabel: string;
     /** Optional cross-field validation (e.g. password confirmation). The error is shown under `path`. */
     refine?: {
@@ -88,54 +92,33 @@ export function DynamicForm<S extends z.ZodRawShape>(props: DynamicFormProps<S>)
             .finally(() => setLoading(false));
     });
 
+    const columnClass =
+        props.columns === 3 ? "sm:grid sm:grid-cols-3" : props.columns === 2 ? "sm:grid sm:grid-cols-2" : undefined;
+
     return (
-        <Card className="w-full max-w-md">
-            <CardHeader>
-                <CardTitle>{props.title}</CardTitle>
-                <CardDescription>{props.description}</CardDescription>
-            </CardHeader>
+        <Card className={cn("w-full max-w-md", props.className)}>
+            {props.title && (
+                <CardHeader>
+                    <CardTitle>{props.title}</CardTitle>
+                    {props.description && <CardDescription>{props.description}</CardDescription>}
+                </CardHeader>
+            )}
 
             <CardContent>
                 <form id={props.id} onSubmit={onSubmit}>
-                    <FieldGroup>
+                    <FieldGroup className={columnClass}>
                         {Object.keys(props.schema.shape).map((key) => (
                             <Controller
                                 key={key}
                                 name={key as any}
                                 control={form.control}
                                 render={({ field, fieldState }) => {
-                                    const { label, inputType, ...p } = props.inputs[key];
+                                    const { label, ...p } = props.inputs[key];
 
                                     return (
                                         <Field data-invalid={fieldState.invalid}>
                                             <FieldLabel htmlFor={key}>{label}</FieldLabel>
-
-                                            {inputType !== "otp" ? (
-                                                <Input {...p} {...(field as ControllerRenderProps)} id={key} />
-                                            ) : (
-                                                <InputOTP
-                                                    maxLength={6}
-                                                    autoFocus
-                                                    {...p}
-                                                    {...(field as any)}
-                                                    className={cn(p.className, "w-fit! mx-auto")}
-                                                >
-                                                    <InputOTPGroup>
-                                                        <InputOTPSlot index={0} />
-                                                        <InputOTPSlot index={1} />
-                                                        <InputOTPSlot index={2} />
-                                                    </InputOTPGroup>
-
-                                                    <InputOTPSeparator />
-
-                                                    <InputOTPGroup>
-                                                        <InputOTPSlot index={3} />
-                                                        <InputOTPSlot index={4} />
-                                                        <InputOTPSlot index={5} />
-                                                    </InputOTPGroup>
-                                                </InputOTP>
-                                            )}
-
+                                            <Input {...p} {...(field as ControllerRenderProps)} id={key} />
                                             {fieldState.invalid && <FieldError errors={[fieldState.error]} />}
                                         </Field>
                                     );

@@ -71,6 +71,7 @@ const CONTEXT_VARS: VariableDoc[] = [
     { name: "performanceScore", description: "The 0–100 performance score", example: "78" },
     { name: "scoreLabel", description: "The score's band", example: "Strong" },
     { name: "generatedOn", description: "The date the report was generated", example: "30 July" },
+    { name: "reportUrl", description: "Link to this report in the dashboard", example: "https://…/dashboard/reports/1" },
 ];
 
 /** Placeholders that must sit alone on their own line, each expanding to a designed section. */
@@ -94,7 +95,7 @@ export const SCALAR_VARIABLE_NAMES: string[] = [
 
 /** The grouped reference list rendered in the template editor. */
 export const VARIABLE_REFERENCE: { group: string; variables: VariableDoc[] }[] = [
-    { group: "Sections (own line)", variables: SECTION_BLOCKS.map((name) => ({ name, description: SECTION_DOCS[name], example: "" })) },
+    { group: "Sections", variables: SECTION_BLOCKS.map((name) => ({ name, description: SECTION_DOCS[name], example: "" })) },
     { group: "Report", variables: CONTEXT_VARS },
     { group: "Metrics", variables: METRIC_VARS.map(({ name, description, example }) => ({ name, description, example })) },
     {
@@ -120,6 +121,7 @@ export interface VariableContext {
     clientName: string;
     company: string | null;
     period: string;
+    reportUrl: string;
     periodStart: string;
     periodEnd: string;
     days: number;
@@ -147,6 +149,7 @@ export function buildVariables(ctx: VariableContext): Record<string, string> {
         clientName: ctx.clientName,
         company: ctx.company ?? EM_DASH,
         period: ctx.period,
+        reportUrl: ctx.reportUrl,
         periodStart: ctx.periodStart,
         periodEnd: ctx.periodEnd,
         days: String(ctx.days),

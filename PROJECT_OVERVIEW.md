@@ -15,7 +15,7 @@ The core promise: an agency connects a client's ad accounts once, and Repolio th
 **Who uses it (two audiences):**
 | Audience | Role | What they do |
 |----------|------|--------------|
-| **Agency admin** (Repolio operator) | Internal staff | Enrolls new clients, sets each client's report schedule, and validates generated report batches before they reach the client — all protected by a TOTP code |
+| **Agency admin** (Repolio operator) | Internal staff | Enrolls new clients, sets each client's report schedule, and validates generated report batches before they reach the client — all protected by a shared admin password |
 | **Client** (the end user) | The agency's advertising client | Logs in, connects ad accounts, reads validated reports, sets report cadence and start date, designs their own report template |
 
 **Current maturity:** Version `0.1.0`, private/pre-release. Only the **Meta** ad platform is wired end-to-end today; Google, TikTok, LinkedIn, Pinterest, and X are declared in the data model and UI but not yet connected.
@@ -68,7 +68,7 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
 - **`Snapshot`** — **one row per ad account per calendar day**, storing that day's raw Zernio metrics as JSON (`spend`, `impressions`, `clicks`, `reach`, the `actions`/`actionValues` maps, plus Zernio's derived scalars kept as provenance only) and a stamped `currency`. Uniqueness enforced on `(start_date, ad_account_id)`. Indexed on `(ad_account_id, start_date)` for the hot dashboard/report query path. KPI-relevant facts (purchases, leads, revenue, link clicks) are derived from the action maps at compute time — see §5.3.
 - **`Report`** — an AI-generated write-up covering a set of snapshots. **Stores only the AI text**: `executive_summary`, `recommendations` (JSON), `trend_explanation`, plus snapshotted user inputs (`target_cpa`, `target_roas`, `context_comment` — a note about that one period; note it is written *after* generation, so it affects the rendered document but not the model) and its delivery state (`report_batch_id`, `approved`, `released_at`). **A report is invisible to its client until `released_at` is stamped by batch validation** — every client-facing query filters on it. **KPIs and scores are NOT stored** — they are recomputed live from the linked snapshots every time.
 - **`ReportBatch`** — one client's reports from a single generation run, and the unit of validation and delivery. Reports are generated into an unsent batch; an admin approves or excludes each one, and validating the batch sends the client **one** email and stamps `Report.released_at`. `sent_at` is the state (null = pending validation).
-- **`ReportTemplate`** — a client-authored layout for the report *deliverable* (the PDF attachment and the standalone HTML render), as plain text with Supabase-style `{{ .variable }}` placeholders. One row per owner: `client_id` set = the client's default, `ad_account_id` set = an override for one account. Resolution is account override → client default → the built-in preset in `lib/report/template/presets.ts`, so an empty table means every client keeps the layout they already had.
+- **`ReportTemplate`** — a client-authored layout for the report *deliverable* (the PDF attachment and the standalone HTML render), as HTML with Supabase-style `{{ .variable }}` placeholders. One row per owner: `client_id` set = the client's default, `ad_account_id` set = an override for one account. Resolution is account override → client default → the built-in preset in `lib/report/template/presets.ts`, so an empty table means every client keeps the layout they already had.
 - **`Recurrence`** — per-client report schedule: cadence in days (`ndays`, default 30) plus `start_date`, the anchor day the first report is due. Slots are phase-locked to the anchor (`anchor + k × ndays`), so a client anchored to a Saturday stays on Saturdays. Null anchor falls back to the client's `created_at`.
 - **`Notification`** — in-app notifications: `REPORT_READY`, `CONNECTION_EXPIRING`, `CONNECTION_EXPIRED`.
 
@@ -85,10 +85,10 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
 **Two separate auth systems:**
 
 1. **Client auth — Supabase.** Email/password sessions via `@supabase/ssr` (HTTP-only cookies). Clients don't self-register; they're invited.
-2. **Admin auth — TOTP.** The agency operator authenticates at `/admin/*` with a 6-digit TOTP code (`@otp-lib/authenticator`, secret in `TOTP_SECRET`). On success, an HMAC-signed `admin_session` cookie (8-hour TTL, signed with `SESSION_SECRET`) is set. No Supabase user for the admin.
+2. **Admin auth — shared password.** The agency operator authenticates at `/admin/*` with the password in `ADMIN_PASSWORD`, compared as SHA-256 digests via `timingSafeEqual` (uniform length, so a wrong-length guess neither crashes nor leaks the real length). On success, an HMAC-signed `admin_session` cookie (8-hour TTL, signed with `SESSION_SECRET`) is set. No Supabase user for the admin. A password shorter than 16 characters is refused outright, and login is rate-limited per IP *and* globally — a static secret stays guessable until rotated, unlike the rotating TOTP code this replaced.
 
 **Enrollment flow:**
-1. Admin authenticates via TOTP → `/admin/enrollment`.
+1. Admin authenticates with the shared password → `/admin/enrollment`.
 2. Admin submits name + email + company (`enrollClient`).
 3. Server calls Supabase `auth.admin.inviteUserByEmail()` with the metadata, using the service-role key.
 4. Supabase sends an invite email → client clicks → `/auth/confirm` verifies the OTP → `/auth/set-password`.
@@ -173,21 +173,28 @@ The report **deliverable** is rendered from a client-authored template, not a ha
 template is plain text with `{{ .variable }}` placeholders plus a handful of line prefixes (`#`, `##`,
 `###`, `>`, `---`), parsed into blocks by `lib/report/template/parse.ts`.
 
-- **Why a block format, not HTML** (which is what Supabase's email templates are): the PDF is drawn by
-  react-pdf, which has its own primitives and cannot render arbitrary markup. A constrained block format
-  parses into blocks that BOTH the PDF and the HTML renderer can express — which is what lets one
-  template drive both. It also means template text reaches the page as React children, never as
-  `dangerouslySetInnerHTML`, so pasted markup prints as visible text instead of executing.
-- **Two placeholder kinds** — *scalars* (`{{ .spend }}`, `{{ .roasChange }}`, `{{ .accountName }}`)
-  substituted inline anywhere, and *sections* (`{{ .metricsTable }}`, `{{ .recommendations }}`, …) which
-  must sit alone on a line and expand to a designed block. Catalogue and resolution:
-  `lib/report/template/variables.ts`.
+- **It's HTML**, so a report need not look like Repolio at all. The HTML document is rendered directly;
+  the PDF maps the same markup onto react-pdf primitives via `react-pdf-html`.
+- **Two placeholder kinds** — *scalars* (`{{ .spend }}`, `{{ .roasChange }}`, `{{ .accountName }}`),
+  HTML-escaped and substituted anywhere, and *sections* (`{{ .metricsTable }}`, `{{ .recommendations }}`,
+  …) which expand to a pre-built markup fragment. Catalogue: `lib/report/template/variables.ts`.
+- **Sanitized, and the order is the security property** (`lib/report/template/render.ts`): the client's
+  HTML is sanitized FIRST, then placeholders are substituted. Sanitizing afterwards would strip our own
+  section fragments; substituting first would let a client smuggle markup in through a value. Scripts,
+  event handlers, frames, `javascript:` URLs, remote images and `@import`/remote `url()` in CSS are all
+  removed — this markup is served as `text/html` from our own origin, so a script in a template would run
+  there, and an admin previewing a client's template would run it against an admin session.
+- **The PDF honours only a CSS subset** — no grid, floats, positioning or `@media`. Worse, some CSS makes
+  react-pdf *throw* rather than degrade (em units on `letter-spacing`), which would drop the report from
+  its batch. Two defences: `checkTemplate` warns in the editor about the known offenders, and
+  `renderReportPdf` catches a failed render and falls back to the built-in template so delivery still
+  happens.
 - **Scope** — account override → client default → built-in preset. Presets live in code (no migration to
   add one, always available, and applying one COPIES its body so editing a preset never rewrites what an
   existing client receives).
 - **Not the dashboard** — the interactive report view at `/dashboard/reports/[id]` is untouched by
   templates. It stays a live React surface with a re-windowable date range; templating it would mean
-  giving that up.
+  giving that up. The batch covering email is also fixed — only the attached report document is templated.
 - **Editing** — clients at `/dashboard/template`, admins for any client at `/admin/templates`. Both use
   the same editor component and the same server-side renderer for the live preview, so the preview is the
   real output. Parse issues (unknown placeholder, section used inline) are advisory: a template still
@@ -211,7 +218,7 @@ template is plain text with `{{ .variable }}` placeholders plus a handful of lin
 ## 6. End-to-End Lifecycle
 
 ```
-1. Agency admin (TOTP) enrolls a client  →  Supabase invite email
+1. Agency admin (password) enrolls a client  →  Supabase invite email
 2. Client sets password, logs in
 3. Client connects Meta  →  Zernio OAuth  →  ad accounts imported
 4. Daily 00:00 UTC: snapshots cron pulls each ad account's timeline → Snapshot rows
@@ -233,7 +240,7 @@ template is plain text with `{{ .variable }}` placeholders plus a handful of lin
 
 - **No platform tokens on Repolio's servers** — Zernio is the token custodian; Repolio holds only opaque Zernio account references + one `ZERNIO_API_KEY`.
 - **Ownership checks** — report/metrics access is authorized against the signed-in client; the OAuth callback resolves ownership by non-guessable `profileId` rather than a post-redirect session cookie.
-- **Admin surface** is TOTP-gated with a short-lived, HMAC-signed session and timing-safe comparisons; cron endpoints require a secret Bearer token compared in constant time.
+- **Admin surface** is password-gated (`ADMIN_PASSWORD`, min 16 chars) with a short-lived, HMAC-signed session and timing-safe comparisons, rate-limited per IP and globally; cron endpoints require a secret Bearer token compared in constant time. Note this is a single shared, non-rotating secret — weaker than the TOTP it replaced, and worth rotating when anyone with access leaves.
 - **Legal** — privacy policy, terms of service, and a data-deletion page are present, describing Supabase-managed credentials and OAuth-based ad-account access.
 
 ---
@@ -270,4 +277,6 @@ template is plain text with `{{ .variable }}` placeholders plus a handful of lin
 | Email | `lib/email/**`, `lib/resend.ts`, `components/email/report-email.tsx`, `components/email/batch-email.tsx`, `lib/email/report-pdf.tsx` |
 | Report templates | `lib/report/template/**`, `app/dashboard/template/`, `app/admin/templates/`, `components/report/template-editor.tsx` |
 | Dashboard UI | `app/dashboard/**`, `components/report/**`, `components/sidebar/**`, `components/account/**` |
+
+**Query shape:** list pages resolve their per-row data in one grouped query, never one query per row — `HomeOverview` (the client's landing page) and `/admin/schedule`'s roster table both use a `$queryRaw` GROUP BY for "newest report per account/client", which Prisma can't express as a max over a relation. Keep that shape when adding columns to either.
 | Legal | `app/(legal)/**`, `app/data-deletion/page.tsx` |

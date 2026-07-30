@@ -1,6 +1,5 @@
 import "server-only";
 
-import { ReportEmail } from "@/components/email/report-email";
 import type { Recommendation } from "@/components/report/recommendation-card";
 import type { Client } from "@/generated/prisma/browser";
 import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
@@ -10,7 +9,7 @@ import { metricsForWindow } from "@/lib/metrics/window";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { fetchReport } from "@/lib/report/fetch-report";
-import { buildReportDocument } from "@/lib/report/template/document";
+import { buildReportHtml } from "@/lib/report/template/build";
 import { resolveTemplate } from "@/lib/report/template/resolve";
 import { getTranslations } from "next-intl/server";
 
@@ -27,14 +26,15 @@ export interface RenderReportEmailOptions {
 }
 
 /**
- * Renders a report to a self-contained HTML string, using the client's report template.
+ * Renders a report to a standalone HTML document from the client's template.
  *
  * Server-only and intentionally not a client-callable action: it's meant to run from trusted server
  * code. Returns null if the report doesn't exist or isn't owned by `clientId`.
  *
- * This is the same document the PDF attachment renders, in HTML — it backs the client's in-page
- * "Download PDF" button (printed by the browser) and the template editor's live preview. Does NOT send
- * anything.
+ * The markup here is the same markup the PDF attachment is built from — it backs the in-page
+ * "Download PDF" button (printed by the browser) and the template editor's preview. Client-authored
+ * HTML is sanitized inside `renderTemplate` before it reaches this output, which matters because this
+ * string is served as text/html from our own origin.
  */
 export async function renderReportEmail(
     reportId: number,
@@ -46,7 +46,6 @@ export async function renderReportEmail(
 
     const { report, account, from, to } = fetched;
 
-    // Render in the recipient client's saved language.
     const clientRow = await prisma.client.findUnique({
         where: { id: clientId },
         select: { name: true, company: true, locale: true },
@@ -65,12 +64,12 @@ export async function renderReportEmail(
     const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
 
     const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
-    const viewUrl = account && base ? `${base}/dashboard/reports/${report.id}?account=${account.id}` : null;
+    const reportUrl = account && base ? `${base}/dashboard/reports/${report.id}?account=${account.id}` : "";
 
     // An explicit body (the editor previewing unsaved edits) wins over the stored template.
     const resolved = templateBody != null ? { body: templateBody } : await resolveTemplate(account?.id ?? null, clientId);
 
-    const doc = buildReportDocument({
+    const { document } = buildReportHtml({
         templateBody: resolved.body,
         accountName,
         platformLabel,
@@ -79,6 +78,7 @@ export async function renderReportEmail(
         period,
         periodStart: dateFormatRelative(from),
         periodEnd: dateFormatRelative(to),
+        reportUrl,
         days: report.snapshots.length,
         generatedOn: dateFormatRelative(report.created_at),
         current,
@@ -91,9 +91,5 @@ export async function renderReportEmail(
         locale,
     });
 
-    // Dynamic import: Next 16 / Turbopack blocks a *static* import of react-dom/server in the app graph.
-    const { renderToStaticMarkup } = await import("react-dom/server");
-    const html = "<!DOCTYPE html>" + renderToStaticMarkup(<ReportEmail doc={doc} viewUrl={viewUrl} />);
-
-    return { subject: t("email.subject", { account: accountName, period }), html };
+    return { subject: t("email.subject", { account: accountName, period }), html: document };
 }
