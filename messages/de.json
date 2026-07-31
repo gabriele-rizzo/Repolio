@@ -9,7 +9,9 @@
             "title": "Sprache",
             "description": "Sprache der Oberfläche und neuer Reports. Bestehende Reports behalten ihren Text.",
             "updated": "Sprache aktualisiert.",
-            "error": "Sprache konnte nicht geändert werden."
+            "error": "Sprache konnte nicht geändert werden.",
+            "automatic": "Automatisch",
+            "autoApplied": "Sprache automatisch gesetzt — {language}."
         },
         "stats": {
             "reports": "{count, plural, one {Report} other {Reports}}",

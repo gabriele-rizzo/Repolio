@@ -1,3 +1,5 @@
+import { LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "./i18n/locales";
+import { detectLocaleFromHeaders } from "./lib/i18n/detect";
 import { NextResponse, type NextRequest } from "next/server";
 import { actionLimiter, apiLimiter, checkLimit, clientIp } from "./lib/rate-limit";
 import { updateSession } from "./lib/supabase/proxy";
@@ -28,7 +30,20 @@ export async function proxy(request: NextRequest) {
         if (!success) return tooMany(retryAfterSeconds);
     }
 
-    return await updateSession(request);
+    const response = await updateSession(request);
+
+    // First visit (or a cleared cookie): pick a language from the browser's Accept-Language, falling
+    // back to the CDN's country header. Only ever sets the cookie when it's ABSENT, so an explicit
+    // choice — or a signed-in client's stored language — is never overwritten by a guess.
+    if (!request.cookies.has(LOCALE_COOKIE)) {
+        response.cookies.set(LOCALE_COOKIE, detectLocaleFromHeaders(request.headers), {
+            path: "/",
+            maxAge: LOCALE_COOKIE_MAX_AGE,
+            sameSite: "lax",
+        });
+    }
+
+    return response;
 }
 
 export const config = {

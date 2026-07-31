@@ -9,7 +9,9 @@
             "title": "Language",
             "description": "Language of the interface and new reports. Existing reports keep their text.",
             "updated": "Language updated.",
-            "error": "Could not change the language."
+            "error": "Could not change the language.",
+            "automatic": "Automatic",
+            "autoApplied": "Language set automatically — {language}."
         },
         "stats": {
             "reports": "{count, plural, one {Report} other {Reports}}",

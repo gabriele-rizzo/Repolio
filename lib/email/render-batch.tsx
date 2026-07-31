@@ -1,7 +1,7 @@
 import "server-only";
 
 import { BatchEmail, type BatchEmailItem } from "@/components/email/batch-email";
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { renderReportPdf } from "@/lib/email/render-report-pdf";
 import type { Translator } from "@/lib/metrics/present";

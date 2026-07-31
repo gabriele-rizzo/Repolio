@@ -95,7 +95,7 @@ export default async function AccountPage() {
                     {tSections("preferences")}
                 </Typo>
 
-                <LanguageSettings locale={client.locale} />
+                <LanguageSettings locale={client.locale} auto={client.locale_auto} />
             </section>
 
             <div className="space-y-3">

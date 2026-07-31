@@ -2,7 +2,7 @@ import "server-only";
 
 import type { Recommendation } from "@/components/report/recommendation-card";
 import type { ScoreLabel } from "@/generated/prisma/browser";
-import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@/i18n/locales";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { ReportPdf } from "@/lib/email/report-pdf";
 import { metricColumns, type MetricColumn, type Translator } from "@/lib/metrics/present";

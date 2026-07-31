@@ -1,6 +1,7 @@
 import { authorize } from "@/actions/auth/authorize";
 import { DashboardHeader } from "@/components/header";
 import { BreadcrumbProvider } from "@/components/header/context";
+import { LanguageSwitcher } from "@/components/header/language-switcher";
 import { NotificationsBell } from "@/components/header/notifications-bell";
 import { DashboardSidebar } from "@/components/sidebar";
 import { SIDEBAR_STATE_COOKIE } from "@/components/sidebar/config";
@@ -50,7 +51,10 @@ export default async function DashboardLayout({ children }: React.PropsWithChild
                     <div className="w-full overflow-y-auto overflow-x-hidden overscroll-x-none">
                         <div className="shrink-0 sticky top-0 z-10 print:hidden">
                             <DashboardHeader className="px-2">
-                                <NotificationsBell unread={unread} />
+                                <div className="flex flex-row items-center gap-1">
+                                    <LanguageSwitcher locale={client.locale} auto={client.locale_auto} />
+                                    <NotificationsBell unread={unread} />
+                                </div>
                             </DashboardHeader>
                         </div>
 

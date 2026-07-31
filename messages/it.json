@@ -9,7 +9,9 @@
             "title": "Lingua",
             "description": "Lingua dell'interfaccia e dei nuovi report. I report esistenti mantengono il loro testo.",
             "updated": "Lingua aggiornata.",
-            "error": "Impossibile cambiare la lingua."
+            "error": "Impossibile cambiare la lingua.",
+            "automatic": "Automatico",
+            "autoApplied": "Lingua impostata automaticamente — {language}."
         },
         "stats": {
             "reports": "{count, plural, one {Report} other {Report}}",

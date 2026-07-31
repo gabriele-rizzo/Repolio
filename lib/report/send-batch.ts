@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { renderBatchEmail } from "@/lib/email/render-batch";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";

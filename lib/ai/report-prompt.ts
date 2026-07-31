@@ -1,6 +1,6 @@
 import type { Recommendation } from "@/components/report/recommendation-card";
 import type { Report, Snapshot } from "@/generated/prisma/browser";
-import type { Locale } from "@/i18n/request";
+import type { Locale } from "@/i18n/locales";
 import { computeMetrics, type ComputedMetrics } from "@/lib/metrics/compute";
 
 /**

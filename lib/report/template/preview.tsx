@@ -1,6 +1,6 @@
 import "server-only";
 
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { renderReportEmail } from "@/lib/email/render-report";
 import type { Translator } from "@/lib/metrics/present";
 import { prisma } from "@/lib/prisma";

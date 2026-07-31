@@ -22,6 +22,9 @@ export function DashboardSidebarMain() {
                     <SidebarMenuItem key={href}>
                         <SidebarMenuButton
                             isActive={exact ? path === href : path === href || path.startsWith(`${href}/`)}
+                            // Collapsed to icons the label is hidden, so without this the nav is a
+                            // column of unlabelled glyphs.
+                            tooltip={t(label)}
                             render={
                                 <Link href={href}>
                                     <Icon />

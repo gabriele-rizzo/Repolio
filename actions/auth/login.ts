@@ -1,6 +1,7 @@
 "use server";
 
-import { isLocale, LOCALE_COOKIE } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, LOCALE_COOKIE_MAX_AGE } from "@/i18n/locales";
+import { detectLocaleFromHeaders } from "@/lib/i18n/detect";
 import { safeAction } from "@/lib/action";
 import { prisma } from "@/lib/prisma";
 import { authLimiter, checkLimit, clientIp } from "@/lib/rate-limit";
@@ -22,16 +23,27 @@ export async function login(email: string, password: string) {
 
         if (error) throw error;
 
-        // Mirror the client's saved language into the locale cookie so the dashboard loads in it.
+        // Mirror the client's language into the locale cookie so the dashboard loads in it. Clients on
+        // automatic are re-detected from this request — logging in is the natural moment to notice that
+        // someone's browser or country changed — and the result is written back so their REPORTS follow
+        // too, since the report cron has no request to detect from.
         if (data.user) {
             const client = await prisma.client.findUnique({
                 where: { account_id: data.user.id },
-                select: { locale: true },
+                select: { id: true, locale: true, locale_auto: true },
             });
-            if (client && isLocale(client.locale)) {
-                (await cookies()).set(LOCALE_COOKIE, client.locale, {
+
+            if (client) {
+                const stored = isLocale(client.locale) ? client.locale : DEFAULT_LOCALE;
+                const locale = client.locale_auto ? detectLocaleFromHeaders(await headers()) : stored;
+
+                if (client.locale_auto && locale !== client.locale) {
+                    await prisma.client.update({ where: { id: client.id }, data: { locale } });
+                }
+
+                (await cookies()).set(LOCALE_COOKIE, locale, {
                     path: "/",
-                    maxAge: 60 * 60 * 24 * 365,
+                    maxAge: LOCALE_COOKIE_MAX_AGE,
                     sameSite: "lax",
                 });
             }

@@ -8,7 +8,7 @@ import {
     SYSTEM_PROMPT,
     type GeneratedReport,
 } from "@/lib/ai/report-prompt";
-import { DEFAULT_LOCALE, isLocale } from "@/i18n/request";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { prisma } from "@/lib/prisma";
 import { RELEASED_REPORT } from "@/lib/report/visibility";
 import type Anthropic from "@anthropic-ai/sdk";

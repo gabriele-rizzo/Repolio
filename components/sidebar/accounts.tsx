@@ -16,6 +16,7 @@ import {
     SidebarMenuSub,
     SidebarMenuSubButton,
     SidebarMenuSubItem,
+    useSidebar,
 } from "../ui/sidebar";
 import type { SidebarAccountGroup } from "./config";
 
@@ -28,6 +29,13 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
     const params = useSearchParams();
     const activeAccount = params.get("account");
     const t = useTranslations("nav");
+    const { state, isMobile } = useSidebar();
+
+    // Collapsed to icons, SidebarMenuSub is display:none — every account link disappears and the only
+    // thing left in this group is the platform icon, which is a non-interactive label. That left the
+    // whole Accounts section dead: an icon you can't click and no way to reach an account without
+    // expanding first. Collapsed, the icon becomes a menu of that platform's accounts instead.
+    const collapsed = state === "collapsed" && !isMobile;
 
     const connectedGroups = groups.filter((group) => group.accounts.length > 0);
 
@@ -39,31 +47,62 @@ export function DashboardSidebarAccounts({ groups }: DashboardSidebarAccountsPro
                 {connectedGroups.map(({ platform, accounts }) => {
                     const { label, icon: Icon } = PLATFORM_META[platform];
 
+                    const isActive = (accountId: number) =>
+                        path.startsWith("/dashboard/reports") && activeAccount === String(accountId);
+
+                    if (collapsed) {
+                        return (
+                            <SidebarMenuItem key={platform}>
+                                <DropdownMenu>
+                                    <DropdownMenuTrigger
+                                        render={
+                                            <SidebarMenuButton tooltip={label}>
+                                                <Icon />
+                                                <span>{label}</span>
+                                            </SidebarMenuButton>
+                                        }
+                                    />
+
+                                    <DropdownMenuContent side="right" align="start" className="min-w-48">
+                                        {accounts.map((account) => (
+                                            <DropdownMenuItem
+                                                key={account.id}
+                                                render={
+                                                    <Link href={`/dashboard/reports?account=${account.id}`}>
+                                                        <span className="truncate">
+                                                            {account.name ?? account.external_id}
+                                                        </span>
+                                                    </Link>
+                                                }
+                                            />
+                                        ))}
+                                    </DropdownMenuContent>
+                                </DropdownMenu>
+                            </SidebarMenuItem>
+                        );
+                    }
+
                     return (
                         <SidebarMenuItem key={platform}>
+                            {/* Expanded, this is a heading for the sub-list below it, not a target. */}
                             <SidebarMenuButton className="pointer-events-none font-medium text-sidebar-foreground/70">
                                 <Icon />
                                 <span>{label}</span>
                             </SidebarMenuButton>
 
                             <SidebarMenuSub>
-                                {accounts.map((account) => {
-                                    const active =
-                                        path.startsWith("/dashboard/reports") && activeAccount === String(account.id);
-
-                                    return (
-                                        <SidebarMenuSubItem key={account.id}>
-                                            <SidebarMenuSubButton
-                                                isActive={active}
-                                                render={
-                                                    <Link href={`/dashboard/reports?account=${account.id}`}>
-                                                        <span>{account.name ?? account.external_id}</span>
-                                                    </Link>
-                                                }
-                                            />
-                                        </SidebarMenuSubItem>
-                                    );
-                                })}
+                                {accounts.map((account) => (
+                                    <SidebarMenuSubItem key={account.id}>
+                                        <SidebarMenuSubButton
+                                            isActive={isActive(account.id)}
+                                            render={
+                                                <Link href={`/dashboard/reports?account=${account.id}`}>
+                                                    <span>{account.name ?? account.external_id}</span>
+                                                </Link>
+                                            }
+                                        />
+                                    </SidebarMenuSubItem>
+                                ))}
                             </SidebarMenuSub>
                         </SidebarMenuItem>
                     );
