@@ -59,7 +59,14 @@
             "startClear": "Clear",
             "startNext": "Next reports:",
             "startNone": "No start date set — reports follow your signup date.",
-            "startUpdated": "Report start date updated."
+            "startUpdated": "Report start date updated.",
+            "modeInterval": "Every N days",
+            "modeMonthly": "Day of the month",
+            "descriptionMonthly": "A report on the {day} of every {months, plural, one {month} other {# months}}.",
+            "onThe": "On the",
+            "howOften": "How often",
+            "lastDay": "Last day",
+            "everyMonths": "{months, plural, one {Monthly} =3 {Quarterly} =12 {Yearly} other {Every # months}}"
         },
         "template": {
             "title": "Report template",

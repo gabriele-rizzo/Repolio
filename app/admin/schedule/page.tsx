@@ -7,7 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { toUtcDayString } from "@/lib/date/start-of-day";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
-import { currentSlot, normalizeNdays, upcomingSlots } from "@/lib/recurrence/schedule";
+import { currentSlot, toSchedule, upcomingSlots } from "@/lib/recurrence/schedule";
 import { CalendarClock, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 
@@ -32,7 +32,15 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
             email: true,
             company: true,
             created_at: true,
-            recurrence: { select: { ndays: true, start_date: true } },
+            recurrence: {
+                select: {
+                    mode: true,
+                    ndays: true,
+                    start_date: true,
+                    day_of_month: true,
+                    month_interval: true,
+                },
+            },
         },
     });
 
@@ -62,7 +70,12 @@ export default async function SchedulePage({ searchParams }: { searchParams: Pro
                     key={selected.id}
                     clientId={selected.id}
                     clientName={selected.name}
-                    ndays={normalizeNdays(selected.recurrence?.ndays)}
+                    schedule={{
+                        mode: selected.recurrence?.mode ?? "INTERVAL",
+                        ndays: selected.recurrence?.ndays ?? 30,
+                        dayOfMonth: selected.recurrence?.day_of_month ?? 1,
+                        monthInterval: selected.recurrence?.month_interval ?? 1,
+                    }}
                     startDate={selected.recurrence?.start_date ? toUtcDayString(selected.recurrence.start_date) : null}
                     today={today}
                     createdAt={toUtcDayString(selected.created_at)}
@@ -96,7 +109,13 @@ async function AllSchedules({
         name: string;
         company: string | null;
         created_at: Date;
-        recurrence: { ndays: number; start_date: Date | null } | null;
+        recurrence: {
+            mode: string;
+            ndays: number;
+            start_date: Date | null;
+            day_of_month: number;
+            month_interval: number;
+        } | null;
     }[];
     today: string;
 }) {
@@ -124,18 +143,24 @@ async function AllSchedules({
     const lastByClient = new Map(lastReports.map((r) => [r.client_id, r.last_report_at]));
 
     const rows = clients.map((client) => {
-        const ndays = normalizeNdays(client.recurrence?.ndays);
-        const anchor = client.recurrence?.start_date ?? client.created_at;
+        const schedule = toSchedule(client.recurrence, client.created_at);
         const anchored = client.recurrence?.start_date != null;
         const last = lastByClient.get(client.id) ?? null;
 
-        const slot = currentSlot(anchor, ndays, utcDay(today));
-        const next = upcomingSlots(anchor, ndays, utcDay(today), 1)[0];
+        const slot = currentSlot(schedule, utcDay(today));
+        const next = upcomingSlots(schedule, utcDay(today), 1)[0];
 
         // Mirrors due_clients(): the current slot is reached and no report has been generated for it.
         const due = slot != null && (last == null || toUtcDayString(last) < toUtcDayString(slot));
 
-        return { client, ndays, anchored, anchor, next, due, last };
+        const cadence =
+            schedule.mode === "MONTHLY"
+                ? `${schedule.dayOfMonth === 31 ? "last day" : `day ${schedule.dayOfMonth}`} of every ${
+                      schedule.monthInterval === 1 ? "month" : `${schedule.monthInterval} months`
+                  }`
+                : `every ${schedule.ndays} ${schedule.ndays === 1 ? "day" : "days"}`;
+
+        return { client, cadence, anchored, anchor: schedule.anchor, next, due, last };
     });
 
     return (
@@ -143,7 +168,7 @@ async function AllSchedules({
             <Typo as="large">All schedules</Typo>
 
             <div className="space-y-2">
-                {rows.map(({ client, ndays, anchored, anchor, next, due, last }) => (
+                {rows.map(({ client, cadence, anchored, anchor, next, due, last }) => (
                     <Card key={client.id} className="flex-row flex-wrap items-center justify-between gap-3 p-3">
                         <div className="min-w-0">
                             <Typo as="normal" className="truncate text-sm font-medium">
@@ -151,8 +176,7 @@ async function AllSchedules({
                                 {client.company && <span className="text-muted-foreground"> · {client.company}</span>}
                             </Typo>
                             <Typo as="muted" className="truncate text-xs">
-                                every {ndays} {ndays === 1 ? "day" : "days"} from{" "}
-                                {toUtcDayString(anchor)}
+                                {cadence} · from {toUtcDayString(anchor)}
                                 {!anchored && " (signup — no start date set)"}
                             </Typo>
                         </div>

@@ -15,7 +15,6 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { toUtcDayString } from "@/lib/date/start-of-day";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
-import { normalizeNdays } from "@/lib/recurrence/schedule";
 import { ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
 import { getTranslations } from "next-intl/server";
 
@@ -42,7 +41,6 @@ export default async function AccountPage() {
     ]);
 
     const managedAccounts = connections.reduce((sum, connection) => sum + connection.ad_accounts.length, 0);
-    const ndays = normalizeNdays(recurrence?.ndays);
     const connectedPlatforms = connections.map((connection) => connection.platform);
 
     // Calendar days cross to the client as day strings, and "today" is resolved here so the schedule
@@ -87,7 +85,16 @@ export default async function AccountPage() {
                     {tSections("reporting")}
                 </Typo>
 
-                <RecurrenceSettings ndays={ndays} startDate={startDate} today={today} />
+                <RecurrenceSettings
+                    schedule={{
+                        mode: recurrence?.mode ?? "INTERVAL",
+                        ndays: recurrence?.ndays ?? 30,
+                        dayOfMonth: recurrence?.day_of_month ?? 1,
+                        monthInterval: recurrence?.month_interval ?? 1,
+                    }}
+                    startDate={startDate}
+                    today={today}
+                />
             </section>
 
             <section id="language" className="space-y-3 scroll-mt-20">

@@ -59,7 +59,14 @@
             "startClear": "Löschen",
             "startNext": "Nächste Reports:",
             "startNone": "Kein Startdatum gesetzt — die Reports richten sich nach deinem Anmeldedatum.",
-            "startUpdated": "Startdatum der Reports aktualisiert."
+            "startUpdated": "Startdatum der Reports aktualisiert.",
+            "modeInterval": "Alle N Tage",
+            "modeMonthly": "Tag im Monat",
+            "descriptionMonthly": "Ein Report am {day}. {months, plural, one {jedes Monats} other {alle # Monate}}.",
+            "onThe": "Am",
+            "howOften": "Wie oft",
+            "lastDay": "Letzter Tag",
+            "everyMonths": "{months, plural, one {Monatlich} =3 {Vierteljährlich} =12 {Jährlich} other {Alle # Monate}}"
         },
         "template": {
             "title": "Report-Vorlage",

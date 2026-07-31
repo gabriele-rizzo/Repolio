@@ -59,7 +59,14 @@
             "startClear": "Cancella",
             "startNext": "Prossimi report:",
             "startNone": "Nessuna data di inizio impostata — i report seguono la data di iscrizione.",
-            "startUpdated": "Data di inizio dei report aggiornata."
+            "startUpdated": "Data di inizio dei report aggiornata.",
+            "modeInterval": "Ogni N giorni",
+            "modeMonthly": "Giorno del mese",
+            "descriptionMonthly": "Un report il {day} {months, plural, one {di ogni mese} other {ogni # mesi}}.",
+            "onThe": "Il giorno",
+            "howOften": "Ogni quanto",
+            "lastDay": "Ultimo giorno",
+            "everyMonths": "{months, plural, one {Mensile} =3 {Trimestrale} =12 {Annuale} other {Ogni # mesi}}"
         },
         "template": {
             "title": "Modello di report",

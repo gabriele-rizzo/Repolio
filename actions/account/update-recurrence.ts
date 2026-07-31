@@ -3,7 +3,14 @@
 import { authorize } from "@/actions/auth/authorize";
 import { parseUtcDay, startOfUtcDay } from "@/lib/date/start-of-day";
 import { prisma } from "@/lib/prisma";
-import { DEFAULT_NDAYS, MAX_NDAYS, MIN_NDAYS } from "@/lib/recurrence/schedule";
+import {
+    DEFAULT_NDAYS,
+    LAST_DAY_OF_MONTH,
+    MAX_MONTH_INTERVAL,
+    MAX_NDAYS,
+    MIN_NDAYS,
+    type RecurrenceMode,
+} from "@/lib/recurrence/schedule";
 import { revalidatePath } from "next/cache";
 
 function revalidate() {
@@ -11,18 +18,37 @@ function revalidate() {
     revalidatePath("/dashboard/reports");
 }
 
-/** How often the client's reports are generated, in whole days. */
-export async function updateRecurrence(ndays: number) {
+export interface RecurrenceInput {
+    /** INTERVAL counts days from the anchor; MONTHLY lands on a day of the calendar month. */
+    mode: RecurrenceMode;
+    /** Whole days between reports (INTERVAL). */
+    ndays: number;
+    /** Day of the calendar month, 1–31 where 31 means the last day (MONTHLY). */
+    dayOfMonth: number;
+    /** 1 = monthly, 3 = quarterly, 12 = yearly (MONTHLY). */
+    monthInterval: number;
+}
+
+/** How often the client's reports are generated. */
+export async function updateRecurrence({ mode, ndays, dayOfMonth, monthInterval }: RecurrenceInput) {
+    if (mode !== "INTERVAL" && mode !== "MONTHLY") throw new Error("Unknown schedule mode.");
     if (!Number.isInteger(ndays) || ndays < MIN_NDAYS || ndays > MAX_NDAYS) {
         throw new Error(`Choose a cadence between ${MIN_NDAYS} and ${MAX_NDAYS} whole days.`);
     }
+    if (!Number.isInteger(dayOfMonth) || dayOfMonth < 1 || dayOfMonth > LAST_DAY_OF_MONTH) {
+        throw new Error(`Choose a day between 1 and ${LAST_DAY_OF_MONTH}.`);
+    }
+    if (!Number.isInteger(monthInterval) || monthInterval < 1 || monthInterval > MAX_MONTH_INTERVAL) {
+        throw new Error(`Choose an interval between 1 and ${MAX_MONTH_INTERVAL} months.`);
+    }
 
     const client = await authorize();
+    const data = { mode, ndays, day_of_month: dayOfMonth, month_interval: monthInterval };
 
     await prisma.recurrence.upsert({
         where: { client_id: client.id },
-        create: { client_id: client.id, ndays },
-        update: { ndays },
+        create: { client_id: client.id, ...data },
+        update: data,
     });
 
     revalidate();

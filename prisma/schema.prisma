@@ -207,8 +207,26 @@ model Recurrence {
     client_id Int    @id
     client    Client @relation(fields: [client_id], references: [id])
 
+    // INTERVAL: every `ndays`, counted from the anchor — weekly, fortnightly, any N days.
+    // MONTHLY:  calendar-aligned on `day_of_month` every `month_interval` months — "the 1st",
+    //           "the 15th", "quarterly on the 1st". Interval mode cannot express these, because a
+    //           month is not a whole number of days: 30-day steps from 1 January land on 31 January,
+    //           then 2 March.
+    mode RecurrenceMode @default(INTERVAL)
+
     ndays      Float     @default(30)
     start_date DateTime?
+
+    // MONTHLY only. 31 means the last day of the month: the day is clamped to each month's length,
+    // so "the 31st" is 28 February and "the 30th" never skips February.
+    day_of_month   Int @default(1)
+    // 1 = monthly, 3 = quarterly, 12 = yearly. Phase comes from the anchor's month.
+    month_interval Int @default(1)
+}
+
+enum RecurrenceMode {
+    INTERVAL
+    MONTHLY
 }
 
 // OAuth credential for a platform. One per (client, platform); a single
