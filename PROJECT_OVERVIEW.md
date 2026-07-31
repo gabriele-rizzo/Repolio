@@ -185,6 +185,11 @@ template is plain text with `{{ .variable }}` placeholders plus a handful of lin
   event handlers, frames, `javascript:` URLs, remote images and `@import`/remote `url()` in CSS are all
   removed — this markup is served as `text/html` from our own origin, so a script in a template would run
   there, and an admin previewing a client's template would run it against an admin session.
+- **Page colours** — a template declares `--rp-page-bg` / `--rp-page-fg` in its CSS to colour the page
+  itself. Neither renderer can reach that from inside the template (the PDF page is a react-pdf `Page`
+  style, the HTML document is `body`), so dark designs opt in through those two properties.
+- **Numbers follow the recipient's locale** — a German report reads "€3.460,45" and "210 Tsd.", not
+  "€3,460.45" / "210.2K". `metricFormatters` takes the locale; the web dashboard keeps en-US by default.
 - **The PDF honours only a CSS subset** — no grid, floats, positioning or `@media`. Worse, some CSS makes
   react-pdf *throw* rather than degrade (em units on `letter-spacing`), which would drop the report from
   its batch. Two defences: `checkTemplate` warns in the editor about the known offenders, and

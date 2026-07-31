@@ -128,6 +128,153 @@ const MINIMAL_BODY = `<style>
 {{ .recommendations }}
 `;
 
+const DARK_BODY = `<style>
+  /* Page colours. Read by both renderers — the PDF page and the HTML body are painted outside the
+     template's reach, so a dark design has to declare them here. */
+  :root { --rp-page-bg: #05080d; --rp-page-fg: #eef2f6; }
+
+  /* Two-column rows are flex, not tables: react-pdf's table handling stacks rows unreliably and the
+     header blocks ended up drawn on top of each other.
+     display:flex is stated explicitly even though react-pdf treats every box as flex already —
+     browsers do not, and without it the HTML render (preview + Download) collapses into one column. */
+  .row      { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
+  .right    { text-align: right; }
+  /* Widths below include their own padding and border; react-pdf's box model already behaves this way. */
+  .hero-left, .hero-right, .kpi, .reach { box-sizing: border-box; }
+
+  .brand      { font-size: 17px; font-weight: 700; color: #eef2f6; }
+  .brand-tag  { font-size: 6.5px; letter-spacing: 2px; text-transform: uppercase; color: #4a535e; margin-top: 3px; }
+  .kicker     { font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase; color: #5c6672; }
+  .title      { font-size: 32px; font-weight: 700; color: #ffffff; }
+  .subtitle   { font-size: 11px; color: #8b95a3; margin-top: 3px; }
+  .period     { font-size: 11px; letter-spacing: 1.2px; color: #7cc4ff; margin-top: 5px; }
+  .titlerow   { margin-top: 26px; }
+  .rule       { border-top: 1px solid #161c26; margin-top: 20px; margin-bottom: 18px; }
+
+  /* Hero: tall ROAS card on the left, KPI grid on the right. */
+  .hero       { display: flex; flex-direction: row; align-items: stretch; }
+  .hero-left  { width: 45%; padding-right: 6px; }
+  .hero-right { width: 55%; }
+  .card       { background: #0b1017; border: 1px solid #161c26; padding: 14px; }
+  .card-hero  { background: #081218; border: 1px solid #172733; height: 238px;
+                display: flex; flex-direction: column; justify-content: space-between; }
+  .label      { font-size: 7.5px; letter-spacing: 2px; text-transform: uppercase; color: #6b7683; }
+
+  .hero-value { font-size: 50px; font-weight: 700; color: #ffffff; }
+  .hero-delta { font-size: 10px; color: #46d18b; margin-top: 8px; }
+
+  .kpi-row    { display: flex; flex-direction: row; margin-bottom: 6px; }
+  .kpi        { width: 50%; padding-left: 3px; padding-right: 3px; }
+  .kpi-value  { font-size: 20px; font-weight: 700; color: #ffffff; margin-top: 7px; }
+  .kpi-delta  { font-size: 9px; color: #46d18b; margin-top: 5px; }
+
+  .reach       { padding-left: 3px; padding-right: 3px; }
+  .reach-val   { font-size: 18px; font-weight: 700; color: #ffffff; }
+  .reach-delta { font-size: 9px; color: #46d18b; margin-left: 8px; margin-top: 6px; }
+
+  /* Section headings. */
+  .sec        { font-size: 8px; letter-spacing: 2.4px; text-transform: uppercase; margin-bottom: 10px; }
+  .sec-sum    { color: #ff6b4a; margin-top: 24px; }
+  .sec-ai     { color: #7cc4ff; }
+  .panel      { background: #080d14; border: 1px solid #141b24; padding: 16px; margin-top: 18px; }
+
+  /* The built-in section blocks default to dark-on-light text; this stylesheet is emitted after
+     theirs, so these win. Without them the AI prose is near-invisible on a dark page. Margins are
+     written out longhand — the shorthand is not applied reliably by the PDF renderer, which left
+     paragraphs overlapping each other. */
+  .rp-p       { color: #b8c2ce; font-size: 11px; line-height: 1.5; margin-top: 0; margin-bottom: 9px; }
+  .rp-empty   { color: #5c6672; font-size: 11px; margin-top: 0; margin-bottom: 9px; }
+
+  .foot       { font-size: 7.5px; letter-spacing: 1.6px; text-transform: uppercase; color: #4a535e; }
+</style>
+
+<div class="row">
+  <div>
+    <div class="brand">{{ .company }}</div>
+    <div class="brand-tag">videosolutions</div>
+  </div>
+  <div class="kicker right">Performance - Report</div>
+</div>
+
+<div class="row titlerow">
+  <div>
+    <div class="title">{{ .accountName }}</div>
+    <div class="subtitle">Monatsauswertung</div>
+  </div>
+  <div>
+    <div class="kicker right">Zeitraum</div>
+    <div class="period right">{{ .period }}</div>
+  </div>
+</div>
+
+<div class="rule"></div>
+
+<div class="hero">
+  <div class="hero-left">
+    <div class="card card-hero">
+      <div class="label">ROAS</div>
+      <div>
+        <div class="hero-value">{{ .roas }}</div>
+        <div class="hero-delta">{{ .roasChange }} ggü. Vorperiode</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-right">
+    <div class="kpi-row">
+      <div class="kpi"><div class="card">
+        <div class="label">Ausgaben</div>
+        <div class="kpi-value">{{ .spend }}</div>
+        <div class="kpi-delta">{{ .spendChange }}</div>
+      </div></div>
+      <div class="kpi"><div class="card">
+        <div class="label">CPA</div>
+        <div class="kpi-value">{{ .cpa }}</div>
+        <div class="kpi-delta">{{ .cpaChange }}</div>
+      </div></div>
+    </div>
+
+    <div class="kpi-row">
+      <div class="kpi"><div class="card">
+        <div class="label">Conversions</div>
+        <div class="kpi-value">{{ .conversions }}</div>
+        <div class="kpi-delta">{{ .conversionsChange }}</div>
+      </div></div>
+      <div class="kpi"><div class="card">
+        <div class="label">CTR</div>
+        <div class="kpi-value">{{ .ctr }}</div>
+        <div class="kpi-delta">{{ .ctrChange }}</div>
+      </div></div>
+    </div>
+
+    <div class="reach"><div class="card">
+      <div class="row">
+        <div class="label">Reichweite</div>
+        <div class="row">
+          <div class="reach-val">{{ .reach }}</div>
+          <div class="reach-delta">{{ .reachChange }}</div>
+        </div>
+      </div>
+    </div></div>
+  </div>
+</div>
+
+<div class="sec sec-sum">Zusammenfassung</div>
+{{ .executiveSummary }}
+
+<div class="panel">
+  <div class="sec sec-ai">KI-Trendanalyse</div>
+  {{ .trendExplanation }}
+</div>
+
+<div class="rule"></div>
+
+<div class="row">
+  <div class="foot">{{ .accountName }}</div>
+  <div class="foot right">Kennzahlen {{ .period }}</div>
+</div>
+`;
+
 export const TEMPLATE_PRESETS: TemplatePreset[] = [
     {
         id: "default",
@@ -148,6 +295,13 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
         body: LEADGEN_BODY,
     },
     { id: "minimal", name: "Minimal", description: "Summary, metrics, recommendations. Nothing else.", body: MINIMAL_BODY },
+    {
+        id: "dark",
+        name: "Dark (Cinemepic)",
+        description:
+            "Dark editorial layout: brand header, ROAS hero beside a KPI grid, summary and AI trend panel. German labels.",
+        body: DARK_BODY,
+    },
 ];
 
 /** The template used when a client has never set one. */

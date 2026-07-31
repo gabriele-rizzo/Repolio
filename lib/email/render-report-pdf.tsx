@@ -130,14 +130,23 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         deltaStyle: "sign" as const,
     };
 
-    const { body } = buildReportHtml(documentInput);
+    const { body, colours } = buildReportHtml(documentInput);
 
     // Dynamic import: react-pdf is only needed on the send/preview paths, so keep it out of the static
     // graph of everything that transitively imports this module.
     const { renderToBuffer } = await import("@react-pdf/renderer");
     const title = `${accountName} — ${t("email.performanceReport")}`;
-    const toPdf = (markup: string) =>
-        renderToBuffer(<ReportPdf html={markup} title={title} subject={period} locale={locale} />);
+    const toPdf = (markup: string, palette = colours) =>
+        renderToBuffer(
+            <ReportPdf
+                html={markup}
+                title={title}
+                subject={period}
+                locale={locale}
+                background={palette.background}
+                foreground={palette.foreground}
+            />,
+        );
 
     // A template can crash the PDF renderer outright, not merely render oddly — react-pdf throws
     // "unsupported number: NaN" on CSS it can't resolve (em units on letter-spacing, for one). Left
@@ -150,7 +159,7 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
     } catch (error) {
         console.error(`Report ${reportId}: template broke the PDF renderer, falling back to default:`, error);
         const fallback = buildReportHtml({ ...documentInput, templateBody: DEFAULT_TEMPLATE_BODY });
-        content = await toPdf(fallback.body);
+        content = await toPdf(fallback.body, fallback.colours);
     }
 
     return {

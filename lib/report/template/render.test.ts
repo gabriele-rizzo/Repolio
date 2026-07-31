@@ -1,6 +1,6 @@
 import type { Translator } from "@/lib/metrics/present";
 import { TEMPLATE_PRESETS } from "@/lib/report/template/presets";
-import { checkTemplate, renderTemplate, wrapDocument } from "@/lib/report/template/render";
+import { checkTemplate, pageColours, renderTemplate, wrapDocument } from "@/lib/report/template/render";
 import { sanitizeTemplate } from "@/lib/report/template/sanitize";
 import { SCALAR_VARIABLE_NAMES } from "@/lib/report/template/variables";
 import type { SectionData } from "@/lib/report/template/sections";
@@ -230,5 +230,36 @@ describe("unsupported-CSS detection precision", () => {
     it("still flags the standalone properties", () => {
         expect(checkTemplate("<style>.a { transform: rotate(2deg) }</style>").some((i) => i.kind === "unsupported-pdf-css")).toBe(true);
         expect(checkTemplate("<style>.a { filter: blur(2px) }</style>").some((i) => i.kind === "unsupported-pdf-css")).toBe(true);
+    });
+});
+
+describe("pageColours", () => {
+    /**
+     * A dark template can't reach the page itself: the PDF page is painted by react-pdf (a Page style,
+     * not CSS) and the HTML document by `body`. These two custom properties are the only channel.
+     */
+    it("reads the properties a template declares", () => {
+        const colours = pageColours("<style>:root { --rp-page-bg: #05080d; --rp-page-fg: #eef2f6; }</style>");
+        expect(colours).toEqual({ background: "#05080d", foreground: "#eef2f6" });
+    });
+
+    it("falls back to the light defaults when a template declares nothing", () => {
+        expect(pageColours("<p>hi</p>")).toEqual({ background: "#fafafa", foreground: "#0a0a0a" });
+    });
+
+    it("accepts rgb() and named colours", () => {
+        expect(pageColours("<style>:root{--rp-page-bg: rgb(5, 8, 13)}</style>").background).toBe("rgb(5, 8, 13)");
+        expect(pageColours("<style>:root{--rp-page-bg: black}</style>").background).toBe("black");
+    });
+
+    /** Anything react-pdf can't resolve would throw at render time, so only literal colours pass. */
+    it("ignores values that are not literal colours", () => {
+        for (const bad of ["var(--x)", "url(evil)", "expression(1)", ""]) {
+            expect(pageColours(`<style>:root{--rp-page-bg: ${bad}}</style>`).background).toBe("#fafafa");
+        }
+    });
+
+    it("uses the default template's colours for a blank body", () => {
+        expect(pageColours("   ")).toEqual({ background: "#fafafa", foreground: "#0a0a0a" });
     });
 });

@@ -18,12 +18,14 @@ export interface ReportPdfProps {
     title: string;
     subject: string;
     locale: string;
+    /** Page background/text, declared by the template. The page itself is painted by react-pdf, not
+     *  by CSS, so a dark design can only reach it through here. */
+    background?: string;
+    foreground?: string;
 }
 
 const s = StyleSheet.create({
     page: {
-        backgroundColor: "#fafafa",
-        color: "#0a0a0a",
         fontFamily: "Helvetica",
         fontSize: 11,
         paddingVertical: 36,
@@ -31,10 +33,17 @@ const s = StyleSheet.create({
     },
 });
 
-export function ReportPdf({ html, title, subject, locale }: ReportPdfProps) {
+export function ReportPdf({
+    html,
+    title,
+    subject,
+    locale,
+    background = "#fafafa",
+    foreground = "#0a0a0a",
+}: ReportPdfProps) {
     return (
         <Document title={title} subject={subject} creator="Repolio" producer="Repolio" language={locale}>
-            <Page size="A4" style={s.page} wrap>
+            <Page size="A4" style={[s.page, { backgroundColor: background, color: foreground }]} wrap>
                 {/* resetStyles: react-pdf-html's own browser-like defaults fight the template's CSS
                     (notably huge default heading margins), so the template is the only styling. */}
                 <Html resetStyles>{html}</Html>

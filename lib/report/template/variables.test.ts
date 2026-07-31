@@ -43,6 +43,7 @@ const ctx = (over: Partial<Parameters<typeof buildVariables>[0]> = {}) =>
         previous: metrics({ spend: 10120.4, roas: 2.71, cpa: 34.9 }),
         scoreLabel: "Strong",
         deltaStyle: "arrow",
+        numberLocale: "en-US",
         ...over,
     });
 

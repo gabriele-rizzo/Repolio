@@ -1,7 +1,7 @@
 import type { Recommendation } from "@/components/report/recommendation-card";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 import { metricColumns, type Translator } from "@/lib/metrics/present";
-import { renderTemplate, wrapDocument } from "@/lib/report/template/render";
+import { pageColours, renderTemplate, wrapDocument, type PageColours } from "@/lib/report/template/render";
 import { buildVariables, type DeltaStyle } from "@/lib/report/template/variables";
 
 /**
@@ -43,6 +43,8 @@ export interface BuiltReport {
     body: string;
     /** The same markup as a standalone HTML document. */
     document: string;
+    /** Page colours the template declared, for surfaces that paint the page themselves (the PDF). */
+    colours: PageColours;
 }
 
 export function buildReportHtml(input: BuildReportHtmlInput): BuiltReport {
@@ -65,11 +67,12 @@ export function buildReportHtml(input: BuildReportHtmlInput): BuiltReport {
             previous: input.previous,
             scoreLabel: scoreLabel ? input.t(`score.${scoreLabel}`) : "—",
             deltaStyle: input.deltaStyle ?? "arrow",
+            numberLocale: input.locale,
         }),
         sections: {
             score: input.current?.performance_score ?? null,
             scoreLabel,
-            kpis: metricColumns(input.current, input.previous, input.t),
+            kpis: metricColumns(input.current, input.previous, input.t, input.locale),
             executiveSummary: input.executiveSummary,
             recommendations: input.recommendations,
             trendExplanation: input.trendExplanation,
@@ -79,11 +82,15 @@ export function buildReportHtml(input: BuildReportHtmlInput): BuiltReport {
         },
     });
 
+    const colours = pageColours(input.templateBody);
+
     return {
         body,
+        colours,
         document: wrapDocument(body, {
             title: `${input.accountName} — ${input.t("email.performanceReport")}`,
             locale: input.locale,
+            colours,
         }),
     };
 }

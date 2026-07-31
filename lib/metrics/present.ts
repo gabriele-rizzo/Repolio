@@ -45,23 +45,26 @@ export interface MetricColumn {
     delta: MetricDelta | null;
 }
 
-const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
+const compactFormatter = (locale: string) => new Intl.NumberFormat(locale, { notation: "compact", maximumFractionDigits: 1 });
 
 /**
  * The value formatter for each metric shape, bound to an account's currency. Shared by every surface
  * that prints a metric offline (report email, PDF, template variables) so "€12,480.55" is spelled the
  * same way everywhere.
  */
-export function metricFormatters(currency: string): Record<MetricFormat, (v: number) => string> {
-    const money = currencyFormatter(currency);
+export function metricFormatters(currency: string, locale = "en-US"): Record<MetricFormat, (v: number) => string> {
+    const money = currencyFormatter(currency, 2, locale);
+    const compact = compactFormatter(locale);
+    const decimals = (v: number, digits: number) =>
+        v.toLocaleString(locale, { minimumFractionDigits: digits, maximumFractionDigits: digits });
 
     return {
         currency: (v) => money.format(v),
-        percent: (v) => `${v.toFixed(2)}%`,
-        multiplier: (v) => `${v.toFixed(2)}x`,
-        count: (v) => v.toLocaleString("en-US"),
+        percent: (v) => `${decimals(v, 2)}%`,
+        multiplier: (v) => `${decimals(v, 2)}x`,
+        count: (v) => v.toLocaleString(locale),
         compact: (v) => compact.format(v),
-        decimal: (v) => v.toFixed(2),
+        decimal: (v) => decimals(v, 2),
     };
 }
 
@@ -101,8 +104,9 @@ export function metricColumns(
     current: ComputedMetrics | null,
     previous: ComputedMetrics | null,
     t: Translator,
+    locale = "en-US",
 ): MetricColumn[] {
-    const formats = metricFormatters(resolveCurrency(current, previous));
+    const formats = metricFormatters(resolveCurrency(current, previous), locale);
 
     return selectKpiCards(accountFocus(current, previous)).map((key) => {
         const def = METRIC_CARD_DEFS[key];

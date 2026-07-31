@@ -131,6 +131,8 @@ export interface VariableContext {
     /** Localised score band, resolved by the caller (which owns the translator). */
     scoreLabel: string;
     deltaStyle: DeltaStyle;
+    /** BCP-47 tag for number formatting, so a German report reads "€3.460,45". */
+    numberLocale: string;
 }
 
 /**
@@ -141,7 +143,7 @@ export interface VariableContext {
  * "no data", not as a zero or a crash.
  */
 export function buildVariables(ctx: VariableContext): Record<string, string> {
-    const formats = metricFormatters(resolveCurrency(ctx.current, ctx.previous));
+    const formats = metricFormatters(resolveCurrency(ctx.current, ctx.previous), ctx.numberLocale);
 
     const vars: Record<string, string> = {
         accountName: ctx.accountName,

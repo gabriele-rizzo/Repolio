@@ -69,8 +69,45 @@ export function renderTemplate({ body, variables, sections }: RenderTemplateInpu
     return `<style>${SECTION_STYLESHEET}</style>\n${out}`;
 }
 
+/**
+ * Colours a template declares for the page itself.
+ *
+ * A dark design can't just style its own elements: the PDF's page is painted by react-pdf (a `Page`
+ * style, not CSS), and the standalone HTML has a `body` background — neither is reachable from inside
+ * the template. So a template opts in by declaring `--rp-page-bg` / `--rp-page-fg` in its CSS, and both
+ * renderers read them from here. Extracted with a regex rather than a CSS parser: it's two documented
+ * custom properties, not a general cascade.
+ */
+export interface PageColours {
+    background: string;
+    foreground: string;
+}
+
+const DEFAULT_PAGE_COLOURS: PageColours = { background: "#fafafa", foreground: "#0a0a0a" };
+
+/** Only literal colours — no `var()`, no expressions — so nothing unresolvable reaches react-pdf. */
+const COLOUR = /^(#[0-9a-f]{3,8}|rgba?\([\d\s.,%/]+\)|[a-z]+)$/i;
+
+export function pageColours(body: string | null | undefined): PageColours {
+    const source = body?.trim() ? body : DEFAULT_TEMPLATE_BODY;
+
+    const read = (name: string, fallback: string) => {
+        const match = new RegExp(`--rp-page-${name}\\s*:\\s*([^;}]+)`, "i").exec(source);
+        const value = match?.[1].trim();
+        return value && COLOUR.test(value) ? value : fallback;
+    };
+
+    return {
+        background: read("bg", DEFAULT_PAGE_COLOURS.background),
+        foreground: read("fg", DEFAULT_PAGE_COLOURS.foreground),
+    };
+}
+
 /** Wraps rendered body markup in a standalone HTML document. */
-export function wrapDocument(bodyHtml: string, { title, locale }: { title: string; locale: string }): string {
+export function wrapDocument(
+    bodyHtml: string,
+    { title, locale, colours = DEFAULT_PAGE_COLOURS }: { title: string; locale: string; colours?: PageColours },
+): string {
     return `<!DOCTYPE html>
 <html lang="${escapeHtml(locale)}">
 <head>
@@ -78,7 +115,7 @@ export function wrapDocument(bodyHtml: string, { title, locale }: { title: strin
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>${escapeHtml(title)}</title>
 <style>
-  body { margin: 0; padding: 24px 16px; background: #fafafa; color: #0a0a0a;
+  body { margin: 0; padding: 24px 16px; background: ${colours.background}; color: ${colours.foreground};
          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
          -webkit-print-color-adjust: exact; print-color-adjust: exact; }
   .rp-doc { max-width: 720px; margin: 0 auto; }
