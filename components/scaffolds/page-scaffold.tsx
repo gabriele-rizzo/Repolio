@@ -25,8 +25,10 @@ export function PageScaffold({ onShow, ...props }: PageScaffoldProps) {
 
     return (
         <div className="gap-4 flex flex-col">
-            <div className="flex flex-row justify-between gap-4">
-                <div className="space-y-2">
+            <div className="flex flex-row flex-wrap justify-between gap-4">
+                {/* min-w-0 so a long title (an ad account's full name) wraps inside its own column
+                    instead of pushing the actions off the right edge. */}
+                <div className="min-w-0 space-y-2">
                     {props.title &&
                         (typeof props.title === "string" ? <Typo as="title">{props.title}</Typo> : props.title)}
 
@@ -41,7 +43,7 @@ export function PageScaffold({ onShow, ...props }: PageScaffoldProps) {
                 </div>
 
                 {typeof props.actions !== "undefined" && (
-                    <div className="flex-row flex gap-2 print:hidden">{props.actions}</div>
+                    <div className="flex shrink-0 flex-row flex-wrap gap-2 print:hidden">{props.actions}</div>
                 )}
             </div>
 

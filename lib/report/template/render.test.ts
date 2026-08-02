@@ -15,7 +15,6 @@ const sections: SectionData = {
         { key: "spend", label: "Spend", betterWhen: "neutral", value: "€12,480.55", delta: { percent: "23%", direction: "up", good: null } },
         { key: "roas", label: "ROAS", betterWhen: "up", value: "3.30x", delta: null },
     ],
-    executiveSummary: "First paragraph.\n\nSecond paragraph.",
     recommendations: [{ priority: "IMMEDIATE", category: "BUDGET", title: "Do the thing", body: "Because of the data." }],
     trendExplanation: "Improving.",
     contextComment: null,
@@ -112,10 +111,22 @@ describe("renderTemplate", () => {
     });
 
     it("splits AI prose on blank lines into paragraphs", () => {
-        const out = render("{{ .executiveSummary }}");
+        const out = render("{{ .trendExplanation }}", { trendExplanation: "First paragraph.\n\nSecond paragraph." });
         expect(out).toContain("First paragraph.");
         expect(out).toContain("Second paragraph.");
         expect(out.match(/<p class="rp-p">/g)?.length).toBe(2);
+    });
+
+    /** Saved templates still carry `{{ .executiveSummary }}`; it must vanish, not print verbatim. */
+    it("renders a retired section as nothing and flags it in the editor", () => {
+        const out = render("<div>before</div><h3>Summary</h3>{{ .executiveSummary }}<div>after</div>");
+        expect(out).not.toContain("executiveSummary");
+        expect(out).not.toContain("Summary</h3>");
+        expect(out).toContain("before");
+        expect(out).toContain("after");
+
+        const issues = checkTemplate("<p>{{ .executiveSummary }}</p>");
+        expect(issues.some((i) => i.kind === "retired-section")).toBe(true);
     });
 
     it("escapes AI prose, which is model output rather than trusted markup", () => {

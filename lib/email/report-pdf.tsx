@@ -1,5 +1,21 @@
-import { Document, Page, StyleSheet } from "@react-pdf/renderer";
+import { Document, Font, Page, StyleSheet } from "@react-pdf/renderer";
 import Html from "react-pdf-html";
+
+/**
+ * Word breaking for the whole PDF.
+ *
+ * react-pdf hyphenates every word by default, which reads as broken text in a client-facing document
+ * as soon as a column is narrow: an ad account called "Cinemepic Videosolutions GmbH" printed as
+ * "Cinemepic Videoso-lutions". Words now wrap whole. The one case that still has to break is a word
+ * too long to fit any column at all (an ad account named without spaces) — left unbroken it would run
+ * off the page — so past this many characters it is split at a fixed width instead.
+ */
+const MAX_UNBROKEN_WORD = 18;
+Font.registerHyphenationCallback((word) =>
+    word.length <= MAX_UNBROKEN_WORD
+        ? [word]
+        : (word.match(new RegExp(`.{1,${MAX_UNBROKEN_WORD}}`, "g")) ?? [word]),
+);
 
 /**
  * The report as a PDF attachment: the template's HTML, mapped onto react-pdf primitives.

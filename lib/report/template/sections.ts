@@ -47,7 +47,9 @@ export const SECTION_STYLESHEET = `
 .rp-score-max { font-size: 16px; color: #737373; }
 .rp-badge { display: inline-block; padding: 3px 8px; font-size: 11px; font-weight: 600; }
 .rp-kpis { display: flex; flex-direction: row; flex-wrap: wrap; margin-bottom: 12px; }
-.rp-kpi { width: 33.3%; padding: 4px; }
+/* border-box or the browser adds the padding to the 33.3% and only fits two per row, while react-pdf
+   (border-box already) fits three — the same report laid out two different ways. */
+.rp-kpi { width: 33.3%; padding: 4px; box-sizing: border-box; }
 .rp-kpi-inner { background: #ffffff; border: 1px solid #e5e5e5; padding: 10px; }
 .rp-kpi-label { font-size: 10px; color: #737373; }
 .rp-kpi-value { font-size: 16px; font-weight: 700; color: #0a0a0a; margin: 2px 0; }
@@ -65,7 +67,6 @@ export interface SectionData {
     score: number | null;
     scoreLabel: ScoreLabel | null;
     kpis: MetricColumn[];
-    executiveSummary: string;
     recommendations: Recommendation[];
     trendExplanation: string;
     contextComment: string | null;
@@ -139,10 +140,10 @@ export function renderSection(section: SectionBlock, data: SectionData): string 
             return metricsTable(data);
         case "recommendations":
             return recommendations(data);
+        // Retired: the AI executive summary no longer exists. Saved templates that still reference it
+        // collapse to nothing, and the heading above it goes too (see dropOrphanHeading).
         case "executiveSummary":
-            return data.executiveSummary
-                ? paragraphs(data.executiveSummary)
-                : `<p class="rp-empty">${escapeHtml(data.t("report.noSummary"))}</p>`;
+            return "";
         case "trendExplanation":
             return data.trendExplanation
                 ? paragraphs(data.trendExplanation)

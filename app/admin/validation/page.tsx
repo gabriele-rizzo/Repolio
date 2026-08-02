@@ -39,7 +39,7 @@ export default async function ValidationPage() {
                         id: true,
                         approved: true,
                         ai_pending: true,
-                        executive_summary: true,
+                        trend_explanation: true,
                         recommendations: true,
                         snapshots: {
                             orderBy: { start_date: "asc" },
@@ -91,7 +91,7 @@ export default async function ValidationPage() {
             // thing an admin needs to see before approving.
             const status: ReportAiStatus = report.ai_pending
                 ? "GENERATING"
-                : report.executive_summary
+                : report.trend_explanation || recommendations.length > 0
                   ? "READY"
                   : "EMPTY";
 
@@ -120,7 +120,9 @@ export default async function ValidationPage() {
                 <Typo as="title">Validation</Typo>
                 <Typo as="muted">
                     Reports wait here until you approve them — clients can&apos;t see anything on this page yet.
-                    Validating a batch sends that client one email with every approved report attached as a PDF.
+                    Validating a batch sends that client one email with every approved report attached as a PDF. If a
+                    write-up reads wrong, fix the account context or template and hit Regenerate: the numbers and the
+                    period stay exactly as they are, only the AI section is rewritten.
                 </Typo>
             </div>
 

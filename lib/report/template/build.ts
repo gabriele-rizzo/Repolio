@@ -25,7 +25,6 @@ export interface BuildReportHtmlInput {
     generatedOn: string;
     current: ComputedMetrics | null;
     previous: ComputedMetrics | null;
-    executiveSummary: string;
     recommendations: Recommendation[];
     trendExplanation: string;
     contextComment: string | null;
@@ -73,7 +72,6 @@ export function buildReportHtml(input: BuildReportHtmlInput): BuiltReport {
             score: input.current?.performance_score ?? null,
             scoreLabel,
             kpis: metricColumns(input.current, input.previous, input.t, input.locale),
-            executiveSummary: input.executiveSummary,
             recommendations: input.recommendations,
             trendExplanation: input.trendExplanation,
             contextComment: input.contextComment,

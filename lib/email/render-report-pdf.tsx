@@ -120,7 +120,6 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         generatedOn: dateFormatRelative(report.created_at),
         current,
         previous,
-        executiveSummary: report.executive_summary,
         recommendations,
         trendExplanation: report.trend_explanation,
         contextComment: report.context_comment,

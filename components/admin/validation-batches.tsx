@@ -1,13 +1,13 @@
 "use client";
 
-import { setReportApproval, validateAndSendBatch } from "@/actions/admin/validation";
+import { collectAiResults, regenerateBatch, setReportApproval, validateAndSendBatch } from "@/actions/admin/validation";
 import { PlatformBadge } from "@/components/platform-badge";
 import { Typo } from "@/components/typography";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Platform } from "@/generated/prisma/browser";
-import { Check, ExternalLink, LoaderCircle, Send, Undo2 } from "lucide-react";
+import { Check, ExternalLink, LoaderCircle, RefreshCw, Send, Sparkles, Undo2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
@@ -104,15 +104,27 @@ function ReportRow({
 }
 
 function BatchCard({ batch }: { batch: ValidationBatchCard }) {
-    // Local mirror of each report's approval so toggling feels instant; the server action is the
-    // source of truth and revalidates the page, which resets this from fresh props on the next render.
+    // Local mirror of each report's approval so toggling feels instant. The server action is the
+    // source of truth: when it revalidates the page a fresh `batch.reports` array arrives, and this
+    // drops the local copy for it — without that the optimistic state would outlive the server's
+    // answer and, worse, hide what a regeneration did to these same rows.
     const [rows, setRows] = useState(batch.reports);
+    const [mirrored, setMirrored] = useState(batch.reports);
+    if (mirrored !== batch.reports) {
+        setMirrored(batch.reports);
+        setRows(batch.reports);
+    }
+
     const [confirming, setConfirming] = useState(false);
     const [toggling, startToggle] = useTransition();
     const [sending, startSend] = useTransition();
+    const [regenerating, startRegenerate] = useTransition();
+    const [collecting, startCollect] = useTransition();
 
     const approved = rows.filter((r) => r.approved);
     const generating = approved.filter((r) => r.status === "GENERATING").length;
+    const anyGenerating = rows.some((r) => r.status === "GENERATING");
+    const busy = toggling || sending || regenerating || collecting;
 
     function onToggle(reportId: number, next: boolean) {
         setRows((current) => current.map((r) => (r.id === reportId ? { ...r, approved: next } : r)));
@@ -124,6 +136,48 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
                 // Roll the optimistic flip back — the server refused it.
                 setRows((current) => current.map((r) => (r.id === reportId ? { ...r, approved: !next } : r)));
                 toast.error(result.error);
+            }
+        });
+    }
+
+    function onRegenerate() {
+        setConfirming(false);
+
+        startRegenerate(async () => {
+            const result = await regenerateBatch(batch.id);
+
+            if ("error" in result) {
+                toast.error(result.error);
+                return;
+            }
+
+            // No optimistic status flip here: the action revalidates this page, so the rows come back
+            // from the server already marked — and only the ones actually submitted, not the skipped ones.
+            toast.success(
+                `Regenerating ${result.submitted} ${result.submitted === 1 ? "report" : "reports"}${
+                    result.skipped > 0 ? ` (${result.skipped} skipped)` : ""
+                }. Same data, new write-up — check back in a minute.`,
+            );
+        });
+    }
+
+    function onCollect() {
+        startCollect(async () => {
+            const result = await collectAiResults();
+
+            if ("error" in result) {
+                toast.error(result.error);
+                return;
+            }
+
+            if (result.applied > 0) {
+                toast.success(`${result.applied} ${result.applied === 1 ? "report" : "reports"} updated.`);
+            } else {
+                toast.info(
+                    result.stillPending > 0
+                        ? "Still generating — give it another minute."
+                        : "Nothing new to pick up.",
+                );
             }
         });
     }
@@ -161,12 +215,7 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
             </div>
 
             {rows.map((row) => (
-                <ReportRow
-                    key={row.id}
-                    row={row}
-                    disabled={toggling || sending}
-                    onToggle={(next) => onToggle(row.id, next)}
-                />
+                <ReportRow key={row.id} row={row} disabled={busy} onToggle={(next) => onToggle(row.id, next)} />
             ))}
 
             <div className="flex flex-row flex-wrap items-center justify-between gap-3 border-t pt-4">
@@ -182,17 +231,30 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
                         } would go out without an AI section.`}
                 </Typo>
 
-                <div className="flex flex-row items-center gap-2">
+                <div className="flex flex-row flex-wrap items-center gap-2">
                     {confirming && (
                         <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                             Cancel
                         </Button>
                     )}
 
+                    {/* Only offered while something is in flight: outside that it has nothing to fetch. */}
+                    {anyGenerating && (
+                        <Button variant="ghost" size="sm" disabled={busy} onClick={onCollect}>
+                            {collecting ? <LoaderCircle className="animate-spin" /> : <RefreshCw />}
+                            {collecting ? "Checking…" : "Check AI results"}
+                        </Button>
+                    )}
+
+                    <Button variant="outline" size="sm" disabled={busy} onClick={onRegenerate}>
+                        {regenerating ? <LoaderCircle className="animate-spin" /> : <Sparkles />}
+                        {regenerating ? "Submitting…" : "Regenerate"}
+                    </Button>
+
                     <Button
                         size="sm"
                         variant={confirming ? "destructive" : "default"}
-                        disabled={approved.length === 0 || sending || toggling}
+                        disabled={approved.length === 0 || busy}
                         onClick={onSend}
                     >
                         {sending ? <LoaderCircle className="animate-spin" /> : <Send />}
@@ -210,8 +272,12 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
 
 /**
  * The pending side of /admin/validation: one card per client batch, each report individually
- * includable, and a single "Validate & send" that emails the client once with every approved report
- * attached. Sending is guarded by a confirm step — it's an outward-facing, irreversible action.
+ * includable, a "Regenerate" that rewrites the batch's AI sections against the same data, and a
+ * single "Validate & send" that emails the client once with every approved report attached.
+ *
+ * Sending is the only action guarded by a confirm step — it is the one that is outward-facing and
+ * irreversible. Regenerating stays inside the batch and leaves the existing text in place until the
+ * new text lands.
  */
 export function ValidationBatches({ batches }: { batches: ValidationBatchCard[] }) {
     return (

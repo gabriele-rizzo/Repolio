@@ -36,16 +36,11 @@ function parseGenerated(message: Anthropic.Message): GeneratedReport {
 
     if (typeof data !== "object" || data === null) throw new Error("Model response was not an object");
     const obj = data as Record<string, unknown>;
-    if (
-        typeof obj.executive_summary !== "string" ||
-        typeof obj.trend_explanation !== "string" ||
-        !Array.isArray(obj.recommendations)
-    ) {
+    if (typeof obj.trend_explanation !== "string" || !Array.isArray(obj.recommendations)) {
         throw new Error("Model response missing required fields");
     }
 
     return {
-        executive_summary: obj.executive_summary,
         trend_explanation: obj.trend_explanation,
         recommendations: obj.recommendations.filter(isRecommendation),
     };
@@ -99,14 +94,19 @@ export async function buildReportParams(reportId: number): Promise<Anthropic.Mes
     };
 }
 
-/** Parses a model response and writes the AI section back to the report row. */
+/**
+ * Parses a model response and writes the AI section back to the report row.
+ *
+ * `executive_summary` is deliberately not written: the summary was removed from every report surface,
+ * so the model is no longer asked for one. The column stays (rows created before the change keep
+ * their text, and nothing renders it) rather than forcing a migration on a live database.
+ */
 export async function applyGeneratedReport(reportId: number, message: Anthropic.Message): Promise<void> {
     const generated = parseGenerated(message);
 
     await prisma.report.update({
         where: { id: reportId },
         data: {
-            executive_summary: generated.executive_summary,
             trend_explanation: generated.trend_explanation,
             recommendations: generated.recommendations as unknown as Prisma.InputJsonValue,
         },

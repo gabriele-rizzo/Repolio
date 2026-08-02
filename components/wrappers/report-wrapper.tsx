@@ -1,7 +1,7 @@
 import type { Platform, Report } from "@/generated/prisma/browser";
 import { AccountContextEditor } from "../report/account-context-editor";
 import { currencyFormatter } from "@/lib/format/currency";
-import { accountFocus, METRIC_CARD_DEFS, metricValue, selectKpiCards, type MetricFormat } from "@/lib/metrics/cards";
+import { METRIC_CARD_DEFS, metricValue, selectKpiCards, type MetricFormat } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 import { useTranslations } from "next-intl";
 import { MetricCard } from "../metric-card";
@@ -12,7 +12,7 @@ import { type Recommendation } from "../report/recommendation-card";
 import { Typo } from "../typography";
 
 interface ReportWrapperProps {
-    /** The AI report (executive summary, recommendations, trend explanation, context). */
+    /** The AI report (recommendations, trend explanation, context). */
     report?: Report;
     /** The owning account, for its standing context editor. */
     account?: { id: number; name: string | null; platform: Platform; contextNote: string | null } | null;
@@ -47,9 +47,9 @@ export function ReportWrapper({ report, account, current, previous, loading, rea
         decimal: (v) => v.toFixed(2),
     };
 
-    // Card set follows what the account measurably optimizes for (lead-gen accounts lead with
-    // Leads/CPL instead of an "n/a" ROAS). See lib/metrics/cards.ts.
-    const cards = selectKpiCards(accountFocus(current, previous));
+    // Every metric this account has data for, in a fixed reading order — nothing measured is hidden.
+    // See lib/metrics/cards.ts.
+    const cards = selectKpiCards(current, previous);
 
     return (
         <div className="space-y-8">
@@ -83,7 +83,7 @@ export function ReportWrapper({ report, account, current, previous, loading, rea
                 </div>
             </div>
 
-            <AIInsights summary={report?.executive_summary} recommendations={recommendations} loading={loading} />
+            <AIInsights recommendations={recommendations} loading={loading} />
 
             {report && !readOnly && (
                 <div className="space-y-8">

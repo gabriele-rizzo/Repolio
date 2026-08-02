@@ -77,8 +77,7 @@ const CONTEXT_VARS: VariableDoc[] = [
 /** Placeholders that must sit alone on their own line, each expanding to a designed section. */
 const SECTION_DOCS: Record<(typeof SECTION_BLOCKS)[number], string> = {
     scoreCard: "The performance score card",
-    metricsTable: "The six-KPI grid with period-over-period changes",
-    executiveSummary: "The AI-written executive summary",
+    metricsTable: "The KPI grid with period-over-period changes",
     recommendations: "The AI-written recommendation cards",
     trendExplanation: "The AI-written trend explanation",
     contextComment: "The context note on the report, if any",

@@ -19,24 +19,37 @@
  */
 
 /** Whole pre-designed sections, written as `{{ .name }}` anywhere in the markup. */
-export const SECTION_BLOCKS = [
-    "scoreCard",
-    "metricsTable",
-    "executiveSummary",
-    "recommendations",
-    "trendExplanation",
-    "contextComment",
-] as const;
+export const SECTION_BLOCKS = ["scoreCard", "metricsTable", "recommendations", "trendExplanation", "contextComment"] as const;
 
-export type SectionBlock = (typeof SECTION_BLOCKS)[number];
+/**
+ * Sections that no longer exist but may still sit in a saved template.
+ *
+ * Templates are stored per client/account as copies, so removing a section from the product does not
+ * remove it from what clients already saved. A retired name is still RECOGNISED — it renders as
+ * nothing (taking any heading directly above it with it) — because the alternative is the renderer
+ * leaving a literal "{{ .executiveSummary }}" in a client-facing PDF. The editor flags it so an
+ * author can clean it up.
+ *
+ * `executiveSummary`: the AI-written summary was removed from every report surface.
+ */
+export const RETIRED_SECTION_BLOCKS = ["executiveSummary"] as const;
 
+export type ActiveSectionBlock = (typeof SECTION_BLOCKS)[number];
+export type RetiredSectionBlock = (typeof RETIRED_SECTION_BLOCKS)[number];
+export type SectionBlock = ActiveSectionBlock | RetiredSectionBlock;
+
+export function isRetiredSectionBlock(name: string): name is RetiredSectionBlock {
+    return (RETIRED_SECTION_BLOCKS as readonly string[]).includes(name);
+}
+
+/** True for any placeholder the renderer expands into a section — retired ones included (to nothing). */
 export function isSectionBlock(name: string): name is SectionBlock {
-    return (SECTION_BLOCKS as readonly string[]).includes(name);
+    return (SECTION_BLOCKS as readonly string[]).includes(name) || isRetiredSectionBlock(name);
 }
 
 /** A problem found while checking a template. Surfaced in the editor, never thrown at render time. */
 export interface TemplateIssue {
-    kind: "unknown-variable" | "unsupported-pdf-css" | "stripped-markup" | "empty";
+    kind: "unknown-variable" | "retired-section" | "unsupported-pdf-css" | "stripped-markup" | "empty";
     message: string;
 }
 

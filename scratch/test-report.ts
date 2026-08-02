@@ -220,7 +220,6 @@ async function main() {
             }
         }
 
-        console.log(`\n--- EXECUTIVE SUMMARY ---\n${report.executive_summary || "(empty)"}`);
         console.log(`\n--- TREND EXPLANATION ---\n${report.trend_explanation || "(empty)"}`);
         console.log(`\n--- RECOMMENDATIONS ---`);
         const recs = Array.isArray(report.recommendations) ? report.recommendations : [];

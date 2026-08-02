@@ -154,6 +154,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
             limit(async (): Promise<{ reportId: number; request: BatchRequest } | null> => {
                 const report = await prisma.report.create({
                     data: {
+                        // Retired column, still required by the schema — see prisma/schema.prisma.
                         executive_summary: "",
                         recommendations: [],
                         trend_explanation: "",

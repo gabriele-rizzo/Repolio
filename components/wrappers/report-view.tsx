@@ -85,8 +85,12 @@ export function ReportView({
     return (
         <PageScaffold
             title={
-                <div className="flex flex-row items-center gap-3">
-                    <Typo as="title">{account?.name ?? t("fallbackTitle")}</Typo>
+                <div className="flex min-w-0 flex-row flex-wrap items-center gap-3">
+                    {/* Ad account names run long ("… — Meta Ads (DACH, Q3 Prospecting)"): wrap the
+                        title rather than let it overflow, and keep the badge beside it. */}
+                    <Typo as="title" className="min-w-0 break-words">
+                        {account?.name ?? t("fallbackTitle")}
+                    </Typo>
                     {account && <PlatformBadge platform={account.platform} />}
                 </div>
             }

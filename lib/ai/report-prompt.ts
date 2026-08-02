@@ -19,7 +19,6 @@ export const LANGUAGE_NAMES: Record<Locale, string> = { de: "German", en: "Engli
 export type ReportWithSnapshots = Report & { snapshots: Snapshot[] };
 
 export interface GeneratedReport {
-    executive_summary: string;
     trend_explanation: string;
     recommendations: Recommendation[];
 }
@@ -33,10 +32,6 @@ export const REPORT_SCHEMA = {
     type: "object",
     additionalProperties: false,
     properties: {
-        executive_summary: {
-            type: "string",
-            description: "2-4 short paragraphs of client-facing prose. Lead with the headline.",
-        },
         trend_explanation: {
             type: "string",
             description: "1-2 paragraphs on the account's trajectory and its drivers.",
@@ -57,7 +52,7 @@ export const REPORT_SCHEMA = {
             },
         },
     },
-    required: ["executive_summary", "trend_explanation", "recommendations"],
+    required: ["trend_explanation", "recommendations"],
 };
 
 export const SYSTEM_PROMPT = `You are a senior performance-marketing analyst at a digital ads agency. You write the AI-generated section of a client's recurring performance report for a single ad account.
@@ -68,13 +63,11 @@ You are given:
 - Optionally, ACCOUNT BACKGROUND: standing facts about this ad account — its business model, what it should be judged on, known seasonality.
 - Optionally, CLIENT TARGETS (target CPA / target ROAS) and a NOTE ON THIS PERIOD.
 
-Produce three things. Where previous reports are provided, ground them in how performance has TRENDED across those reports rather than the current period in isolation:
+Produce two things. Where previous reports are provided, ground them in how performance has TRENDED across those reports rather than the current period in isolation:
 
-1. executive_summary — 2-4 short paragraphs of plain prose addressed to the client. Explain how the account performed this period and what it means in business terms; where previous reports are provided, also explain what changed versus them. Lead with the headline and be specific with the numbers provided.
+1. trend_explanation — 1-2 paragraphs on the trajectory (improving, declining, volatile, flat) and the most likely drivers, referencing the metric movements. When prior reports are available, read the trajectory across them. When they are not, characterise the account's current trajectory from the shape of the current period itself — the mix of spend, efficiency and volume, and performance against targets — and state that read directly. This is the only prose in the report, so lead with the headline and be specific with the numbers provided.
 
-2. trend_explanation — 1-2 paragraphs on the trajectory (improving, declining, volatile, flat) and the most likely drivers, referencing the metric movements. When prior reports are available, read the trajectory across them. When they are not, characterise the account's current trajectory from the shape of the current period itself — the mix of spend, efficiency and volume, and performance against targets — and state that read directly.
-
-3. recommendations — 2-5 concrete, actionable recommendations. Each has:
+2. recommendations — 2-5 concrete, actionable recommendations. Each has:
    - priority: IMMEDIATE (act now — performance at risk or a clear opportunity), THIS_WEEK (important, not urgent), or MONITOR (watch, no action yet).
    - category: BUDGET, CREATIVE, TARGETING, or BIDDING.
    - title: a short imperative headline.
@@ -207,7 +200,6 @@ export function buildUserPrompt(
                 `## Report ${i + 1} — ${dateOnly(r.created_at)}`,
                 periodLine(r),
                 formatMetrics(computeMetrics(r.snapshots)),
-                r.executive_summary ? `Executive summary at the time:\n${r.executive_summary}` : null,
                 r.trend_explanation ? `Trend explanation at the time:\n${r.trend_explanation}` : null,
                 formatPriorRecommendations(r.recommendations),
             ]
@@ -217,9 +209,7 @@ export function buildUserPrompt(
         });
     }
 
-    parts.push(
-        `Write the entire report — executive_summary, trend_explanation and every recommendation — in ${languageName}.`,
-    );
+    parts.push(`Write the entire report — trend_explanation and every recommendation — in ${languageName}.`);
     parts.push("Produce the report as JSON matching the required schema.");
     return parts.join("\n\n");
 }

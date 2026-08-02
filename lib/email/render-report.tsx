@@ -83,7 +83,6 @@ export async function renderReportEmail(
         generatedOn: dateFormatRelative(report.created_at),
         current,
         previous,
-        executiveSummary: report.executive_summary,
         recommendations: (report.recommendations ?? []) as unknown as Recommendation[],
         trendExplanation: report.trend_explanation,
         contextComment: report.context_comment,

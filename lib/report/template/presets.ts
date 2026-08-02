@@ -38,14 +38,11 @@ const DEFAULT_BODY = `<style>
 <div class="section">Metrics</div>
 {{ .metricsTable }}
 
-<div class="section">Executive summary</div>
-{{ .executiveSummary }}
+<div class="section">Trend explanation</div>
+{{ .trendExplanation }}
 
 <div class="section">Recommendations</div>
 {{ .recommendations }}
-
-<div class="section">Trend explanation</div>
-{{ .trendExplanation }}
 
 <div class="section">Context</div>
 {{ .contextComment }}
@@ -72,7 +69,7 @@ const EXEC_BODY = `<style>
 </tr></table>
 
 <div class="section">The headline</div>
-{{ .executiveSummary }}
+{{ .trendExplanation }}
 
 <div class="section">What we're doing about it</div>
 {{ .recommendations }}
@@ -102,17 +99,14 @@ const LEADGEN_BODY = `<style>
   <div class="cap">Lead volume {{ .leadsChange }} · cost per lead {{ .cplChange }} · {{ .spend }} spent over {{ .days }} days</div>
 </div>
 
-<div class="section">Executive summary</div>
-{{ .executiveSummary }}
+<div class="section">Trend explanation</div>
+{{ .trendExplanation }}
 
 <div class="section">Recommendations</div>
 {{ .recommendations }}
 
 <div class="section">Full metrics</div>
 {{ .metricsTable }}
-
-<div class="section">Trend explanation</div>
-{{ .trendExplanation }}
 `;
 
 const MINIMAL_BODY = `<style>
@@ -123,7 +117,6 @@ const MINIMAL_BODY = `<style>
 <div class="title">{{ .accountName }}</div>
 <div class="sub">{{ .period }}</div>
 
-{{ .executiveSummary }}
 {{ .metricsTable }}
 {{ .recommendations }}
 `;
@@ -139,6 +132,14 @@ const DARK_BODY = `<style>
      browsers do not, and without it the HTML render (preview + Download) collapses into one column. */
   .row      { display: flex; flex-direction: row; justify-content: space-between; align-items: flex-start; }
   .right    { text-align: right; }
+
+  /* Every two-column row states BOTH column widths. react-pdf sizes a flex child from its own
+     content and will not shrink it back to fit the row, so a column left to size itself — a header
+     holding a 90-character ad-account name, say — grows past the page and shoves the column beside
+     it off the sheet (the browser shrinks it instead, so the bug only ever showed up in the PDF).
+     Percentages of the row are honoured identically by both renderers. */
+  .col-main { width: 62%; padding-right: 10px; box-sizing: border-box; }
+  .col-side { width: 38%; box-sizing: border-box; }
   /* Widths below include their own padding and border; react-pdf's box model already behaves this way. */
   .hero-left, .hero-right, .kpi, .reach { box-sizing: border-box; }
 
@@ -174,8 +175,7 @@ const DARK_BODY = `<style>
 
   /* Section headings. */
   .sec        { font-size: 8px; letter-spacing: 2.4px; text-transform: uppercase; margin-bottom: 10px; }
-  .sec-sum    { color: #ff6b4a; margin-top: 24px; }
-  .sec-ai     { color: #7cc4ff; }
+  .sec-ai     { color: #7cc4ff; margin-top: 24px; }
   .panel      { background: #080d14; border: 1px solid #141b24; padding: 16px; margin-top: 18px; }
 
   /* The built-in section blocks default to dark-on-light text; this stylesheet is emitted after
@@ -189,19 +189,19 @@ const DARK_BODY = `<style>
 </style>
 
 <div class="row">
-  <div>
+  <div class="col-main">
     <div class="brand">{{ .company }}</div>
     <div class="brand-tag">videosolutions</div>
   </div>
-  <div class="kicker right">Performance - Report</div>
+  <div class="col-side kicker right">Performance - Report</div>
 </div>
 
 <div class="row titlerow">
-  <div>
+  <div class="col-main">
     <div class="title">{{ .accountName }}</div>
     <div class="subtitle">Monatsauswertung</div>
   </div>
-  <div>
+  <div class="col-side">
     <div class="kicker right">Zeitraum</div>
     <div class="period right">{{ .period }}</div>
   </div>
@@ -259,9 +259,6 @@ const DARK_BODY = `<style>
   </div>
 </div>
 
-<div class="sec sec-sum">Zusammenfassung</div>
-{{ .executiveSummary }}
-
 <div class="panel">
   <div class="sec sec-ai">KI-Trendanalyse</div>
   {{ .trendExplanation }}
@@ -270,8 +267,8 @@ const DARK_BODY = `<style>
 <div class="rule"></div>
 
 <div class="row">
-  <div class="foot">{{ .accountName }}</div>
-  <div class="foot right">Kennzahlen {{ .period }}</div>
+  <div class="col-main foot">{{ .accountName }}</div>
+  <div class="col-side foot right">Kennzahlen {{ .period }}</div>
 </div>
 `;
 
@@ -294,12 +291,12 @@ export const TEMPLATE_PRESETS: TemplatePreset[] = [
         description: "Opens on leads and cost per lead instead of ROAS, for accounts with no purchases.",
         body: LEADGEN_BODY,
     },
-    { id: "minimal", name: "Minimal", description: "Summary, metrics, recommendations. Nothing else.", body: MINIMAL_BODY },
+    { id: "minimal", name: "Minimal", description: "Metrics and recommendations. Nothing else.", body: MINIMAL_BODY },
     {
         id: "dark",
         name: "Dark (Cinemepic)",
         description:
-            "Dark editorial layout: brand header, ROAS hero beside a KPI grid, summary and AI trend panel. German labels.",
+            "Dark editorial layout: brand header, ROAS hero beside a KPI grid, AI trend panel. German labels.",
         body: DARK_BODY,
     },
 ];

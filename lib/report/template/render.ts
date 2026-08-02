@@ -2,6 +2,7 @@ import { sanitizeTemplate } from "@/lib/report/template/sanitize";
 import { escapeHtml, renderSection, SECTION_STYLESHEET, type SectionData } from "@/lib/report/template/sections";
 import { DEFAULT_TEMPLATE_BODY } from "@/lib/report/template/presets";
 import {
+    isRetiredSectionBlock,
     isSectionBlock,
     PLACEHOLDER,
     UNSUPPORTED_PDF_CSS,
@@ -118,7 +119,9 @@ export function wrapDocument(
   body { margin: 0; padding: 24px 16px; background: ${colours.background}; color: ${colours.foreground};
          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
          -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .rp-doc { max-width: 720px; margin: 0 auto; }
+  /* overflow-wrap: a long unbroken value (an ad account named without spaces) breaks rather than
+     widening the document past its column, matching how the PDF renderer breaks it. */
+  .rp-doc { max-width: 720px; margin: 0 auto; overflow-wrap: break-word; }
 </style>
 </head>
 <body><div class="rp-doc">${bodyHtml}</div></body>
@@ -140,12 +143,20 @@ export function checkTemplate(body: string): TemplateIssue[] {
     }
 
     const unknown = new Set<string>();
+    const retired = new Set<string>();
     for (const match of body.matchAll(PLACEHOLDER)) {
         const name = match[1];
-        if (!isSectionBlock(name) && !SCALAR_VARIABLE_NAMES.includes(name)) unknown.add(name);
+        if (isRetiredSectionBlock(name)) retired.add(name);
+        else if (!isSectionBlock(name) && !SCALAR_VARIABLE_NAMES.includes(name)) unknown.add(name);
     }
     for (const name of unknown) {
         issues.push({ kind: "unknown-variable", message: `Unknown variable "{{ .${name} }}" — it will print as-is.` });
+    }
+    for (const name of retired) {
+        issues.push({
+            kind: "retired-section",
+            message: `"{{ .${name} }}" no longer exists — it renders as nothing, along with any heading directly above it. You can delete it.`,
+        });
     }
 
     const stripped = sanitizeTemplate(body).stripped;

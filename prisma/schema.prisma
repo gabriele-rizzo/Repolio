@@ -157,6 +157,10 @@ model Report {
 
     // --- AI-GENERATED (Claude). KPIs, score and anomalies are NOT stored here —
     // they are recomputed live on the report page from snapshots over a chosen window. ---
+    // RETIRED: the executive summary was removed from every report surface and the model is no longer
+    // asked for one. New rows are written with "" (the column is required); rows generated before the
+    // change keep their text, and nothing reads it. Kept rather than dropped so no migration has to
+    // run against live data to delete something harmless.
     executive_summary String
     recommendations   Json
     trend_explanation String

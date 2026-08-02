@@ -95,8 +95,6 @@
         "noTrend": "No trend explanation for this report yet.",
         "ratingScale": "Rating scale",
         "aiInsights": "AI Insights",
-        "executiveSummary": "Executive Summary",
-        "noSummary": "No executive summary was generated for this report.",
         "recommendations": "Recommendations",
         "noRecommendationsTitle": "No recommendations",
         "noRecommendationsBody": "Things look stable this period - nothing actionable was flagged.",

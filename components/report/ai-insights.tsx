@@ -1,4 +1,4 @@
-import { ScrollText, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { Typo } from "../typography";
 import { Card } from "../ui/card";
@@ -7,12 +7,17 @@ import { Skeleton } from "../ui/skeleton";
 import { RecommendationCard, type Recommendation } from "./recommendation-card";
 
 interface AIInsightsProps {
-    summary?: string;
     recommendations?: Recommendation[];
     loading?: boolean;
 }
 
-export function AIInsights({ summary, recommendations = [], loading }: AIInsightsProps) {
+/**
+ * The AI section of the report page: the model's recommendations.
+ *
+ * The executive summary that used to head this block was removed — the report's prose now lives in
+ * the trend explanation on the overview card, and the model is no longer asked for a summary at all.
+ */
+export function AIInsights({ recommendations = [], loading }: AIInsightsProps) {
     const t = useTranslations("report");
 
     return (
@@ -22,33 +27,7 @@ export function AIInsights({ summary, recommendations = [], loading }: AIInsight
                 <Typo as="small">{t("aiInsights")}</Typo>
             </div>
 
-            <Card className="px-4 gap-3">
-                <div className="flex flex-row items-center gap-2 text-muted-foreground">
-                    <ScrollText className="size-3.5" />
-                    <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
-                        {t("executiveSummary")}
-                    </Typo>
-                </div>
-
-                {loading ? (
-                    <div className="flex flex-col gap-2 *:h-3.5">
-                        <Skeleton className="w-full" />
-                        <Skeleton className="w-full" />
-                        <Skeleton className="w-full" />
-                        <Skeleton className="w-3/4" />
-                    </div>
-                ) : summary ? (
-                    <Typo as="normal" className="leading-relaxed whitespace-pre-wrap">
-                        {summary}
-                    </Typo>
-                ) : (
-                    <Typo as="muted" className="italic">
-                        {t("noSummary")}
-                    </Typo>
-                )}
-            </Card>
-
-            <div className="flex flex-row items-center gap-2 mt-2 text-muted-foreground">
+            <div className="flex flex-row items-center gap-2 text-muted-foreground">
                 <Typo as="muted" className="text-xs uppercase tracking-wide font-medium">
                     {t("recommendations")}
                 </Typo>

@@ -113,8 +113,6 @@ async function renderSamplePreview(clientId: number, body: string): Promise<stri
         generatedOn: "30",
         current,
         previous: { ...current, spend: 8500, roas: 3.1, cpa: 32.4, conversions: 262, ctr: 1.35 },
-        executiveSummary:
-            "This is sample text standing in for the AI-written summary. Your real reports put the model's analysis of the period here.",
         recommendations: [
             {
                 priority: "IMMEDIATE",

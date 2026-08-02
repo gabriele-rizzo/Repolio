@@ -1,11 +1,5 @@
 import { currencyFormatter } from "@/lib/format/currency";
-import {
-    accountFocus,
-    METRIC_CARD_DEFS,
-    selectKpiCards,
-    type MetricCardKey,
-    type MetricFormat,
-} from "@/lib/metrics/cards";
+import { METRIC_CARD_DEFS, selectKpiCards, type MetricCardKey, type MetricFormat } from "@/lib/metrics/cards";
 import type { ComputedMetrics } from "@/lib/metrics/compute";
 
 /** Minimal translator shape — the real next-intl `t` (for the recipient's locale) is passed in. */
@@ -94,11 +88,13 @@ export function metricDelta(
 }
 
 /**
- * The six KPI columns for a report surface: which metrics to show (from the account's focus), their
- * localised labels, formatted values and deltas. Shared by the HTML email and the PDF attachment so
- * the two renderings can only differ in layout, never in numbers, labels or direction-of-good.
+ * The KPI columns for a report surface: every metric the account has data for (see
+ * {@link selectKpiCards}), with localised labels, formatted values and deltas. Shared by the HTML
+ * email and the PDF attachment so the two renderings can only differ in layout, never in numbers,
+ * labels or direction-of-good.
  *
- * Always returns exactly 6 entries — both renderers lay them out as a 3x2 grid.
+ * The length varies with the account — renderers must lay out an arbitrary count (the report grids
+ * wrap; the batch email's summary row takes the first few).
  */
 export function metricColumns(
     current: ComputedMetrics | null,
@@ -108,7 +104,7 @@ export function metricColumns(
 ): MetricColumn[] {
     const formats = metricFormatters(resolveCurrency(current, previous), locale);
 
-    return selectKpiCards(accountFocus(current, previous)).map((key) => {
+    return selectKpiCards(current, previous).map((key) => {
         const def = METRIC_CARD_DEFS[key];
         const value = current?.[key];
 

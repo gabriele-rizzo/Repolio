@@ -6,7 +6,6 @@ import { Card } from "@/components/ui/card";
 import { Empty, EmptyContent, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { currencyFormatter } from "@/lib/format/currency";
-import { accountFocus } from "@/lib/metrics/cards";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
@@ -161,15 +160,13 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                                             label={tMetrics("spend")}
                                             value={currencyFormatter(metrics.currency, 0).format(metrics.spend)}
                                         />
-                                        {accountFocus(metrics) === "leadgen" ? (
-                                            // Lead-gen accounts have no ROAS by definition — lead with CPL.
+                                        {/* This card has room for one efficiency figure, so it shows the one the
+                                            account actually has: ROAS where revenue is measured, otherwise CPL.
+                                            The report itself shows every metric with data. */}
+                                        {metrics.roas == null && metrics.cpl != null ? (
                                             <Stat
                                                 label={tMetrics("cpl")}
-                                                value={
-                                                    metrics.cpl != null
-                                                        ? currencyFormatter(metrics.currency).format(metrics.cpl)
-                                                        : "—"
-                                                }
+                                                value={currencyFormatter(metrics.currency).format(metrics.cpl)}
                                             />
                                         ) : (
                                             <Stat
