@@ -148,6 +148,18 @@ button {
     }
 }
 
+/* The app shell's scroll area (see components/scaffolds/app-shell.tsx).
+   macOS's default is "show scroll bars automatically based on mouse or trackpad", which means the
+   moment a mouse is attached every scroll container gets a permanent, space-taking scrollbar rather
+   than the overlay one that fades. The app can't opt out of that, so make the bar quiet instead:
+   thin, a faint thumb, no track. `scrollbar-gutter: stable` reserves its column whether or not the
+   page overflows, so content doesn't shift sideways when navigating between a long and a short page. */
+[data-slot="app-scroll"] {
+    scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in oklab, var(--foreground) 25%, transparent) transparent;
+}
+
 @media print {
     /* Print only the report content: drop the sidebar and let the inset flow. */
     [data-slot="sidebar"] {

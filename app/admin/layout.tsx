@@ -1,8 +1,9 @@
 import { AdminSidebar } from "@/components/admin/sidebar";
 import { Brand } from "@/components/brand";
 import { AdminForm } from "@/components/forms/admin-form";
+import { AppShell } from "@/components/scaffolds/app-shell";
 import { SIDEBAR_STATE_COOKIE } from "@/components/sidebar/config";
-import { SidebarInset, SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
+import { SidebarTrigger } from "@/components/ui/sidebar";
 import { isAdminAuthenticated } from "@/lib/admin/auth";
 import { cookies } from "next/headers";
 
@@ -24,18 +25,16 @@ export default async function AdminLayout({ children }: LayoutProps<"/admin">) {
     const open = store.get(SIDEBAR_STATE_COOKIE)?.value !== "false";
 
     return (
-        <SidebarProvider defaultOpen={open} className="overscroll-none">
-            <AdminSidebar />
-
-            <SidebarInset className="flex flex-col overflow-hidden shrink-0 h-[calc(100vh-var(--spacing)*4)]! overscroll-none relative">
-                <div className="w-full overflow-y-auto overflow-x-hidden overscroll-x-none">
-                    <div className="shrink-0 sticky top-0 z-10 flex h-12 items-center gap-2 border-b bg-background/70 px-2 backdrop-blur print:hidden">
-                        <SidebarTrigger />
-                    </div>
-
-                    <div className="flex-1 overflow-y-auto overflow-x-hidden p-4">{children}</div>
+        <AppShell
+            defaultOpen={open}
+            sidebar={<AdminSidebar />}
+            header={
+                <div className="flex h-12 items-center gap-2 border-b bg-background px-2">
+                    <SidebarTrigger />
                 </div>
-            </SidebarInset>
-        </SidebarProvider>
+            }
+        >
+            {children}
+        </AppShell>
     );
 }
