@@ -10,7 +10,7 @@ import { computeMetrics } from "@/lib/metrics/compute";
 import { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { Link2Off } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 const compact = new Intl.NumberFormat("en-US", { notation: "compact", maximumFractionDigits: 1 });
@@ -42,10 +42,12 @@ interface HomeOverviewProps {
 // Shared by the real /dashboard and the admin read-only simulation, which differ only in where the
 // cards link and whether the empty state offers a connect action.
 export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOverviewProps) {
-    const [t, tMetrics, tScore] = await Promise.all([
+    const [t, tMetrics, tScore, tDate, locale] = await Promise.all([
         getTranslations("home"),
         getTranslations("metrics"),
         getTranslations("score"),
+        getTranslations("date"),
+        getLocale(),
     ]);
 
     const adAccounts = await prisma.adAccount.findMany({
@@ -180,7 +182,9 @@ export async function HomeOverview({ clientId, reportHref, emptyAction }: HomeOv
                                     <Typo as="muted" className="text-xs">
                                         {t("last30")} ·{" "}
                                         {lastReportAt
-                                            ? t("reportAge", { date: dateFormatRelative(lastReportAt) })
+                                            ? t("reportAge", {
+                                                  date: dateFormatRelative(lastReportAt, { locale, t: tDate }),
+                                              })
                                             : t("noReportYet")}
                                     </Typo>
                                 </>

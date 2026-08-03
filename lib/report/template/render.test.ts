@@ -171,6 +171,101 @@ describe("renderTemplate", () => {
     });
 });
 
+/**
+ * Conditionals exist for one concrete failure: an account on its FIRST report has no previous window, so
+ * every `{{ .xChange }}` is an em dash and a card captioned "— vs previous period" ships to the client.
+ */
+describe("renderTemplate conditionals", () => {
+    const withValues = (over: Record<string, string>) => (body: string) =>
+        renderTemplate({ body, variables: { ...variables, ...over }, sections });
+
+    it("keeps a block when the value is present", () => {
+        const out = withValues({ roasChange: "+23%" })("<div>{{ #if .roasChange }}<b>{{ .roasChange }} vs prev</b>{{ /if }}</div>");
+        expect(out).toContain("+23% vs prev");
+        expect(out).not.toContain("#if");
+        expect(out).not.toContain("/if");
+    });
+
+    it("drops the block, static caption included, when the value is an em dash", () => {
+        const out = withValues({ roasChange: "—" })(
+            "<div>BEFORE{{ #if .roasChange }}<b>{{ .roasChange }} vs prev</b>{{ /if }}AFTER</div>",
+        );
+        expect(out).not.toContain("vs prev");
+        expect(out).not.toContain("<b>");
+        expect(out).toContain("BEFORE");
+        expect(out).toContain("AFTER");
+    });
+
+    it("drops the block for an empty value too", () => {
+        expect(withValues({ cpa: "" })("x{{ #if .cpa }}gone{{ /if }}y")).not.toContain("gone");
+    });
+
+    /** A lead-gen account has no ROAS at all; the card should not print a dash under a "ROAS" label. */
+    it("drops a card for a metric that is n/a for the account", () => {
+        const out = withValues({ roas: "—" })(
+            '<div class="grid">{{ #if .roas }}<div class="card">ROAS {{ .roas }}</div>{{ /if }}<div class="card">CTR {{ .ctr }}</div></div>',
+        );
+        expect(out).not.toContain("ROAS");
+        expect(out).toContain("CTR");
+    });
+
+    // Tokens are deliberately unlike anything in SECTION_STYLESHEET — ".rp-kpi-inner" contains "inner".
+    it("resolves nested blocks innermost first", () => {
+        const body = "{{ #if .spend }}OUTERTOK{{ #if .roas }}INNERTOK{{ /if }}{{ /if }}";
+        expect(withValues({ spend: "€10", roas: "3.3x" })(body)).toContain("OUTERTOKINNERTOK");
+
+        const dropped = withValues({ spend: "€10", roas: "—" })(body);
+        expect(dropped).toContain("OUTERTOK");
+        expect(dropped).not.toContain("INNERTOK");
+
+        expect(withValues({ spend: "—", roas: "3.3x" })(body)).not.toContain("OUTERTOK");
+    });
+
+    /** Failing open: a typo must not silently delete a chunk of the author's design. */
+    it("keeps the block when the tested name is unknown, and flags it", () => {
+        expect(withValues({})("{{ #if .roasChnge }}kept{{ /if }}")).toContain("kept");
+        expect(checkTemplate("{{ #if .roasChnge }}x{{ /if }}").some((i) => i.kind === "unknown-variable")).toBe(true);
+    });
+
+    it("never leaks an unpaired marker into the output, and flags the imbalance", () => {
+        const out = withValues({})("<p>a{{ /if }}b{{ #if .roas }}c</p>");
+        expect(out).not.toContain("#if");
+        expect(out).not.toContain("/if");
+
+        const issues = checkTemplate("<p>{{ #if .roas }}x</p>");
+        expect(issues.some((i) => i.kind === "unbalanced-conditional")).toBe(true);
+    });
+
+    it("rejects testing a section, which has no value to test", () => {
+        const issues = checkTemplate("{{ #if .metricsTable }}x{{ /if }}");
+        expect(issues.some((i) => i.kind === "unknown-variable")).toBe(true);
+    });
+
+    it("passes a balanced, well-named template with no issues", () => {
+        expect(checkTemplate("<div>{{ #if .roasChange }}<b>{{ .roasChange }}</b>{{ /if }}</div>")).toEqual([]);
+    });
+
+    /**
+     * The sanitizer removes comments before substitution, so nothing inside one can render. A comment
+     * written to explain a placeholder must therefore not be reported as using it — this fired on the
+     * built-in dark preset the moment its conditionals were documented inline.
+     */
+    it("ignores placeholders and CSS inside HTML comments", () => {
+        expect(checkTemplate("<!-- {{ .xChange }} is the delta --><p>{{ .spend }}</p>")).toEqual([]);
+        expect(checkTemplate("<!-- {{ #if .roas }} --><p>ok</p>")).toEqual([]);
+        expect(checkTemplate("<!-- display: grid is unsupported --><p>ok</p>")).toEqual([]);
+    });
+
+    /** The markers sit as text nodes around elements; the sanitizer runs first and must not eat them. */
+    it("survives sanitization when the block spans element boundaries", () => {
+        const out = withValues({ roasChange: "+23%" })(
+            '<div class="row">{{ #if .roasChange }}<div class="col">{{ .roasChange }}</div>{{ /if }}</div>',
+        );
+        expect(out).toContain('class="col"');
+        expect(out).toContain("+23%");
+    });
+});
+
 describe("wrapDocument", () => {
     it("produces a standalone document with an escaped title", () => {
         const doc = wrapDocument("<p>hi</p>", { title: '<script>x</script>', locale: "en" });

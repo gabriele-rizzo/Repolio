@@ -9,7 +9,7 @@ import { prisma } from "@/lib/prisma";
 import { cn } from "@/lib/utils";
 import { Bell, FileText, Link2Off, TriangleAlert, type LucideIcon } from "lucide-react";
 import type { Metadata } from "next";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 export const metadata: Metadata = {
@@ -23,7 +23,12 @@ const NOTIFICATION_ICON: Record<NotificationType, LucideIcon> = {
 };
 
 export default async function NotificationsPage() {
-    const [client, t] = await Promise.all([authorize(), getTranslations("notifications")]);
+    const [client, t, locale, tDate] = await Promise.all([
+        authorize(),
+        getTranslations("notifications"),
+        getLocale(),
+        getTranslations("date"),
+    ]);
 
     const notifications = await prisma.notification.findMany({
         where: { client_id: client.id },
@@ -73,7 +78,7 @@ export default async function NotificationsPage() {
                                     )}
 
                                     <Typo as="muted" className="text-xs">
-                                        {dateFormatRelative(notification.created_at)}
+                                        {dateFormatRelative(notification.created_at, { locale, t: tDate })}
                                     </Typo>
                                 </div>
                             </>

@@ -61,7 +61,9 @@ export async function renderReportEmail(
 
     const accountName = account?.name ?? t("account.connections.unnamedAccount");
     const platformLabel = account ? PLATFORM_META[account.connection.platform].label : "";
-    const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
+    // Absolute dates, in the client's language — see the same call in render-report-pdf.tsx.
+    const day = (d: Date) => dateFormatRelative(d, { locale });
+    const period = `${day(from)} – ${day(to)}`;
 
     const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
     const reportUrl = account && base ? `${base}/dashboard/reports/${report.id}?account=${account.id}` : "";
@@ -76,11 +78,11 @@ export async function renderReportEmail(
         clientName: clientRow?.name ?? "",
         company: clientRow?.company ?? null,
         period,
-        periodStart: dateFormatRelative(from),
-        periodEnd: dateFormatRelative(to),
+        periodStart: day(from),
+        periodEnd: day(to),
         reportUrl,
         days: report.snapshots.length,
-        generatedOn: dateFormatRelative(report.created_at),
+        generatedOn: day(report.created_at),
         current,
         previous,
         recommendations: (report.recommendations ?? []) as unknown as Recommendation[],

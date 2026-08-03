@@ -16,14 +16,16 @@ import { toUtcDayString } from "@/lib/date/start-of-day";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { ZERNIO_PLATFORMS } from "@/lib/zernio/platform-map";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 
 export default async function AccountPage() {
     const client = await authorize();
-    const [tSections, tStats, tConn] = await Promise.all([
+    const [tSections, tStats, tConn, tDate, locale] = await Promise.all([
         getTranslations("account.sections"),
         getTranslations("account.stats"),
         getTranslations("account.connections"),
+        getTranslations("date"),
+        getLocale(),
     ]);
     const [nreports, nsnapshots, connections, avatar, recurrence] = await Promise.all([
         prisma.report.count({
@@ -143,7 +145,12 @@ export default async function AccountPage() {
                                             </div>
 
                                             <Typo as="muted" className="text-xs">
-                                                {tConn("connectedAt", { date: dateFormatRelative(connection.created_at) })}
+                                                {tConn("connectedAt", {
+                                                    date: dateFormatRelative(connection.created_at, {
+                                                        locale,
+                                                        t: tDate,
+                                                    }),
+                                                })}
                                             </Typo>
 
                                             {disconnected && slug && (

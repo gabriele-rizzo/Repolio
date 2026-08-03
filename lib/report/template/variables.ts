@@ -25,6 +25,11 @@ export interface VariableDoc {
     description: string;
     /** Rendered as a sample so the editor can show the shape without a real report. */
     example: string;
+    /**
+     * Set for entries that surround markup rather than stand in for a value: the editor wraps the
+     * current selection instead of inserting `{{ .name }}`. Conditionals are the only such entry.
+     */
+    wrap?: { open: string; close: string };
 }
 
 interface MetricVar {
@@ -83,7 +88,11 @@ const SECTION_DOCS: Record<(typeof SECTION_BLOCKS)[number], string> = {
     contextComment: "The context note on the report, if any",
 };
 
-const EM_DASH = "—";
+/**
+ * What a metric with no value prints. Exported because `{{ #if .x }}` tests against it: "resolved to the
+ * em dash" IS the definition of "this report has nothing to show here".
+ */
+export const EM_DASH = "—";
 
 /** Every scalar placeholder name, for validating a template. */
 export const SCALAR_VARIABLE_NAMES: string[] = [
@@ -104,6 +113,18 @@ export const VARIABLE_REFERENCE: { group: string; variables: VariableDoc[] }[] =
             description: `${description} — change vs the previous period`,
             example: "▲ 22%",
         })),
+    },
+    {
+        group: "Conditions",
+        variables: [
+            {
+                name: "#if .roas",
+                description:
+                    "Keeps what's inside only when the value exists. Drops it when the metric is n/a for this account, or when there's no previous period to compare against — so a card never reads \"—\". Swap .roas for any value above.",
+                example: "",
+                wrap: { open: "{{ #if .roas }}", close: "{{ /if }}" },
+            },
+        ],
     },
 ];
 

@@ -5,6 +5,7 @@ import { Card } from "@/components/ui/card";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
 import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
     title: "Enrollment | Repolio",
@@ -17,6 +18,8 @@ export const metadata: Metadata = {
 const RECENT_LIMIT = 8;
 
 export default async function EnrollmentPage() {
+    const [locale, tDate] = await Promise.all([getLocale(), getTranslations("date")]);
+
     const [recent, total] = await Promise.all([
         prisma.client.findMany({
             orderBy: { created_at: "desc" },
@@ -66,7 +69,7 @@ export default async function EnrollmentPage() {
                                         this reflects enrollment rather than whether they've signed in. */}
                                     <Badge variant="outline">#{client.id}</Badge>
                                     <Typo as="muted" className="text-xs">
-                                        {dateFormatRelative(client.created_at)}
+                                        {dateFormatRelative(client.created_at, { locale, t: tDate })}
                                     </Typo>
                                 </div>
                             </Card>

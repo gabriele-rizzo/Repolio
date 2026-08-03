@@ -2,13 +2,16 @@ import { sanitizeTemplate } from "@/lib/report/template/sanitize";
 import { escapeHtml, renderSection, SECTION_STYLESHEET, type SectionData } from "@/lib/report/template/sections";
 import { DEFAULT_TEMPLATE_BODY } from "@/lib/report/template/presets";
 import {
+    CONDITIONAL_BLOCK,
+    CONDITIONAL_CLOSE,
+    CONDITIONAL_OPEN,
     isRetiredSectionBlock,
     isSectionBlock,
     PLACEHOLDER,
     UNSUPPORTED_PDF_CSS,
     type TemplateIssue,
 } from "@/lib/report/template/types";
-import { SCALAR_VARIABLE_NAMES } from "@/lib/report/template/variables";
+import { EM_DASH, SCALAR_VARIABLE_NAMES } from "@/lib/report/template/variables";
 
 /**
  * Turns a template into the final document markup.
@@ -43,6 +46,41 @@ function dropOrphanHeading(html: string, placeholder: string): string {
     return html.replace(pattern, "");
 }
 
+/**
+ * A variable has something worth laying out around it when it resolved to a non-empty value that isn't
+ * the "no data" em dash. Unknown names count as present so a typo FAILS OPEN — dropping the block would
+ * silently delete a chunk of the author's design, while keeping it leaves the literal `{{ .typo }}`
+ * visible in the output and flagged in the editor.
+ */
+function hasValue(name: string, variables: Record<string, string>): boolean {
+    const value = variables[name];
+    if (value == null) return true;
+    return value.trim() !== "" && value.trim() !== EM_DASH;
+}
+
+/** Bounded so a pathological template can't spin inside the delivery path. */
+const MAX_CONDITIONAL_PASSES = 100;
+
+/**
+ * Resolves `{{ #if .x }}…{{ /if }}` blocks, innermost first, then scrubs any unpaired marker.
+ *
+ * Runs BEFORE scalar substitution — it needs the variable names still intact — and after sections, so a
+ * conditional may legitimately wrap one. The scrub at the end matters: a template with a stray `{{ /if }}`
+ * must not print it in a client-facing PDF, and the editor warns about the imbalance separately.
+ */
+function resolveConditionals(html: string, variables: Record<string, string>): string {
+    let out = html;
+
+    for (let pass = 0; pass < MAX_CONDITIONAL_PASSES; pass++) {
+        const match = CONDITIONAL_BLOCK.exec(out);
+        if (!match) break;
+        const [whole, name, inner] = match;
+        out = out.replace(whole, hasValue(name, variables) ? inner : "");
+    }
+
+    return out.replace(CONDITIONAL_OPEN, "").replace(CONDITIONAL_CLOSE, "");
+}
+
 export function renderTemplate({ body, variables, sections }: RenderTemplateInput): string {
     // A blank template must never produce a blank report.
     const source = body?.trim() ? body : DEFAULT_TEMPLATE_BODY;
@@ -60,6 +98,9 @@ export function renderTemplate({ body, variables, sections }: RenderTemplateInpu
         if (fragment === "") out = dropOrphanHeading(out, match[0]);
         out = out.split(match[0]).join(fragment);
     }
+
+    // Then conditionals, which drop the layout around a metric this report has nothing for.
+    out = resolveConditionals(out, variables);
 
     // Then scalars. Unknown names are left verbatim so a typo is visible in the output rather than
     // silently deleted — the editor flags them before it ships.
@@ -142,13 +183,43 @@ export function checkTemplate(body: string): TemplateIssue[] {
         return [{ kind: "empty", message: "The template is empty — the built-in default will be used." }];
     }
 
+    // Comments are removed by the sanitizer before anything is substituted, so a placeholder or a CSS
+    // declaration inside one never reaches the output. Scanning them would flag a template for markup
+    // that cannot render — including a comment written to EXPLAIN a placeholder, which is how the
+    // built-in dark preset started reporting an unknown "{{ .xChange }}".
+    const scanned = body.replace(/<!--[\s\S]*?-->/g, "");
+
     const unknown = new Set<string>();
     const retired = new Set<string>();
-    for (const match of body.matchAll(PLACEHOLDER)) {
+    for (const match of scanned.matchAll(PLACEHOLDER)) {
         const name = match[1];
         if (isRetiredSectionBlock(name)) retired.add(name);
         else if (!isSectionBlock(name) && !SCALAR_VARIABLE_NAMES.includes(name)) unknown.add(name);
     }
+
+    // `{{ #if .x }}` tests a scalar's value. A section name has no value to test, and an unknown name
+    // fails open (the block is kept) — both are author mistakes worth naming here.
+    const conditioned = [...scanned.matchAll(CONDITIONAL_OPEN)].map((m) => m[1]);
+    for (const name of new Set(conditioned)) {
+        if (isSectionBlock(name)) {
+            issues.push({
+                kind: "unknown-variable",
+                message: `"{{ #if .${name} }}" can't test a section — conditions work on values like {{ .roas }} or {{ .roasChange }}.`,
+            });
+        } else if (!SCALAR_VARIABLE_NAMES.includes(name)) {
+            unknown.add(name);
+        }
+    }
+
+    const opens = conditioned.length;
+    const closes = [...scanned.matchAll(CONDITIONAL_CLOSE)].length;
+    if (opens !== closes) {
+        issues.push({
+            kind: "unbalanced-conditional",
+            message: `${opens} "{{ #if }}" vs ${closes} "{{ /if }}" — unpaired markers are removed, so the block won't apply.`,
+        });
+    }
+
     for (const name of unknown) {
         issues.push({ kind: "unknown-variable", message: `Unknown variable "{{ .${name} }}" — it will print as-is.` });
     }
@@ -168,7 +239,7 @@ export function checkTemplate(body: string): TemplateIssue[] {
     }
 
     for (const { pattern, label, advice } of UNSUPPORTED_PDF_CSS) {
-        if (pattern.test(body)) {
+        if (pattern.test(scanned)) {
             issues.push({
                 kind: "unsupported-pdf-css",
                 message: `"${label}" works in the preview but not in the attached PDF — ${advice}.`,

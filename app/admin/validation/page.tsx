@@ -12,6 +12,7 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
 import { MailCheck } from "lucide-react";
 import type { Metadata } from "next";
+import { getLocale, getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
     title: "Validation | Repolio",
@@ -24,6 +25,11 @@ export const metadata: Metadata = {
 const SENT_HISTORY = 5;
 
 export default async function ValidationPage() {
+    const [locale, tDate] = await Promise.all([getLocale(), getTranslations("date")]);
+    // Batch timestamps read relatively ("Heute"); report periods never do — they date the data.
+    const stamp = (d: Date) => dateFormatRelative(d, { locale, t: tDate });
+    const day = (d: Date) => dateFormatRelative(d, { locale });
+
     const [pendingBatches, sentBatches] = await Promise.all([
         prisma.reportBatch.findMany({
             where: { sent_at: null },
@@ -80,7 +86,7 @@ export default async function ValidationPage() {
         clientName: batch.client.name,
         clientEmail: batch.client.email,
         company: batch.client.company,
-        createdLabel: dateFormatRelative(batch.created_at),
+        createdLabel: stamp(batch.created_at),
         reports: batch.reports.map((report) => {
             const first = report.snapshots[0];
             const account = first ? accounts.get(first.ad_account_id) : undefined;
@@ -100,9 +106,7 @@ export default async function ValidationPage() {
                 accountName: account?.name ?? `Account #${first?.ad_account_id ?? "?"}`,
                 platform: account?.connection.platform ?? null,
                 period: first
-                    ? `${dateFormatRelative(first.start_date)} – ${dateFormatRelative(
-                          report.snapshots.at(-1)?.start_date ?? first.start_date,
-                      )}`
+                    ? `${day(first.start_date)} – ${day(report.snapshots.at(-1)?.start_date ?? first.start_date)}`
                     : "No period",
                 days: report.snapshots.length,
                 status,
@@ -172,7 +176,7 @@ export default async function ValidationPage() {
                                         {batch.reports.length}/{batch._count.reports} sent
                                     </Badge>
                                     <Typo as="muted" className="text-xs">
-                                        {batch.sent_at ? dateFormatRelative(batch.sent_at) : ""}
+                                        {batch.sent_at ? stamp(batch.sent_at) : ""}
                                     </Typo>
                                 </div>
                             </Card>

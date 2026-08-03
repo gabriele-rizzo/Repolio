@@ -5,9 +5,10 @@
  * source of the *deliverable* — the PDF attachment and the standalone HTML render — so both come out of
  * the same final markup and can't drift.
  *
- * Two placeholder kinds:
+ * Three placeholder kinds:
  *   - scalars, e.g. `{{ .spend }}` — substituted anywhere, HTML-escaped;
- *   - sections, e.g. `{{ .metricsTable }}` — replaced by a pre-built markup fragment for that block.
+ *   - sections, e.g. `{{ .metricsTable }}` — replaced by a pre-built markup fragment for that block;
+ *   - conditionals, `{{ #if .x }}…{{ /if }}` — kept only when `.x` has a real value for this report.
  *
  * Pipeline (order matters, see lib/report/template/render.ts): sanitize the client's HTML FIRST, then
  * substitute. Sanitizing afterwards would strip our own trusted fragments; substituting first would let
@@ -49,12 +50,41 @@ export function isSectionBlock(name: string): name is SectionBlock {
 
 /** A problem found while checking a template. Surfaced in the editor, never thrown at render time. */
 export interface TemplateIssue {
-    kind: "unknown-variable" | "retired-section" | "unsupported-pdf-css" | "stripped-markup" | "empty";
+    kind:
+        | "unknown-variable"
+        | "retired-section"
+        | "unsupported-pdf-css"
+        | "stripped-markup"
+        | "empty"
+        | "unbalanced-conditional";
     message: string;
 }
 
 /** Matches a Supabase-style placeholder: `{{ .name }}`, whitespace optional. */
 export const PLACEHOLDER = /\{\{\s*\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
+
+/**
+ * A conditional block: `{{ #if .roasChange }}<div>…</div>{{ /if }}`.
+ *
+ * Exists because a metric with nothing to show still occupies its layout. An account on its FIRST report
+ * has no previous window, so every `{{ .xChange }}` resolves to an em dash — and a card captioned
+ * "— ggü. Vorperiode" is worse than no card at all. The same applies to a metric that is simply n/a for
+ * an account: a lead-gen account has no ROAS, and printing a dash under a "ROAS" label reads as broken
+ * rather than as not-applicable.
+ *
+ * Deliberately the ONLY control flow in the language: one test — "does this variable have a real value
+ * for this report" — with no operators, comparisons or else-branch. Anything more and a client-authored
+ * template becomes a program that can fail at render time, inside the delivery path.
+ *
+ * The body cannot contain another `#if` opener, which makes the match innermost-first; `resolveConditionals`
+ * loops so nesting still works.
+ */
+export const CONDITIONAL_BLOCK =
+    /\{\{\s*#if\s+\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}((?:(?!\{\{\s*#if\s)[\s\S])*?)\{\{\s*\/if\s*\}\}/;
+
+/** Openers and closers on their own, for balance checking and for scrubbing unpaired leftovers. */
+export const CONDITIONAL_OPEN = /\{\{\s*#if\s+\.([A-Za-z][A-Za-z0-9_]*)\s*\}\}/g;
+export const CONDITIONAL_CLOSE = /\{\{\s*\/if\s*\}\}/g;
 
 /** Templates are client-authored; cap the size so a paste can't blow up a PDF render. */
 export const MAX_TEMPLATE_LENGTH = 40_000;

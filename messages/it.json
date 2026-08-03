@@ -85,6 +85,11 @@
         "en": "English",
         "it": "Italiano"
     },
+    "date": {
+        "today": "Oggi",
+        "yesterday": "Ieri",
+        "tomorrow": "Domani"
+    },
     "report": {
         "fallbackTitle": "Report",
         "description": "Il testo AI si riferisce a questo report. Le metriche sono calcolate in tempo reale per l'intervallo selezionato, che per impostazione predefinita copre il periodo del report.",

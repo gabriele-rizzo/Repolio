@@ -97,7 +97,10 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
 
     const accountName = account?.name ?? t("account.connections.unnamedAccount");
     const platformLabel = account ? PLATFORM_META[account.connection.platform].label : "";
-    const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
+    // No translator passed: a report is dated absolutely in the client's own language. Relative
+    // wording would date the period against the render, not the data ("14. Juli – Gestern").
+    const day = (d: Date) => dateFormatRelative(d, { locale });
+    const period = `${day(from)} – ${day(to)}`;
     const recommendations = (report.recommendations ?? []) as unknown as Recommendation[];
 
     // The client's own layout, falling back to the built-in preset when they've never set one.
@@ -113,11 +116,11 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         clientName: client?.name ?? "",
         company: client?.company ?? null,
         period,
-        periodStart: dateFormatRelative(from),
-        periodEnd: dateFormatRelative(to),
+        periodStart: day(from),
+        periodEnd: day(to),
         reportUrl,
         days: report.snapshots.length,
-        generatedOn: dateFormatRelative(report.created_at),
+        generatedOn: day(report.created_at),
         current,
         previous,
         recommendations,

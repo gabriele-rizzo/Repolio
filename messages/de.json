@@ -85,6 +85,11 @@
         "en": "English",
         "it": "Italiano"
     },
+    "date": {
+        "today": "Heute",
+        "yesterday": "Gestern",
+        "tomorrow": "Morgen"
+    },
     "report": {
         "fallbackTitle": "Report",
         "description": "Der KI-Text bezieht sich auf diesen Report. Die Kennzahlen werden live für das gewählte Zeitfenster berechnet, das standardmäßig den Berichtszeitraum abdeckt.",

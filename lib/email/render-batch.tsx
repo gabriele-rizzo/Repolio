@@ -88,7 +88,7 @@ export async function renderBatchEmail(batchId: number): Promise<RenderedBatchEm
     // Overall span across every account in the batch, for the subject line and footer.
     const from = new Date(Math.min(...covered.map((r) => r.pdf.summary.from.getTime())));
     const to = new Date(Math.max(...covered.map((r) => r.pdf.summary.to.getTime())));
-    const period = `${dateFormatRelative(from)} – ${dateFormatRelative(to)}`;
+    const period = `${dateFormatRelative(from, { locale })} – ${dateFormatRelative(to, { locale })}`;
     const count = items.length;
 
     // Dynamic import: Next 16 / Turbopack blocks a *static* import of react-dom/server in the app graph.

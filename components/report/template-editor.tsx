@@ -63,6 +63,35 @@ export function TemplateEditor({
     const busy = saving || previewing || resetting;
     const dirty = body !== savedBody;
 
+    /**
+     * Wraps the current selection in a conditional block, so the reference list can offer control flow
+     * the same way it offers values. With nothing selected it drops in an empty block and puts the caret
+     * inside it, ready to type.
+     */
+    function wrapSelection({ open, close }: { open: string; close: string }) {
+        const el = textarea.current;
+        if (!el) {
+            setBody((current) => `${current}\n${open}\n\n${close}\n`);
+            return;
+        }
+
+        const start = el.selectionStart;
+        const end = el.selectionEnd;
+        const selected = body.slice(start, end);
+        const inner = selected.trim().length > 0 ? selected : "\n  \n";
+        const next = `${body.slice(0, start)}${open}${inner}${close}${body.slice(end)}`;
+
+        setBody(next);
+        requestAnimationFrame(() => {
+            const caret = start + open.length + inner.length;
+            el.focus();
+            // Selection preserved when there was one, so it can be re-wrapped or moved; otherwise the
+            // caret lands on the blank line between the markers.
+            if (selected.trim().length > 0) el.setSelectionRange(start + open.length, caret);
+            else el.setSelectionRange(start + open.length + 3, start + open.length + 3);
+        });
+    }
+
     /** Inserts a placeholder at the caret, so the reference list is usable without typing braces. */
     function insert(name: string, ownLine: boolean) {
         const el = textarea.current;
@@ -309,7 +338,11 @@ export function TemplateEditor({
                                             <button
                                                 key={variable.name}
                                                 type="button"
-                                                onClick={() => insert(variable.name, ownLine)}
+                                                onClick={() =>
+                                                    variable.wrap
+                                                        ? wrapSelection(variable.wrap)
+                                                        : insert(variable.name, ownLine)
+                                                }
                                                 disabled={busy}
                                                 className="flex flex-col items-start gap-0.5 border border-transparent px-2 py-1.5 text-left hover:border-border hover:bg-muted disabled:opacity-50"
                                             >

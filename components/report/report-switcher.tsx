@@ -4,7 +4,7 @@ import { listReports } from "@/actions/report/list-reports";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import type { ReportRef } from "@/lib/report/reports-page";
 import { ChevronsUpDown } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -34,6 +34,9 @@ interface ReportSwitcherProps {
 export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, accountId, hasMore: seedHasMore }: ReportSwitcherProps) {
     const router = useRouter();
     const t = useTranslations("report");
+    const tDate = useTranslations("date");
+    const locale = useLocale();
+    const stamp = (d: Date) => dateFormatRelative(d, { locale, t: tDate });
     const [reports, setReports] = useState(seed);
     const [hasMore, setHasMore] = useState(seedHasMore);
     const [pending, startTransition] = useTransition();
@@ -58,7 +61,7 @@ export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, acc
             <DropdownMenuTrigger
                 render={
                     <Button variant="outline">
-                        {dateFormatRelative(currentCreatedAt)}
+                        {stamp(currentCreatedAt)}
                         <ChevronsUpDown />
                     </Button>
                 }
@@ -75,7 +78,7 @@ export function ReportSwitcher({ reports: seed, currentId, currentCreatedAt, acc
                 >
                     {reports.map((report) => (
                         <DropdownMenuRadioItem key={report.id} value={String(report.id)}>
-                            {dateFormatRelative(report.created_at)}
+                            {stamp(report.created_at)}
                         </DropdownMenuRadioItem>
                     ))}
                 </DropdownMenuRadioGroup>

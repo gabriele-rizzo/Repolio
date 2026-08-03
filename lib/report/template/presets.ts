@@ -209,13 +209,17 @@ const DARK_BODY = `<style>
 
 <div class="rule"></div>
 
+<!-- Every delta sits inside {{ #if }}: on a FIRST report there is no previous window, so each
+     {{ .xChange }} would resolve to an em dash and the hero would read "— ggü. Vorperiode". The
+     conditional drops the whole line, static caption included, and brings it back untouched from the
+     second report onward. -->
 <div class="hero">
   <div class="hero-left">
     <div class="card card-hero">
       <div class="label">ROAS</div>
       <div>
         <div class="hero-value">{{ .roas }}</div>
-        <div class="hero-delta">{{ .roasChange }} ggü. Vorperiode</div>
+        {{ #if .roasChange }}<div class="hero-delta">{{ .roasChange }} ggü. Vorperiode</div>{{ /if }}
       </div>
     </div>
   </div>
@@ -225,12 +229,12 @@ const DARK_BODY = `<style>
       <div class="kpi"><div class="card">
         <div class="label">Ausgaben</div>
         <div class="kpi-value">{{ .spend }}</div>
-        <div class="kpi-delta">{{ .spendChange }}</div>
+        {{ #if .spendChange }}<div class="kpi-delta">{{ .spendChange }}</div>{{ /if }}
       </div></div>
       <div class="kpi"><div class="card">
         <div class="label">CPA</div>
         <div class="kpi-value">{{ .cpa }}</div>
-        <div class="kpi-delta">{{ .cpaChange }}</div>
+        {{ #if .cpaChange }}<div class="kpi-delta">{{ .cpaChange }}</div>{{ /if }}
       </div></div>
     </div>
 
@@ -238,12 +242,12 @@ const DARK_BODY = `<style>
       <div class="kpi"><div class="card">
         <div class="label">Conversions</div>
         <div class="kpi-value">{{ .conversions }}</div>
-        <div class="kpi-delta">{{ .conversionsChange }}</div>
+        {{ #if .conversionsChange }}<div class="kpi-delta">{{ .conversionsChange }}</div>{{ /if }}
       </div></div>
       <div class="kpi"><div class="card">
         <div class="label">CTR</div>
         <div class="kpi-value">{{ .ctr }}</div>
-        <div class="kpi-delta">{{ .ctrChange }}</div>
+        {{ #if .ctrChange }}<div class="kpi-delta">{{ .ctrChange }}</div>{{ /if }}
       </div></div>
     </div>
 
@@ -252,7 +256,7 @@ const DARK_BODY = `<style>
         <div class="label">Reichweite</div>
         <div class="row">
           <div class="reach-val">{{ .reach }}</div>
-          <div class="reach-delta">{{ .reachChange }}</div>
+          {{ #if .reachChange }}<div class="reach-delta">{{ .reachChange }}</div>{{ /if }}
         </div>
       </div>
     </div></div>

@@ -6,6 +6,7 @@ import { dateFormatRelative } from "@/lib/date/format-relative";
 import { metricsForWindow, type WindowMetrics } from "@/lib/metrics/window";
 import { queryReportsPage, type ReportPage } from "@/lib/report/reports-page";
 import type { Metadata } from "next";
+import { getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
@@ -26,7 +27,9 @@ export default async function DashboardReportPage({ params }: PageProps<"/dashbo
         ? await Promise.all([metricsForWindow(account.id, from, to), queryReportsPage(account.id)])
         : [{ current: null, previous: null } satisfies WindowMetrics, { items: [], hasMore: false } satisfies ReportPage];
 
-    const period = `${dateFormatRelative(from)} - ${dateFormatRelative(to)}`;
+    // A period is dated absolutely (no translator): "14. Juli - Gestern" is not a period.
+    const locale = await getLocale();
+    const period = `${dateFormatRelative(from, { locale })} - ${dateFormatRelative(to, { locale })}`;
 
     const accountView = account
         ? {

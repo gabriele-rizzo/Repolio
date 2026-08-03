@@ -85,6 +85,11 @@
         "en": "English",
         "it": "Italiano"
     },
+    "date": {
+        "today": "Today",
+        "yesterday": "Yesterday",
+        "tomorrow": "Tomorrow"
+    },
     "report": {
         "fallbackTitle": "Report",
         "description": "The AI write-up is for this report. Metrics are computed live for the selected window, which defaults to the period this report covers.",
