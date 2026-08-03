@@ -1,12 +1,28 @@
+"use client";
+
+import { NOTIFICATIONS_READ_EVENT } from "@/components/notifications/read-event";
 import { cn } from "@/lib/utils";
 import { Bell } from "lucide-react";
-import { getTranslations } from "next-intl/server";
+import { useTranslations } from "next-intl";
 import Link from "next/link";
+import { useEffect, useState } from "react";
 import { buttonVariants } from "../ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 
-export async function NotificationsBell({ unread }: { unread: number }) {
-    const t = await getTranslations("nav");
+export function NotificationsBell({ unread }: { unread: number }) {
+    const t = useTranslations("nav");
+
+    // See components/notifications/read-event.ts: the page announces the read instead of the action
+    // revalidating the whole dashboard layout, so the dot clears here rather than in a server pass.
+    const [read, setRead] = useState(false);
+
+    useEffect(() => {
+        const clear = () => setRead(true);
+        window.addEventListener(NOTIFICATIONS_READ_EVENT, clear);
+        return () => window.removeEventListener(NOTIFICATIONS_READ_EVENT, clear);
+    }, []);
+
+    const count = read ? 0 : unread;
 
     return (
         <Tooltip>
@@ -18,7 +34,7 @@ export async function NotificationsBell({ unread }: { unread: number }) {
                         className={cn(buttonVariants({ variant: "ghost", size: "icon-lg" }), "relative")}
                     >
                         <Bell />
-                        {unread > 0 && (
+                        {count > 0 && (
                             <span className="absolute right-1.5 top-1.5 size-2 rounded-full bg-blue-500 ring-2 ring-background" />
                         )}
                     </Link>
@@ -26,7 +42,7 @@ export async function NotificationsBell({ unread }: { unread: number }) {
             />
 
             <TooltipContent side="bottom" sideOffset={10}>
-                <p>{unread > 0 ? t("unreadCount", { count: unread }) : t("notifications")}</p>
+                <p>{count > 0 ? t("unreadCount", { count }) : t("notifications")}</p>
             </TooltipContent>
         </Tooltip>
     );

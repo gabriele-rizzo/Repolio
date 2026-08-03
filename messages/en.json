@@ -70,7 +70,7 @@
         },
         "template": {
             "title": "Report template",
-            "description": "Design the report document your PDF is built from. Sections and your own wording, with {{ .variables }} that fill in from each period's data. Your dashboard report view isn't affected.",
+            "description": "Design the report document your PDF is built from. Sections and your own wording, with '{{' .variables '}}' that fill in from each period's data. Your dashboard report view isn't affected.",
             "scopeDefault": "All accounts",
             "scopeDefaultHelp": "Used for every ad account that has no template of its own.",
             "scopeAccountHelp": "Overrides your default for this ad account only. Reset it to go back to the default.",

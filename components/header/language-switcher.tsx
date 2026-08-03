@@ -57,9 +57,26 @@ export function LanguageSwitcher({ locale, auto }: LanguageSwitcherProps) {
         <DropdownMenu open={open} onOpenChange={setOpen}>
             <DropdownMenuTrigger
                 render={
-                    <Button variant="ghost" size="icon-lg" aria-label={t("title")} disabled={pending}>
+                    <Button
+                        variant="ghost"
+                        size="icon-lg"
+                        aria-label={`${t("title")}: ${tLocale(locale)}`}
+                        disabled={pending}
+                        className="relative"
+                    >
                         {pending ? <LoaderCircle className="animate-spin" /> : <Globe />}
-                        <span className="sr-only">{t("title")}</span>
+
+                        {/* Which language is in effect, without opening the menu. Sits on the globe's
+                            bottom-right corner and is ringed in the header's own background so it reads
+                            as a badge rather than part of the glyph. */}
+                        {!pending && (
+                            <span
+                                aria-hidden
+                                className="pointer-events-none absolute bottom-0 right-0 rounded-[0.25rem] bg-primary px-[0.1875rem] text-[0.5rem]/[0.6875rem] font-semibold uppercase tracking-tight text-primary-foreground ring-1 ring-background"
+                            >
+                                {locale}
+                            </span>
+                        )}
                     </Button>
                 }
             />

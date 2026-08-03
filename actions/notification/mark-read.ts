@@ -2,7 +2,6 @@
 
 import { authorize } from "@/actions/auth/authorize";
 import { prisma } from "@/lib/prisma";
-import { revalidatePath } from "next/cache";
 
 export async function markNotificationsRead() {
     const client = await authorize();
@@ -12,8 +11,10 @@ export async function markNotificationsRead() {
         data: { read_at: new Date() },
     });
 
-    // Only revalidate when something changed, to refresh the header badge.
-    if (count > 0) revalidatePath("/dashboard", "layout");
-
+    // Deliberately no revalidatePath: the only thing the write changes on screen is the header's
+    // unread dot, and revalidating the dashboard layout to move one dot also threw away every
+    // prefetched route in the client router cache — so opening notifications made the whole app
+    // navigate cold afterwards. The caller clears the badge instead; see
+    // components/notifications/read-event.ts.
     return count;
 }

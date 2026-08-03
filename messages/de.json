@@ -70,7 +70,7 @@
         },
         "template": {
             "title": "Report-Vorlage",
-            "description": "Gestalte das Report-Dokument, aus dem dein PDF entsteht. Abschnitte und eigene Texte, mit {{ .variables }}, die sich aus den Daten jeder Periode füllen. Die Report-Ansicht im Dashboard bleibt unverändert.",
+            "description": "Gestalte das Report-Dokument, aus dem dein PDF entsteht. Abschnitte und eigene Texte, mit '{{' .variables '}}', die sich aus den Daten jeder Periode füllen. Die Report-Ansicht im Dashboard bleibt unverändert.",
             "scopeDefault": "Alle Konten",
             "scopeDefaultHelp": "Wird für jedes Werbekonto verwendet, das keine eigene Vorlage hat.",
             "scopeAccountHelp": "Überschreibt deine Standardvorlage nur für dieses Werbekonto. Setze sie zurück, um wieder den Standard zu nutzen.",
