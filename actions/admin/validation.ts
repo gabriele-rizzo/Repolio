@@ -8,6 +8,7 @@ import { runCollect } from "@/lib/cron/collect";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
 import { actionLimiter, checkLimit, clientIp } from "@/lib/rate-limit";
+import { reportAiStatus } from "@/lib/report/ai-status";
 import { sendReportBatch } from "@/lib/report/send-batch";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -33,6 +34,56 @@ export async function setReportApproval(reportId: number, approved: boolean): Pr
 
         revalidatePath("/admin/validation");
     });
+}
+
+export type ExcludeEmptyResult = { error: string } | { excluded: number };
+
+/**
+ * Excludes every report in a pending batch whose AI section is empty, in one call.
+ *
+ * A monthly batch can carry dozens of accounts, and the dead ones — a period with no activity never
+ * calls the model — are exactly the reports that shouldn't reach the client. Doing that one row at a
+ * time is the same decision fifty times over.
+ *
+ * Emptiness is decided HERE, from the stored rows, not from what the client sends: the caller passes
+ * a batch id and nothing else, so a stale screen can't talk this into dropping a report that has
+ * since finished generating. `ai_pending` reports are left alone for the same reason — their text is
+ * still in flight.
+ */
+export async function excludeEmptyReports(batchId: number): Promise<ExcludeEmptyResult> {
+    let excluded = 0;
+
+    const result = await safeAction(async () => {
+        if (!(await isAdminAuthenticated())) throw new Error("Unauthorized.");
+
+        const batch = await prisma.reportBatch.findUnique({
+            where: { id: batchId },
+            select: {
+                sent_at: true,
+                reports: {
+                    where: { approved: true },
+                    select: { id: true, ai_pending: true, trend_explanation: true, recommendations: true },
+                },
+            },
+        });
+
+        if (!batch) throw new Error("That batch no longer exists.");
+        if (batch.sent_at) throw new Error("That batch has already been sent — its reports can't be changed.");
+
+        const empty = batch.reports.filter((report) => reportAiStatus(report) === "EMPTY").map((report) => report.id);
+
+        if (empty.length === 0) throw new Error("Every report here already has an AI section.");
+
+        const { count } = await prisma.report.updateMany({
+            where: { id: { in: empty } },
+            data: { approved: false },
+        });
+
+        excluded = count;
+        revalidatePath("/admin/validation");
+    });
+
+    return result?.error ? result : { excluded };
 }
 
 /**

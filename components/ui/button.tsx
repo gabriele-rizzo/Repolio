@@ -1,5 +1,6 @@
 import { Button as ButtonPrimitive } from "@base-ui/react/button";
 import { cva, type VariantProps } from "class-variance-authority";
+import { isValidElement } from "react";
 
 import { cn } from "@/lib/utils";
 
@@ -43,8 +44,20 @@ function Button({
     size = "default",
     ...props
 }: ButtonPrimitive.Props & VariantProps<typeof buttonVariants>) {
+    // Base UI assumes it is rendering a native <button> and, when `render` hands it something else,
+    // logs an error and keeps button semantics that don't belong on the element. Plenty of buttons
+    // here are really links ("Preview PDF", the report and template pickers), so infer it from what
+    // was passed instead of asking every caller to remember `nativeButton={false}`.
+    const nativeButton =
+        props.nativeButton ?? (isValidElement(props.render) ? props.render.type === "button" : true);
+
     return (
-        <ButtonPrimitive data-slot="button" className={cn(buttonVariants({ variant, size, className }))} {...props} />
+        <ButtonPrimitive
+            data-slot="button"
+            className={cn(buttonVariants({ variant, size, className }))}
+            {...props}
+            nativeButton={nativeButton}
+        />
     );
 }
 

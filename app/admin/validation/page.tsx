@@ -1,8 +1,4 @@
-import {
-    ValidationBatches,
-    type ReportAiStatus,
-    type ValidationBatchCard,
-} from "@/components/admin/validation-batches";
+import { ValidationBatches, type ValidationBatchCard } from "@/components/admin/validation-batches";
 import type { Recommendation } from "@/components/report/recommendation-card";
 import { Typo } from "@/components/typography";
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
+import { reportAiStatus, type ReportAiStatus } from "@/lib/report/ai-status";
 import { MailCheck } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -91,15 +88,7 @@ export default async function ValidationPage() {
             const first = report.snapshots[0];
             const account = first ? accounts.get(first.ad_account_id) : undefined;
             const recommendations = (report.recommendations ?? []) as unknown as Recommendation[];
-
-            // EMPTY covers both intended cases (a zero-activity period, which never calls the model)
-            // and a failed generation — either way the PDF goes out with no AI section, which is the
-            // thing an admin needs to see before approving.
-            const status: ReportAiStatus = report.ai_pending
-                ? "GENERATING"
-                : report.trend_explanation || recommendations.length > 0
-                  ? "READY"
-                  : "EMPTY";
+            const status: ReportAiStatus = reportAiStatus(report);
 
             return {
                 id: report.id,

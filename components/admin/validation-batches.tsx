@@ -1,18 +1,24 @@
 "use client";
 
-import { collectAiResults, regenerateBatch, setReportApproval, validateAndSendBatch } from "@/actions/admin/validation";
+import {
+    collectAiResults,
+    excludeEmptyReports,
+    regenerateBatch,
+    setReportApproval,
+    validateAndSendBatch,
+} from "@/actions/admin/validation";
 import { PlatformBadge } from "@/components/platform-badge";
 import { Typo } from "@/components/typography";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import type { Platform } from "@/generated/prisma/browser";
-import { Check, ExternalLink, LoaderCircle, RefreshCw, Send, Sparkles, Undo2 } from "lucide-react";
+import type { ReportAiStatus } from "@/lib/report/ai-status";
+import { Check, ExternalLink, EyeOff, LoaderCircle, RefreshCw, Send, Sparkles, Undo2 } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 
-/** How far along a report's AI section is — decided on the server, rendered as a chip. */
-export type ReportAiStatus = "READY" | "GENERATING" | "EMPTY";
+export type { ReportAiStatus };
 
 export interface ValidationReportRow {
     id: number;
@@ -120,11 +126,13 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
     const [sending, startSend] = useTransition();
     const [regenerating, startRegenerate] = useTransition();
     const [collecting, startCollect] = useTransition();
+    const [excluding, startExclude] = useTransition();
 
     const approved = rows.filter((r) => r.approved);
     const generating = approved.filter((r) => r.status === "GENERATING").length;
     const anyGenerating = rows.some((r) => r.status === "GENERATING");
-    const busy = toggling || sending || regenerating || collecting;
+    const emptyApproved = approved.filter((r) => r.status === "EMPTY");
+    const busy = toggling || sending || regenerating || collecting || excluding;
 
     function onToggle(reportId: number, next: boolean) {
         setRows((current) => current.map((r) => (r.id === reportId ? { ...r, approved: next } : r)));
@@ -157,6 +165,30 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
                 `Regenerating ${result.submitted} ${result.submitted === 1 ? "report" : "reports"}${
                     result.skipped > 0 ? ` (${result.skipped} skipped)` : ""
                 }. Same data, new write-up — check back in a minute.`,
+            );
+        });
+    }
+
+    function onExcludeEmpty() {
+        setConfirming(false);
+
+        // Optimistic like the single toggle, and rolled back the same way: the server decides which
+        // rows are actually empty, so a refusal must not leave this card showing exclusions that
+        // never happened.
+        const ids = new Set(emptyApproved.map((r) => r.id));
+        setRows((current) => current.map((r) => (ids.has(r.id) ? { ...r, approved: false } : r)));
+
+        startExclude(async () => {
+            const result = await excludeEmptyReports(batch.id);
+
+            if ("error" in result) {
+                setRows((current) => current.map((r) => (ids.has(r.id) ? { ...r, approved: true } : r)));
+                toast.error(result.error);
+                return;
+            }
+
+            toast.success(
+                `Excluded ${result.excluded} ${result.excluded === 1 ? "report" : "reports"} with no AI section.`,
             );
         });
     }
@@ -235,6 +267,16 @@ function BatchCard({ batch }: { batch: ValidationBatchCard }) {
                     {confirming && (
                         <Button variant="ghost" size="sm" onClick={() => setConfirming(false)}>
                             Cancel
+                        </Button>
+                    )}
+
+                    {/* Only offered when there is something to drop — a batch of dozens of accounts
+                        usually carries a few dead periods, and excluding them is the same decision
+                        over and over. */}
+                    {emptyApproved.length > 0 && (
+                        <Button variant="ghost" size="sm" disabled={busy} onClick={onExcludeEmpty}>
+                            {excluding ? <LoaderCircle className="animate-spin" /> : <EyeOff />}
+                            {excluding ? "Excluding…" : `Exclude all empty (${emptyApproved.length})`}
                         </Button>
                     )}
 
