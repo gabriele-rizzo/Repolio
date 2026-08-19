@@ -4,7 +4,14 @@ import { prisma } from "@/lib/prisma";
 const RETENTION_DAYS = 30;
 
 export interface SyncErrorEntry {
-    /** Pipeline stage, e.g. "fetch_snapshot" | "upsert_snapshots" | "refresh_ad_accounts" | "health_check" | "poll_backfill" | "batch_submit". */
+    /**
+     * Pipeline stage, e.g. "fetch_snapshot" | "upsert_snapshots" | "refresh_ad_accounts" |
+     * "health_check" | "poll_backfill" | "batch_submit" | "collect_snapshots" |
+     * "snapshots_budget_exhausted" | "poll_budget_exhausted".
+     *
+     * The two *_budget_exhausted stages are not failures of a unit of work — they record that a run
+     * hit its wall-clock budget and deliberately deferred the rest (see lib/cron/budget.ts).
+     */
     stage: string;
     message: string;
     clientId?: number;

@@ -2,6 +2,8 @@ import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
 import type { Client, Snapshot } from "@/generated/prisma/browser";
 import { getAnthropic } from "@/lib/ai/anthropic";
 import { buildReportParams } from "@/lib/ai/generate-report";
+import type { Budget } from "@/lib/cron/budget";
+import { emptyCounts, type PhaseCounts } from "@/lib/cron/run-record";
 import { startOfUtcDay } from "@/lib/date/start-of-day";
 import { computeMetrics } from "@/lib/metrics/compute";
 import { prisma } from "@/lib/prisma";
@@ -29,25 +31,48 @@ import pLimit from "p-limit";
 
 const limit = pLimit(10);
 
-export async function runPoll(): Promise<{ status: number; error: string | null }> {
+type PollResult = { status: number; error: string | null; counts: PhaseCounts };
+
+/**
+ * Report submit phase, bounded by `budget`.
+ *
+ * Where the budget bites is a deliberate choice: it sheds the SELF-HEAL back-fill, never the report
+ * creation. The back-fill is an optional repair of the snapshot phase's misses (and it re-runs
+ * tomorrow); creating the reports and submitting the batch is the product, is cheap (DB inserts plus
+ * one Anthropic call), and a slot missed here is not owed again — `due_clients()` only returns a
+ * client until a report exists for the slot. So under time pressure a report generated from slightly
+ * stale snapshots beats no report at all.
+ */
+export async function runPoll(budget: Budget): Promise<PollResult> {
+    const counts = emptyCounts();
     const supabase = await createAdminClient();
     const dresponse = await supabase.rpc("due_clients");
 
     if (dresponse.error) {
         console.error("Failed to get due users:", dresponse.error);
-        return { status: 500, error: "Failed to get due clients" };
+        return { status: 500, error: "Failed to get due clients", counts };
     }
 
     const dueClients = dresponse.data as Client[];
-    if (dueClients.length === 0) return { status: 204, error: null };
+    counts.considered = dueClients.length;
+    if (dueClients.length === 0) return { status: 204, error: null, counts };
 
     // Self-heal: ensure every due client has today's snapshots. The daily snapshot phase normally
     // handles this; if it missed or failed for a client, collect now so the report isn't stale.
     // collectSnapshots is idempotent (per-day upsert), so a redundant call here is harmless.
+    // Reserve for the work that must still happen after this phase: one Report insert per due ad
+    // account plus a single Anthropic batch submit. Back-fills stop starting once only that is left.
+    const BACKFILL_RESERVE_MS = 8_000;
     const today = startOfUtcDay(new Date());
+    let backfillsSkipped = 0;
     await Promise.all(
         dueClients.map((c) =>
             limit(async () => {
+                if (!budget.canStart(BACKFILL_RESERVE_MS)) {
+                    backfillsSkipped++;
+                    return;
+                }
+
                 const fresh = await prisma.snapshot.findFirst({
                     where: { ad_account: { connection: { client_id: c.id } }, start_date: { gte: today } },
                     select: { id: true },
@@ -103,7 +128,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
         )
     ).flat();
 
-    if (periodSnapshots.length === 0) return { status: 204, error: null };
+    if (periodSnapshots.length === 0) return { status: 204, error: null, counts };
 
     const groups = new Map<number, Snapshot[]>();
     for (const s of periodSnapshots) {
@@ -130,7 +155,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
         return clientId == null ? [] : [{ clientId, group }];
     });
 
-    if (work.length === 0) return { status: 204, error: null };
+    if (work.length === 0) return { status: 204, error: null, counts };
 
     // Batch rows first, in their own flat pass. Deliberately NOT nested inside the report loop below:
     // both use the same limiter, and an outer task holding a slot while awaiting inner tasks that
@@ -144,6 +169,12 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
             }),
         ),
     );
+
+    // A due client that got a batch is a slot delivered. `skipped` is left for budget-driven
+    // deferral only (set below) — a due client with nothing reportable is a normal outcome, not a
+    // deferral, and folding it in here would make `skipped > 0` too noisy to alert on. That count is
+    // still derivable as considered - processed - failed.
+    counts.processed = batchIdByClient.size;
 
     // One report per ad account, each attached to its client's batch and unreleased. Zero-activity
     // accounts stop here (empty report, no tokens spent); the rest produce an Anthropic batch request
@@ -186,7 +217,7 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
     );
 
     const active = pending.filter((p): p is { reportId: number; request: BatchRequest } => p !== null);
-    if (active.length === 0) return { status: 200, error: null };
+    if (active.length === 0) return { status: 200, error: null, counts };
 
     // Submit all AI sections as a single batch, then mark those reports pending so the collect cron
     // picks them up. On submit failure the reports simply stay empty (ai_pending stays false) — no
@@ -200,10 +231,24 @@ export async function runPoll(): Promise<{ status: number; error: string | null 
             data: { ai_pending: true, batch_id: batch.id },
         });
     } catch (error) {
+        counts.failed = counts.processed;
+        counts.processed = 0;
         console.error("Failed to submit report batch:", error);
         await logSyncError({ stage: "batch_submit", message: String(error) });
-        return { status: 500, error: "Failed to submit report batch" };
+        return { status: 500, error: "Failed to submit report batch", counts };
     }
 
-    return { status: 200, error: null };
+    counts.skipped = backfillsSkipped;
+    if (backfillsSkipped > 0) {
+        // Not an error: the reports were still generated, just from snapshots the daily phase had
+        // already collected. Recorded because it means this run was close enough to its ceiling that
+        // it started shedding optional work — the warning before reports themselves are at risk.
+        const message =
+            `poll phase skipped ${backfillsSkipped}/${counts.considered} snapshot back-fills after ` +
+            `${budget.elapsed()}ms to protect report generation`;
+        console.warn(`[poll] ${message}`);
+        await logSyncError({ stage: "poll_budget_exhausted", message });
+    }
+
+    return { status: 200, error: null, counts };
 }

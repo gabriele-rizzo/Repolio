@@ -295,6 +295,48 @@ model AdAccount {
     @@unique([connection_id, external_id])
 }
 
+/// One row per cron invocation, written best-effort at the end of the run.
+///
+/// This table exists to make a TRUNCATED run visible. The daily job is deliberately best-effort
+/// everywhere — a failed client never aborts the others — and Vercel kills the function outright at
+/// `maxDuration` without unwinding. Both mean the interesting failure is silence: no exception, no
+/// SyncError row, just fewer clients processed than exist. A run row turns that into a query:
+/// `finished_at IS NULL` is a killed run, and `skipped > 0` is a run that ran out of wall clock and
+/// abandoned the tail on purpose.
+///
+/// SyncError answers "which account failed?"; CronRun answers "did the run even get there?".
+model CronRun {
+    id Int @id @default(autoincrement())
+
+    /// "daily" | "snapshots" | "poll" — which route was invoked.
+    job        String
+    started_at DateTime @default(now())
+
+    /// Stamped when the run returns normally. NULL means the invocation never reached the end:
+    /// killed at maxDuration, or the process died. That is the row worth alerting on.
+    finished_at DateTime?
+
+    /// Wall clock actually spent, in ms. Compare against CRON_BUDGET_MS to see how close a healthy
+    /// run is running to the ceiling — the early warning before truncation starts.
+    duration_ms Int?
+
+    /// Units of work (clients) considered, completed, failed, and deferred for lack of wall clock.
+    /// For the combined daily job these describe the snapshot phase — the one that scales with client
+    /// count — except `skipped`, which sums the deferrals of BOTH phases so that a single
+    /// `skipped > 0` is the whole run's "it started shedding work" signal. `detail` keeps the exact
+    /// per-phase breakdown.
+    considered Int @default(0)
+    processed  Int @default(0)
+    failed     Int @default(0)
+    skipped    Int @default(0)
+
+    /// Per-phase detail for the combined daily job (snapshot counts vs report counts), free-form so a
+    /// new phase needs no migration.
+    detail Json?
+
+    @@index([job, started_at])
+}
+
 enum Platform {
     META
     GOOGLE

@@ -1,3 +1,5 @@
+import { CRON_BUDGET_MS, createBudget } from "@/lib/cron/budget";
+import { startCronRun } from "@/lib/cron/run-record";
 import { runSnapshots } from "@/lib/cron/snapshots";
 import { isAuthorizedCron } from "@/lib/cron-auth";
 import { err } from "@/lib/try-catch";
@@ -15,7 +17,11 @@ export const maxDuration = 60;
 export async function GET(request: NextRequest): Promise<ResultResponse<null, string>> {
     if (!isAuthorizedCron(request)) return NextResponse.json(err("Unauthorized"), { status: 401 });
 
-    const { status, error } = await runSnapshots();
+    // Standalone, so the whole budget is this phase's — no reservation for a following poll.
+    const finish = await startCronRun("snapshots");
+    const { status, error, counts } = await runSnapshots(createBudget(CRON_BUDGET_MS));
+    await finish(counts);
+
     if (error) return NextResponse.json(err(error), { status });
 
     return new NextResponse(null, { status });
