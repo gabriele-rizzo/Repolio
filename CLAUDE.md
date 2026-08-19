@@ -8,7 +8,6 @@ it for an admin to validate before the client ever sees it.
 
 **`PROJECT_OVERVIEW.md` is the deep reference** — data model, subsystem walkthroughs, lifecycle, file map.
 Read it before any non-trivial change. This file covers only what you need up front.
-(`TODO.md` is explicitly stale — pre-Zernio architecture, kept for history. Ignore it.)
 
 ## Commands
 

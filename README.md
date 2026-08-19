@@ -87,4 +87,3 @@ every push to `main` and every pull request. It holds no database credentials.
 - **[PROJECT_OVERVIEW.md](PROJECT_OVERVIEW.md)** — the deep reference: data model, every subsystem, the
   end-to-end lifecycle, and a file map of where things live.
 - **[CLAUDE.md](CLAUDE.md)** — architecture summary and the invariants worth knowing before changing code.
-- `TODO.md` is **stale** (pre-Zernio architecture) and kept only for history.

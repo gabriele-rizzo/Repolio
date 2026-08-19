@@ -31,7 +31,11 @@ jobs:
       # Pinned rather than read from a `packageManager` field: adding that field would also pin the
       # version Vercel builds with, which is a deploy-behaviour change this workflow shouldn't make.
       # Keep in step with the pnpm used locally.
-      - uses: pnpm/action-setup@v4
+      #
+      # v6, not v4: v4 runs on node20, which GitHub deprecated — every run was being force-migrated to
+      # node24 with a warning, and would break outright once they stop forcing it. v6 targets node24
+      # natively and still takes `version`.
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.21.0
 
@@ -102,7 +106,7 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           version: 11.21.0
 
