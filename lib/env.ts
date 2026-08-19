@@ -102,6 +102,11 @@ export const ENV_MANIFEST: readonly EnvSpec[] = [
     },
 
     // --- Optional: documented so the defaults are discoverable ---
+    {
+        key: "SHADOW_DATABASE_URL",
+        requiredIn: "optional",
+        description: "Disposable Postgres for `migrate diff --from-migrations` (CI only — that command writes to it).",
+    },
     { key: "RESEND_FROM", requiredIn: "optional", description: "Sender for outgoing email. Defaults to the built-in address." },
     { key: "ZERNIO_API_BASE", requiredIn: "optional", description: "Zernio API base URL. Defaults to the production endpoint." },
     { key: "ZERNIO_FETCH_CONCURRENCY", requiredIn: "optional", description: "Concurrent Zernio timeline fetches. Default 20." },

@@ -50,6 +50,8 @@ export async function runPoll(budget: Budget): Promise<PollResult> {
 
     if (dresponse.error) {
         console.error("Failed to get due users:", dresponse.error);
+        // Total blackout: no client is considered due, so no report is generated at all today.
+        await logSyncError({ stage: "poll_due_clients", message: String(dresponse.error.message ?? dresponse.error) });
         return { status: 500, error: "Failed to get due clients", counts };
     }
 
@@ -210,6 +212,11 @@ export async function runPoll(budget: Budget): Promise<PollResult> {
                 } catch (error) {
                     // Leave the report empty (KPIs still render); log and move on.
                     console.error(`Failed to build report params for report ${report.id}:`, error);
+                    await logSyncError({
+                        stage: "poll_build_params",
+                        clientId,
+                        message: `report ${report.id}: ${String(error)}`,
+                    });
                     return null;
                 }
             }),

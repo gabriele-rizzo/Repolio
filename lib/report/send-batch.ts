@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { renderBatchEmail } from "@/lib/email/render-batch";
 import { prisma } from "@/lib/prisma";
 import { getTranslations } from "next-intl/server";
+import { logSyncError } from "@/lib/sync-error";
 
 export interface SendBatchResult {
     /** How many reports were released and covered by the email. */
@@ -62,6 +63,9 @@ export async function sendReportBatch(batchId: number): Promise<SendBatchResult>
 
     if (error) {
         console.error(`Resend rejected report batch ${batchId}:`, error);
+        // The reports stay unreleased (this returns before stamping released_at), so the batch can be
+        // validated again — but only if someone knows it failed.
+        await logSyncError({ stage: "send_batch_rejected", message: `batch ${batchId}: ${String(error)}` });
         throw new Error(`The email could not be sent: ${error.message}`);
     }
 
@@ -90,6 +94,7 @@ export async function sendReportBatch(batchId: number): Promise<SendBatchResult>
         });
     } catch (error) {
         console.error(`Failed to create batch notification for batch ${batchId}:`, error);
+        await logSyncError({ stage: "send_batch_notification", message: `batch ${batchId}: ${String(error)}` });
     }
 
     return { sent: rendered.reportIds.length, excluded };

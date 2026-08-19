@@ -50,7 +50,7 @@ everything that is wrong rather than failing later on whichever code path needed
 | `pnpm dev` | Development server |
 | `pnpm build` | `prisma generate && next build` |
 | `pnpm start` | Production server |
-| `pnpm typecheck` | `tsc --noEmit` |
+| `pnpm typecheck` | `next typegen && tsc --noEmit` (Next's route types are gitignored) |
 | `pnpm lint` | ESLint |
 | `pnpm test` | Vitest (all tests) |
 | `pnpm db:generate` | Regenerate the Prisma client |

@@ -2,6 +2,7 @@ import { getAnthropic } from "@/lib/ai/anthropic";
 import { applyGeneratedReport } from "@/lib/ai/generate-report";
 import { prisma } from "@/lib/prisma";
 import pLimit from "p-limit";
+import { logSyncError } from "@/lib/sync-error";
 
 // Collect phase of report generation. The poll cron (and the admin's "Regenerate" action) submit
 // report AI sections to the Anthropic Batches API and mark those reports `ai_pending`. This retrieves
@@ -53,6 +54,7 @@ export async function runCollect(): Promise<CollectResult> {
             status = batch.processing_status;
         } catch (error) {
             console.error(`Failed to retrieve batch ${batchId}:`, error);
+            await logSyncError({ stage: "collect_retrieve_batch", message: `batch ${batchId}: ${String(error)}` });
             stillPending += reports.length;
             continue;
         }
@@ -70,6 +72,7 @@ export async function runCollect(): Promise<CollectResult> {
             results = await getAnthropic().messages.batches.results(batchId);
         } catch (error) {
             console.error(`Failed to fetch results for batch ${batchId}:`, error);
+            await logSyncError({ stage: "collect_fetch_results", message: `batch ${batchId}: ${String(error)}` });
             stillPending += reports.length;
             continue;
         }
@@ -90,9 +93,20 @@ export async function runCollect(): Promise<CollectResult> {
                             applied += 1;
                         } catch (error) {
                             console.error(`Failed to apply batch result for report ${reportId}:`, error);
+                            await logSyncError({
+                                stage: "collect_apply_result",
+                                message: `report ${reportId}: ${String(error)}`,
+                            });
                         }
                     } else {
                         console.error(`Batch result for report ${reportId} was ${result.result.type}`);
+                        // The model returned an error or the request expired: the report is left empty and
+                        // still renders live KPIs, so nothing downstream complains. Record it or the
+                        // missing narrative is invisible until a human reads the report.
+                        await logSyncError({
+                            stage: "collect_result_not_succeeded",
+                            message: `report ${reportId}: batch result type '${result.result.type}'`,
+                        });
                     }
 
                     await prisma.report.update({ where: { id: reportId }, data: { ai_pending: false } });

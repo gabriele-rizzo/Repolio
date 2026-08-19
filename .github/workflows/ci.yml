@@ -51,6 +51,10 @@ jobs:
       - name: Generate Prisma client
         run: pnpm db:generate
 
+      # `pnpm typecheck` runs `next typegen` first. Next generates the global LayoutProps/PageProps
+      # types and the image-module declarations into .next/types and next-env.d.ts, both gitignored —
+      # so on a clean checkout tsc cannot see them and fails on app/ files that are perfectly valid.
+      # Locally it passed only because a previous `next dev` had left them behind.
       - name: Typecheck
         run: pnpm typecheck
 
@@ -59,3 +63,63 @@ jobs:
 
       - name: Test
         run: pnpm test
+
+  # Do the migrations in prisma/migrations/ actually produce prisma/schema.prisma?
+  #
+  # This is the check that would have caught the CronRun migration sitting committed-but-unapplied, and
+  # the more common mistake it guards is editing schema.prisma without writing the matching migration —
+  # easy to do here, because migrations are applied by hand against production and never by the app.
+  #
+  # It needs a real Postgres because `--from-migrations` replays every migration to compute the schema
+  # they produce. The service container below is disposable and exists only for that; no production
+  # credential is involved.
+  migrations:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      # `migrate diff --from-migrations` WRITES here, so it must be a throwaway. Never point this at
+      # anything real — see the note in prisma.config.ts.
+      SHADOW_DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/shadow
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Create the shadow database
+        run: psql "$DIRECT_URL" -c 'CREATE DATABASE shadow;'
+
+      # --exit-code makes an empty diff exit 0 and a non-empty diff exit 2, so drift fails the job.
+      - name: Migrations must reproduce schema.prisma
+        run: |
+          pnpm exec prisma migrate diff \
+            --from-migrations prisma/migrations \
+            --to-schema prisma/schema.prisma \
+            --exit-code

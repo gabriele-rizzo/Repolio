@@ -13,6 +13,7 @@ import { buildReportHtml } from "@/lib/report/template/build";
 import { DEFAULT_TEMPLATE_BODY } from "@/lib/report/template/presets";
 import { resolveTemplate } from "@/lib/report/template/resolve";
 import { getTranslations } from "next-intl/server";
+import { logSyncError } from "@/lib/sync-error";
 
 export interface RenderedReportPdf {
     /** Attachment name, safe for mail clients and filesystems. */
@@ -160,6 +161,12 @@ export async function renderReportPdf(reportId: number, forceLocale?: Locale): P
         content = await toPdf(body);
     } catch (error) {
         console.error(`Report ${reportId}: template broke the PDF renderer, falling back to default:`, error);
+        // Delivery still happens, with the built-in layout instead of the client's — a silent downgrade
+        // of the deliverable unless it is recorded.
+        await logSyncError({
+            stage: "pdf_template_fallback",
+            message: `report ${reportId}: ${String(error)}`,
+        });
         const fallback = buildReportHtml({ ...documentInput, templateBody: DEFAULT_TEMPLATE_BODY });
         content = await toPdf(fallback.body, fallback.colours);
     }

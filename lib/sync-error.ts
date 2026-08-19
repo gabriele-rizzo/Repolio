@@ -5,9 +5,16 @@ const RETENTION_DAYS = 30;
 
 export interface SyncErrorEntry {
     /**
-     * Pipeline stage, e.g. "fetch_snapshot" | "upsert_snapshots" | "refresh_ad_accounts" |
-     * "health_check" | "poll_backfill" | "batch_submit" | "collect_snapshots" |
-     * "snapshots_budget_exhausted" | "poll_budget_exhausted".
+     * Pipeline stage. Free-form, but keep to the existing vocabulary so /admin/health groups cleanly:
+     *
+     * snapshots  "fetch_snapshot" | "upsert_snapshots" | "refresh_ad_accounts" | "health_check" |
+     *            "collect_snapshots" | "snapshots_budget_exhausted"
+     * reports    "poll_due_clients" | "poll_backfill" | "poll_build_params" | "batch_submit" |
+     *            "poll_budget_exhausted"
+     * ai         "collect_retrieve_batch" | "collect_fetch_results" | "collect_apply_result" |
+     *            "collect_result_not_succeeded"
+     * delivery   "send_batch_rejected" | "send_batch_notification" | "validation_build_params" |
+     *            "pdf_template_fallback"
      *
      * The two *_budget_exhausted stages are not failures of a unit of work — they record that a run
      * hit its wall-clock budget and deliberately deferred the rest (see lib/cron/budget.ts).

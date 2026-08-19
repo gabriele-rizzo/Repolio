@@ -12,6 +12,7 @@ import { reportAiStatus } from "@/lib/report/ai-status";
 import { sendReportBatch } from "@/lib/report/send-batch";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
+import { logSyncError } from "@/lib/sync-error";
 
 /**
  * Includes or excludes one report from its pending batch. Excluding leaves the report unreleased, so
@@ -173,6 +174,10 @@ export async function regenerateBatch(batchId: number): Promise<RegenerateResult
             } catch (error) {
                 // One unbuildable report (no snapshots, say) must not sink the rest of the batch.
                 console.error(`Failed to build report params for report ${report.id}:`, error);
+                await logSyncError({
+                    stage: "validation_build_params",
+                    message: `report ${report.id}: ${String(error)}`,
+                });
                 skipped += 1;
             }
         }

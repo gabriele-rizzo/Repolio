@@ -10,7 +10,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from "@/components/ui/sidebar";
-import { CalendarClock, FlaskConical, LayoutTemplate, MailCheck, UserPlus } from "lucide-react";
+import { CalendarClock, FlaskConical, HeartPulse, LayoutTemplate, MailCheck, UserPlus } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -20,6 +20,7 @@ const NAV = [
     { href: "/admin/templates", label: "Templates", icon: LayoutTemplate },
     { href: "/admin/validation", label: "Validation", icon: MailCheck },
     { href: "/admin/simulation", label: "Simulation", icon: FlaskConical },
+    { href: "/admin/health", label: "Health", icon: HeartPulse },
 ] as const;
 
 export function AdminSidebar() {
