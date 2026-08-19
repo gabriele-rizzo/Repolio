@@ -1,13 +1,18 @@
-// Derives trustworthy per-day facts from the raw Meta action maps Zernio stores on each timeline
-// row (`actions`: action_type -> count, `actionValues`: action_type -> value). Zernio's own derived
-// scalars must never feed KPIs: `conversions` mirrors Meta's pixel-config-dependent rollup
-// (identical action patterns produced 2 vs 0 across accounts) and `purchaseValue`/`roas` mix
-// non-purchase values into "revenue" (lead values produced a client-visible fake 74.5x ROAS).
-// See the field notes in lib/zernio/types.ts.
+import type { ActionMap, RawRow, RowFacts } from "./types";
+
+// META's fact extractor: derives trustworthy per-day facts from the raw Meta action maps Zernio stores
+// on each timeline row (`actions`: action_type -> count, `actionValues`: action_type -> value).
+// Zernio's own derived scalars must never feed KPIs: `conversions` mirrors Meta's
+// pixel-config-dependent rollup (identical action patterns produced 2 vs 0 across accounts) and
+// `purchaseValue`/`roas` mix non-purchase values into "revenue" (lead values produced a
+// client-visible fake 74.5x ROAS). See the field notes in lib/zernio/types.ts.
+//
+// EVERYTHING HERE IS META-SPECIFIC — the action_type vocabularies, and the semantics around them
+// ("Meta omits action types with no events"). That is why it lives behind the registry in ./index.ts
+// rather than being called directly: another platform does not have action_type maps at all, and its
+// facts have to come from somewhere else entirely.
 //
 // Deliberately dependency-free: pure functions over plain objects, unit-testable without the app.
-
-export type ActionMap = Record<string, number> | null | undefined;
 
 export interface ActionSpec {
     /**
@@ -102,17 +107,6 @@ export function pickAction(map: ActionMap, spec: ActionSpec): number | null {
     return sum;
 }
 
-export interface RowFacts {
-    /** Purchase conversions counted this day. */
-    purchases: number;
-    /** Purchase-attributed value; null when no purchase value was measured (never a fake 0). */
-    revenue: number | null;
-    /** Lead conversions counted this day. */
-    leads: number;
-    /** Link clicks; null when the row's actions don't break them out (unmeasured ≠ zero). */
-    linkClicks: number | null;
-}
-
 /**
  * Meta omits action types with no events, so an absent map or missing key means "none happened":
  * the count facts read 0. The value facts stay null instead — `revenue` because an unmeasured
@@ -120,11 +114,17 @@ export interface RowFacts {
  * means the source didn't report it than that nobody clicked; the aggregation layer falls back to
  * all clicks when an entire window lacks it.
  */
-export function extractRowFacts(row: { actions?: ActionMap; actionValues?: ActionMap }): RowFacts {
+export function extractMetaRowFacts(row: RawRow): RowFacts {
+    // A RawRow is untyped on purpose — knowing that Meta's counts live under `actions` and its values
+    // under `actionValues` is exactly the platform knowledge this module owns. pickAction rejects
+    // anything that isn't an object, so a row missing either field reads as "no map".
+    const actions = row.actions as ActionMap;
+    const actionValues = row.actionValues as ActionMap;
+
     return {
-        purchases: pickAction(row.actions, PURCHASES) ?? 0,
-        revenue: pickAction(row.actionValues, PURCHASES),
-        leads: pickAction(row.actions, LEADS) ?? 0,
-        linkClicks: pickAction(row.actions, LINK_CLICKS),
+        purchases: pickAction(actions, PURCHASES) ?? 0,
+        revenue: pickAction(actionValues, PURCHASES),
+        leads: pickAction(actions, LEADS) ?? 0,
+        linkClicks: pickAction(actions, LINK_CLICKS),
     };
 }

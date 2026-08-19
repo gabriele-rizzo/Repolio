@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { extractRowFacts, LEADS, LINK_CLICKS, pickAction, PURCHASES } from "./extract";
+import { extractMetaRowFacts, LEADS, LINK_CLICKS, pickAction, PURCHASES } from "./meta";
 
 describe("pickAction", () => {
     it("returns null for an absent or non-object map", () => {
@@ -75,9 +75,9 @@ describe("pickAction", () => {
     });
 });
 
-describe("extractRowFacts", () => {
+describe("extractMetaRowFacts", () => {
     it("reads counts as 0 and values as null when the row has no maps (no actions that day)", () => {
-        expect(extractRowFacts({})).toEqual({ purchases: 0, revenue: null, leads: 0, linkClicks: null });
+        expect(extractMetaRowFacts({})).toEqual({ purchases: 0, revenue: null, leads: 0, linkClicks: null });
     });
 
     it("never counts lead values as purchase revenue (the fake-ROAS bug)", () => {
@@ -86,7 +86,7 @@ describe("extractRowFacts", () => {
             actions: { fb_pixel_lead: 2, link_click: 19 },
             actionValues: { fb_pixel_lead: 1800 },
         };
-        expect(extractRowFacts(row)).toEqual({ purchases: 0, revenue: null, leads: 2, linkClicks: 19 });
+        expect(extractMetaRowFacts(row)).toEqual({ purchases: 0, revenue: null, leads: 2, linkClicks: 19 });
     });
 
     it("extracts purchase revenue only from purchase action values", () => {
@@ -94,11 +94,11 @@ describe("extractRowFacts", () => {
             actions: { purchase: 3, lead: 1, link_click: 40 },
             actionValues: { purchase: 249.5, lead: 500 },
         };
-        expect(extractRowFacts(row)).toEqual({ purchases: 3, revenue: 249.5, leads: 1, linkClicks: 40 });
+        expect(extractMetaRowFacts(row)).toEqual({ purchases: 3, revenue: 249.5, leads: 1, linkClicks: 40 });
     });
 
     it("leaves linkClicks null when actions exist but carry no link_click breakdown", () => {
         const row = { actions: { lead: 4 } };
-        expect(extractRowFacts(row)).toEqual({ purchases: 0, revenue: null, leads: 4, linkClicks: null });
+        expect(extractMetaRowFacts(row)).toEqual({ purchases: 0, revenue: null, leads: 4, linkClicks: null });
     });
 });

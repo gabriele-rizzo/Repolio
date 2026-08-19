@@ -43,7 +43,7 @@ describe("zeroSnapshotData", () => {
         const d = zeroSnapshotData("2026-07-15", "USD");
         expect(d).toMatchObject({ date: "2026-07-15", currency: "USD", spend: 0, impressions: 0 });
 
-        const facts = extractRowFacts(d);
+        const facts = extractRowFacts("META", d);
         expect(facts.purchases).toBe(0);
         expect(facts.leads).toBe(0);
         expect(facts.revenue).toBeNull(); // unmeasured, never a fake 0

@@ -7,8 +7,12 @@ import { computeMetrics } from "./compute";
 // values stored in actionValues, Zernio's scalars poisoned (conversions passthrough, purchaseValue
 // carrying lead values → fake 74.5x ROAS).
 
-const day = (data: Partial<SnapshotData>, date = "2026-07-14"): Snapshot =>
+// `platform` is non-null on Snapshot and decides which vocabulary the row is read with
+// (lib/metrics/extract), so a fixture without one is not a row that can exist. Overridable so a test
+// can exercise an unwired platform.
+const day = (data: Partial<SnapshotData>, date = "2026-07-14", platform = "META"): Snapshot =>
     ({
+        platform,
         data: {
             date,
             currency: "EUR",

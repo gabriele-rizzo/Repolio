@@ -59,6 +59,15 @@ Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Rep
    └──< ReportBatch ──────────────────────────────────────────┘   (validation + delivery unit)
 ```
 
+**Raw rows become facts through a per-platform seam.** `lib/metrics/extract/` holds the registry: one
+`FactExtractor` per `Platform`, each translating that platform's raw daily row into the four fields in
+`extract/types.ts`. Adding a platform means adding a row to `EXTRACTORS` and nothing else in
+`lib/metrics/`. An unregistered platform **throws** rather than falling back — Meta's vocabulary applied
+to another platform's rows would report "0 purchases, 0 leads" as fact, which is the fake-74.5x-ROAS
+class of bug. Note `lib/metrics/score.ts` is *not* seamed: its benchmark curves are Meta averages and
+`ctrBasis: "link" | "all"` is a Meta concept, so a second platform needs its own benchmark set there
+before its scores mean anything.
+
 **Compute live, store raw.** Only two things persist: raw daily `Snapshot` rows (one per ad account per
 UTC day) and the AI narrative on `Report`. Every KPI, delta and the 0–100 performance score is recomputed
 on demand from snapshots by `lib/metrics/*`. So there is no stale-KPI problem and reports can be

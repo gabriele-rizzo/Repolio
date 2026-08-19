@@ -1,4 +1,4 @@
-import type { Snapshot } from "@/generated/prisma/browser";
+import type { Platform, Snapshot } from "@/generated/prisma/browser";
 import type { ScoreLabel } from "@/generated/prisma/enums";
 import { extractRowFacts } from "@/lib/metrics/extract";
 import { scorePerformance, type ScoreComponent, type ScoreDay } from "@/lib/metrics/score";
@@ -62,17 +62,21 @@ const num = (v: number | string | null | undefined): number => {
  * Zernio's derived scalars (see lib/zernio/types.ts). Returns null when there's no usable data.
  */
 export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
-    const rows: SnapshotData[] = [];
+    // Each row is kept WITH its platform: the raw data is only interpretable through that platform's
+    // vocabulary (lib/metrics/extract), and narrowing straight to `s.data` used to discard it. In
+    // practice a window is single-platform — computeMetrics is called per ad account, and an account
+    // belongs to one connection — but pairing them per row costs nothing and removes the assumption.
+    const rows: { platform: Platform; data: SnapshotData }[] = [];
     for (const s of snapshots) {
         const d = s.data as unknown as SnapshotData | null;
         // Guard against any non-Zernio-shaped rows (e.g. pre-cutover snapshots not yet cleared).
-        if (d && typeof d === "object" && "spend" in d) rows.push(d);
+        if (d && typeof d === "object" && "spend" in d) rows.push({ platform: s.platform, data: d });
     }
 
     if (rows.length === 0) return null;
 
     // Timeline rows don't carry currency; it's stamped in at fetch time from /v1/ads/accounts.
-    const currency = rows.find((r) => r.currency)?.currency ?? "EUR";
+    const currency = rows.find((r) => r.data.currency)?.data.currency ?? "EUR";
 
     let spend = 0;
     let impressions = 0;
@@ -95,13 +99,13 @@ export function computeMetrics(snapshots: Snapshot[]): ComputedMetrics | null {
     // those read the shape of the window, which the summed totals below have thrown away.
     const days: ScoreDay[] = [];
 
-    for (const r of rows) {
+    for (const { platform, data: r } of rows) {
         spend += num(r.spend);
         impressions += num(r.impressions);
         clicks += num(r.clicks);
         reachTotal += num(r.reach);
 
-        const facts = extractRowFacts(r);
+        const facts = extractRowFacts(platform, r);
         purchases += facts.purchases;
         leads += facts.leads;
         if (facts.revenue != null) revenue = (revenue ?? 0) + facts.revenue;
