@@ -113,8 +113,18 @@ jobs:
 
       - run: pnpm install --frozen-lockfile
 
-      - name: Create the shadow database
-        run: psql "$DIRECT_URL" -c 'CREATE DATABASE shadow;'
+      # A vanilla Postgres is not Supabase. The migrations reference one Supabase-managed role —
+      # `GRANT EXECUTE ON FUNCTION public.due_clients() TO service_role` — which does not exist here, so
+      # replaying them fails with P3006 / "role service_role does not exist". Roles are cluster-wide, so
+      # creating it once covers the shadow database too. Bare and unprivileged: it exists only so the
+      # GRANT resolves, and nothing connects as it.
+      #
+      # Anything else Supabase-managed (the trigger on auth.users that creates Client rows) lives in
+      # Supabase and not in prisma/migrations, so it is not replayed and needs nothing here.
+      - name: Prepare the shadow database
+        run: |
+          psql "$DIRECT_URL" -c "CREATE ROLE service_role;"
+          psql "$DIRECT_URL" -c "CREATE DATABASE shadow;"
 
       # --exit-code makes an empty diff exit 0 and a non-empty diff exit 2, so drift fails the job.
       - name: Migrations must reproduce schema.prisma
