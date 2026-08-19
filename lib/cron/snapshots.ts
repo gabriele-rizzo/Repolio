@@ -1,5 +1,4 @@
-import { collectSnapshots } from "@/actions/snapshot/collect-snapshots";
-import type { Client } from "@/generated/prisma/browser";
+import { collectSnapshots, type SnapshotClient } from "@/actions/snapshot/collect-snapshots";
 import type { Budget } from "@/lib/cron/budget";
 import { emptyCounts, type PhaseCounts } from "@/lib/cron/run-record";
 import { prisma } from "@/lib/prisma";
@@ -26,8 +25,13 @@ const limit = pLimit(10);
  * Clients with no active ad accounts sort last (NULLS LAST): there is nothing to pull for them, and
  * they should not occupy the head of the queue.
  */
-async function activeClientsByStaleness(): Promise<Client[]> {
-    const clients = await prisma.client.findMany({ where: { active: true } });
+async function activeClientsByStaleness(): Promise<SnapshotClient[]> {
+    // Only the columns collectSnapshots reads — see SnapshotClient. Every active client is loaded in
+    // one go, so the row shape is the one thing that grows with the client list here.
+    const clients = await prisma.client.findMany({
+        where: { active: true },
+        select: { id: true, zernio_profile_id: true, name: true, email: true, locale: true },
+    });
     if (clients.length <= 1) return clients;
 
     // Ordering only — the full rows come from Prisma above, since collectSnapshots needs a Client.

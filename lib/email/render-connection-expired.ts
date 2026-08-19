@@ -1,5 +1,8 @@
 import "server-only";
 
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
+import { getTranslations } from "next-intl/server";
+
 export interface RenderedConnectionEmail {
     subject: string;
     html: string;
@@ -21,32 +24,50 @@ const primaryFg = "#fafafa";
 const fontStack = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
 
 /**
- * Renders the "reconnect your account" transactional email sent when an automatic token refresh
+ * Renders the "reconnect your account" transactional email sent when a connection's health check
  * fails. Returns a self-contained HTML string; does not send anything.
+ *
+ * Rendered in the CLIENT'S language, like the batch report email (lib/report/send-batch.ts). It used to
+ * be hardcoded English with `lang="en"`, which meant a German client — the default locale — got their
+ * reports in German and this one in English, at the exact moment they had to act on it.
+ *
+ * `locale` is passed explicitly rather than detected: the health check runs in the daily cron, which has
+ * no request to infer a language from. That is also why `Client.locale` is always a concrete language.
  */
-export function renderConnectionExpiredEmail(opts: {
+export async function renderConnectionExpiredEmail(opts: {
     clientName: string;
     platformLabel: string;
     reconnectUrl: string;
-}): RenderedConnectionEmail {
-    const name = escapeHtml(opts.clientName?.trim() || "there");
-    const platform = escapeHtml(opts.platformLabel);
+    locale: string;
+}): Promise<RenderedConnectionEmail> {
+    const locale = isLocale(opts.locale) ? opts.locale : DEFAULT_LOCALE;
+    const t = await getTranslations({ locale, namespace: "email.connectionExpired" });
+
+    const clientName = opts.clientName?.trim();
     const { reconnectUrl } = opts;
-    const subject = `Action needed: reconnect your ${opts.platformLabel} account`;
+
+    // Subject stays unescaped — it is a mail header, not markup. Everything interpolated into the HTML
+    // below goes through escapeHtml, translated copy included.
+    const subject = t("subject", { platform: opts.platformLabel });
+    const intro = escapeHtml(
+        clientName
+            ? t("intro", { name: clientName, platform: opts.platformLabel })
+            : t("introNoName", { platform: opts.platformLabel }),
+    );
 
     const html =
         "<!DOCTYPE html>" +
-        `<html lang="en"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeHtml(subject)}</title></head>` +
+        `<html lang="${locale}"><head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /><title>${escapeHtml(subject)}</title></head>` +
         `<body style="margin:0;padding:24px 0;background-color:${pageBg};font-family:${fontStack};color:${ink};">` +
         `<div style="max-width:560px;margin:0 auto;padding:0 16px;">` +
         `<div style="background-color:${white};border:1px solid ${border};padding:24px;">` +
-        `<div style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;color:${muted};margin-bottom:8px;">Connection expired</div>` +
-        `<h1 style="margin:0 0 12px;font-size:20px;font-weight:700;color:${ink};">Reconnect your ${platform} account</h1>` +
-        `<p style="font-size:14px;line-height:1.6;color:${bodyText};margin:0 0 16px;">Hi ${name}, we couldn't automatically refresh your ${platform} connection, so we've paused collecting new performance data. Reconnect to resume your reports — it only takes a moment.</p>` +
-        `<a href="${reconnectUrl}" style="display:inline-block;background-color:${primary};color:${primaryFg};padding:10px 16px;text-decoration:none;font-size:14px;font-weight:600;">Reconnect ${platform}</a>` +
-        `<p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:${muted};">If the button doesn't work, paste this link into your browser:<br />${escapeHtml(reconnectUrl)}</p>` +
+        `<div style="font-size:11px;letter-spacing:0.06em;text-transform:uppercase;font-weight:600;color:${muted};margin-bottom:8px;">${escapeHtml(t("eyebrow"))}</div>` +
+        `<h1 style="margin:0 0 12px;font-size:20px;font-weight:700;color:${ink};">${escapeHtml(t("heading", { platform: opts.platformLabel }))}</h1>` +
+        `<p style="font-size:14px;line-height:1.6;color:${bodyText};margin:0 0 16px;">${intro}</p>` +
+        `<a href="${reconnectUrl}" style="display:inline-block;background-color:${primary};color:${primaryFg};padding:10px 16px;text-decoration:none;font-size:14px;font-weight:600;">${escapeHtml(t("cta", { platform: opts.platformLabel }))}</a>` +
+        `<p style="margin:16px 0 0;font-size:12px;line-height:1.6;color:${muted};">${escapeHtml(t("linkFallback"))}<br />${escapeHtml(reconnectUrl)}</p>` +
         `</div>` +
-        `<div style="margin-top:16px;font-size:12px;color:${muted};text-align:center;">Sent by Repolio</div>` +
+        `<div style="margin-top:16px;font-size:12px;color:${muted};text-align:center;">${escapeHtml(t("footer"))}</div>` +
         `</div></body></html>`;
 
     return { subject, html };

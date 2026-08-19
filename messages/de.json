@@ -1,4 +1,17 @@
 {
+    "error": {
+        "title": "Etwas ist schiefgelaufen",
+        "description": "Beim Laden dieser Seite ist ein unerwartetes Problem aufgetreten. Es ist nichts verloren gegangen — ein erneuter Versuch behebt es meistens.",
+        "retry": "Erneut versuchen",
+        "backToOverview": "Zurück zum Start",
+        "reference": "Referenz {digest}"
+    },
+    "notFound": {
+        "title": "Seite nicht gefunden",
+        "description": "Die gesuchte Seite existiert nicht oder wurde verschoben.",
+        "home": "Zu Repolio",
+        "backToOverview": "Zurück zum Start"
+    },
     "account": {
         "sections": {
             "preferences": "Präferenzen",
@@ -202,6 +215,10 @@
         "reportBatch": {
             "title": "{count, plural, one {Neuer Report fertig} other {# neue Reports fertig}}",
             "body": "{count, plural, one {Dein neuester Performance-Report kann jetzt angesehen werden.} other {Deine neuesten Performance-Reports können jetzt angesehen werden.}}"
+        },
+        "connectionExpired": {
+            "title": "Verbinde dein {platform}-Konto neu",
+            "body": "Deine {platform}-Verbindung wurde getrennt, daher pausieren neue Report-Daten. Verbinde dich neu, um fortzufahren."
         }
     },
     "email": {
@@ -217,6 +234,16 @@
             "flagged": "{count, plural, one {# Empfehlung} other {# Empfehlungen}} · {urgent, plural, =0 {keine sofort} other {# sofort}}",
             "attachedAs": "im Anhang als {file}",
             "openDashboard": "Dashboard öffnen"
+        },
+        "connectionExpired": {
+            "subject": "Aktion erforderlich: Verbinde dein {platform}-Konto neu",
+            "eyebrow": "Verbindung abgelaufen",
+            "heading": "Verbinde dein {platform}-Konto neu",
+            "intro": "Hallo {name}, wir konnten deine {platform}-Verbindung nicht automatisch erneuern, daher haben wir die Erfassung neuer Performance-Daten pausiert. Verbinde dich neu, um deine Reports fortzusetzen — es dauert nur einen Moment.",
+            "introNoName": "Hallo, wir konnten deine {platform}-Verbindung nicht automatisch erneuern, daher haben wir die Erfassung neuer Performance-Daten pausiert. Verbinde dich neu, um deine Reports fortzusetzen — es dauert nur einen Moment.",
+            "cta": "{platform} neu verbinden",
+            "linkFallback": "Falls der Button nicht funktioniert, füge diesen Link in deinen Browser ein:",
+            "footer": "Gesendet von Repolio"
         }
     }
 }

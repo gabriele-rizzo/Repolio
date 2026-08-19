@@ -1,0 +1,143 @@
+# CLAUDE.md
+
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+
+Repolio automates AI-written ad performance reports for marketing agencies: an agency connects a client's
+ad accounts once, and the app pulls the data daily, generates a report on a recurring cadence, and holds
+it for an admin to validate before the client ever sees it.
+
+**`PROJECT_OVERVIEW.md` is the deep reference** — data model, subsystem walkthroughs, lifecycle, file map.
+Read it before any non-trivial change. This file covers only what you need up front.
+(`TODO.md` is explicitly stale — pre-Zernio architecture, kept for history. Ignore it.)
+
+## Commands
+
+```bash
+pnpm dev              # dev server (never run servers via a raw shell; use the preview tooling)
+pnpm typecheck        # tsc --noEmit
+pnpm lint             # eslint
+pnpm test             # vitest run — all tests
+pnpm db:generate      # regenerate the Prisma client
+```
+
+Run one test file or one test by name:
+
+```bash
+pnpm vitest run lib/metrics/score.test.ts
+pnpm vitest run -t "rejects an inverted range"
+```
+
+**Tests only exist under `lib/`.** `vitest.config.ts` includes `lib/**/*.test.ts` and nothing else, so a
+test placed beside a route or component is silently never run. Logic that needs testing belongs in `lib/`
+— this is why, for example, the metrics range check lives in `lib/metrics/range.ts` rather than inline in
+its route handler.
+
+`generated/prisma` is gitignored, so `pnpm db:generate` must run before `typecheck` on a fresh checkout.
+
+## Do not run migrations
+
+`.env.local` points at the **production** Supabase database. There is no separate dev database. Never run
+`prisma migrate dev`, `migrate deploy`, `db push`, or any write query against it.
+
+Write the migration SQL into `prisma/migrations/<timestamp>_<name>/migration.sql`, update
+`prisma/schema.prisma`, run `pnpm db:generate`, and hand the apply step to the user. Prefer additive,
+nullable changes, and make code tolerate the not-yet-applied state (see `lib/sync-error.ts` and
+`lib/cron/run-record.ts`: both degrade to console logging if their table is missing).
+
+Note that the `Client` row is created by a **Supabase trigger on `auth.users`**, not by app code or any
+migration in this repo.
+
+## Architecture
+
+```
+Client ──< PlatformConnection ──< AdAccount ──< Snapshot >── Report
+   │                                                          │
+   └──< ReportBatch ──────────────────────────────────────────┘   (validation + delivery unit)
+```
+
+**Compute live, store raw.** Only two things persist: raw daily `Snapshot` rows (one per ad account per
+UTC day) and the AI narrative on `Report`. Every KPI, delta and the 0–100 performance score is recomputed
+on demand from snapshots by `lib/metrics/*`. So there is no stale-KPI problem and reports can be
+re-windowed to any date range — but it also means `lib/metrics/compute.ts` and `lib/metrics/score.ts` are
+the single source of truth for every number on every surface (dashboard card, report page, email, PDF, AI
+prompt). A change there changes all of them at once.
+
+**Zernio is the ad-data gateway.** All platform OAuth and ads data flows through one third party
+(`lib/zernio/*`). Repolio stores only opaque Zernio account references and never holds a platform token.
+Only Meta is wired end-to-end; the other platforms exist in the enum and UI only.
+
+**Nothing reaches a client until an admin validates it.** Reports are generated into an unsent
+`ReportBatch`; a report is invisible to its client until `Report.released_at` is stamped by batch
+validation, which also sends the single covering email. Every client-facing query must filter on it — use
+`RELEASED_REPORT` from `lib/report/visibility.ts` rather than rolling your own condition.
+
+**Two auth systems.** Clients use Supabase sessions (`authorize()` maps `user.id` → `Client.account_id`).
+The admin surface uses one shared password (`ADMIN_PASSWORD`) exchanged for an HMAC-signed cookie
+(`lib/admin/auth.ts`); there is no Supabase user for the admin. `proxy.ts` (Next 16's middleware) handles
+session refresh, locale detection and coarse rate limiting, and excludes `/admin` from its matcher.
+
+### Cron and scheduling
+
+`vercel.json` schedules two jobs only, because Vercel Hobby allows two. `/api/cron/daily` runs the
+snapshot phase and then the report phase in one invocation; `/api/cron/collect` retrieves finished
+Anthropic batch results. `/api/cron/snapshots` and `/api/cron/poll` stay live for manual triggering.
+
+- **Everything is best-effort**: one failed client never aborts the others, and a failed AI call still
+  leaves a report that renders live KPIs. That makes silence the default failure mode, which is why
+  `SyncError` (which account/stage failed) and `CronRun` (whether the run reached the end at all) both
+  exist. Add to them when you add a failure path.
+- **Work is bounded by wall clock**, not by trust in `maxDuration`: Vercel kills a function without
+  unwinding, so `lib/cron/budget.ts` stops *starting* work before that happens and records what it
+  deferred. New per-item cron work must check the budget, and the snapshot phase must keep leaving
+  `POLL_RESERVE_MS` for report generation.
+- **`due_clients()` is a Postgres RPC with a TypeScript twin.** The scheduling rule lives in
+  `prisma/migrations/20260730130000_recurrence_start_date/migration.sql` and is mirrored in
+  `lib/recurrence/schedule.ts` for the UI's previews. **Change one, change the other.**
+- Reports cover **complete UTC days only** — the just-started day's near-empty row would read as a
+  collapse in the KPIs and the narrative.
+
+### Report templates
+
+Clients author the report deliverable as HTML with `{{ .variable }}` placeholders. In
+`lib/report/template/render.ts` the client HTML is **sanitized first, then placeholders substituted** —
+that order is the security property. Sanitizing afterwards would strip our own section fragments;
+substituting first would let a client smuggle markup in through a value. The output is served as
+`text/html` from our own origin, and an admin previews client templates under an admin session.
+
+The PDF renderer honours only a CSS subset and *throws* on some input rather than degrading, so
+`renderReportPdf` falls back to the built-in template so delivery still happens.
+
+### Environment
+
+`lib/env.ts` holds `ENV_MANIFEST` — every variable, its description, and whether it is required always,
+required in production, or optional. `instrumentation.ts` calls `assertEnv()` at boot, so a misconfigured
+deployment refuses to start instead of failing later on the one path that needed the key. Add new
+variables to the manifest and to `.env.example`; `lib/env.test.ts` fails if the two disagree or if a
+`checkEnv()` call site names something the manifest does not.
+
+**`lib/env.ts` must stay import-free.** `prisma.config.ts` imports it, so it is loaded by the Prisma CLI
+under plain Node with no bundler and no path aliases, and it is also reached from edge code.
+
+## Conventions
+
+- **Grouped queries, never one query per row.** `HomeOverview` and `/admin/schedule` use `$queryRaw` with
+  `GROUP BY` for "newest report per account/client", which Prisma cannot express. Keep that shape.
+- **Select only what you use** when a query fans out over every client — and give it a named type, as
+  `SnapshotClient` in `actions/snapshot/collect-snapshots.ts` does, so a wider read fails typecheck.
+- **`error.tsx` must be a Client Component.** `app/global-error.tsx` replaces the root layout, so it has
+  no intl provider, no theme provider and no guaranteed CSS — it is deliberately self-contained and must
+  stay that way.
+- **User-facing strings are translated** (`next-intl`, `messages/{de,en,it}.json`, default `de`). Add keys
+  to all three locales. `Client.locale` is always a concrete language because the report cron has no
+  request to detect from.
+- **Server-side renders name their locale explicitly** — `getTranslations({ locale, namespace })` — and
+  `i18n/request.ts` must honour that argument. next-intl passes it into the `getRequestConfig` callback,
+  but the callback has to use it; a version that only read the locale cookie made all seven
+  explicit-locale paths (report email, PDF attachment, single-report HTML, both notifications, template
+  preview) render in `DEFAULT_LOCALE` instead. Because the default is German, German clients looked
+  correct and every other client silently received German. The precedence rule lives in
+  `lib/i18n/resolve-locale.ts` and is tested.
+- Results use the `Result<T, E>` shape from `lib/try-catch.ts` (`ok`/`err`/`sink`/`settle`), not throws,
+  wherever a caller is expected to keep going.
+- Comments in this codebase explain *why*, often recording a past incident. Match that when you touch a
+  non-obvious decision, and don't delete the rationale.

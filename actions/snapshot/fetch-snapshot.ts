@@ -2,7 +2,7 @@
 
 import type { AdAccount, PlatformConnection } from "@/generated/prisma/browser";
 import type { SnapshotCreateManyInput } from "@/generated/prisma/models";
-import { DAY_MS } from "@/lib/constants";
+import { DAY_MS, MAX_BACKFILL_DAYS } from "@/lib/constants";
 import { prisma } from "@/lib/prisma";
 import { logSyncError } from "@/lib/sync-error";
 import { missingZeroFillDates, zeroFillFloor, zeroSnapshotData } from "@/lib/snapshot/zero-fill";
@@ -19,7 +19,6 @@ export type AdAccountWithConnection = AdAccount & { connection: PlatformConnecti
 const REPULL_DAYS = 3; // daily trailing re-pull (covers Meta's ~72h attribution restatements)
 const TRAILING_DAYS = 7;
 const RECONCILE_WEEKDAY = 1; // Monday (UTC getUTCDay()): the one day we re-pull the full window.
-const MAX_BACKFILL_DAYS = 730; // Zernio's timeline range cap.
 
 const ymd = (d: Date): string => d.toISOString().slice(0, 10);
 

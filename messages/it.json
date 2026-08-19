@@ -1,4 +1,17 @@
 {
+    "error": {
+        "title": "Si è verificato un errore",
+        "description": "Si è verificato un problema inatteso durante il caricamento di questa pagina. Non è andato perso nulla — di solito basta riprovare.",
+        "retry": "Riprova",
+        "backToOverview": "Torna alla home",
+        "reference": "Riferimento {digest}"
+    },
+    "notFound": {
+        "title": "Pagina non trovata",
+        "description": "La pagina che stai cercando non esiste o è stata spostata.",
+        "home": "Vai a Repolio",
+        "backToOverview": "Torna alla panoramica"
+    },
     "account": {
         "sections": {
             "preferences": "Preferenze",
@@ -202,6 +215,10 @@
         "reportBatch": {
             "title": "{count, plural, one {Nuovo report pronto} other {# nuovi report pronti}}",
             "body": "{count, plural, one {Il tuo ultimo report sulle performance è disponibile.} other {I tuoi ultimi report sulle performance sono disponibili.}}"
+        },
+        "connectionExpired": {
+            "title": "Ricollega il tuo account {platform}",
+            "body": "La tua connessione {platform} è stata interrotta, quindi i nuovi dati dei report sono in pausa. Ricollegala per riprendere."
         }
     },
     "email": {
@@ -217,6 +234,16 @@
             "flagged": "{count, plural, one {# raccomandazione} other {# raccomandazioni}} · {urgent, plural, =0 {nessuna immediata} one {# immediata} other {# immediate}}",
             "attachedAs": "allegato come {file}",
             "openDashboard": "Apri la dashboard"
+        },
+        "connectionExpired": {
+            "subject": "Azione necessaria: ricollega il tuo account {platform}",
+            "eyebrow": "Connessione scaduta",
+            "heading": "Ricollega il tuo account {platform}",
+            "intro": "Ciao {name}, non siamo riusciti ad aggiornare automaticamente la tua connessione {platform}, quindi abbiamo sospeso la raccolta di nuovi dati sulle performance. Ricollegala per riprendere i tuoi report — ci vuole solo un momento.",
+            "introNoName": "Ciao, non siamo riusciti ad aggiornare automaticamente la tua connessione {platform}, quindi abbiamo sospeso la raccolta di nuovi dati sulle performance. Ricollegala per riprendere i tuoi report — ci vuole solo un momento.",
+            "cta": "Ricollega {platform}",
+            "linkFallback": "Se il pulsante non funziona, incolla questo link nel browser:",
+            "footer": "Inviato da Repolio"
         }
     }
 }

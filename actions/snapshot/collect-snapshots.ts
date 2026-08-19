@@ -1,8 +1,10 @@
 "use server";
 
 import type { Client, PlatformConnection, Snapshot } from "@/generated/prisma/browser";
+import { DEFAULT_LOCALE, isLocale } from "@/i18n/locales";
 import { DAY_MS, REFRESH_THRESHOLD_DAYS } from "@/lib/constants";
 import { renderConnectionExpiredEmail } from "@/lib/email/render-connection-expired";
+import { getTranslations } from "next-intl/server";
 import { PLATFORM_META } from "@/lib/platform";
 import { prisma } from "@/lib/prisma";
 import { resolveSyncedAccounts, type UpsertOutcome } from "@/lib/snapshot/resolve-synced-accounts";
@@ -34,7 +36,18 @@ const fetchLimit = pLimit(FETCH_CONCURRENCY);
 const UPSERT_CONCURRENCY = Number(process.env.SNAPSHOT_UPSERT_CONCURRENCY) || 10;
 const upsertLimit = pLimit(UPSERT_CONCURRENCY);
 
-export async function collectSnapshots(client: Client): Promise<Result<Snapshot[], string>> {
+/**
+ * The parts of a Client this pipeline actually reads: its id, the Zernio profile that owns its
+ * connections, and the name/email/locale the connection-expired notice is addressed and written in.
+ *
+ * Narrower than `Client` on purpose. The daily cron loads EVERY active client up front, so the row
+ * shape is worth stating; more usefully, adding a `client.locale` read here now fails typecheck until
+ * the caller's `select` is widened to match, instead of silently working because the caller happened to
+ * pass a full row.
+ */
+export type SnapshotClient = Pick<Client, "id" | "zernio_profile_id" | "name" | "email" | "locale">;
+
+export async function collectSnapshots(client: SnapshotClient): Promise<Result<Snapshot[], string>> {
     // Backfill ad accounts from Zernio before pulling. Zernio's ad-account listing lags the grant,
     // so a connection can be legitimately recorded with zero ad accounts (or gain new ones later);
     // without this the snapshot pull below would never see them, since it only iterates ad accounts
@@ -200,7 +213,7 @@ async function refreshAdAccounts(clientId: number): Promise<void> {
  * are currently disconnected (so the caller can skip pulling them). Flips PlatformConnection.status
  * in the DB and notifies the client once per disconnected connection.
  */
-async function syncConnectionHealth(client: Client, connections: PlatformConnection[]): Promise<Set<number>> {
+async function syncConnectionHealth(client: SnapshotClient, connections: PlatformConnection[]): Promise<Set<number>> {
     const profileId = client.zernio_profile_id;
     const disconnectedConnectionIds = new Set<number>();
     if (!profileId) return disconnectedConnectionIds;
@@ -240,7 +253,7 @@ async function syncConnectionHealth(client: Client, connections: PlatformConnect
  * is effectively per-connection; revisit the dedupe key if that changes.) Delivery failures are
  * logged, never thrown — they must not fail snapshot collection.
  */
-async function notifyConnectionExpired(client: Client, connection: PlatformConnection): Promise<void> {
+async function notifyConnectionExpired(client: SnapshotClient, connection: PlatformConnection): Promise<void> {
     const since = new Date(Date.now() - REFRESH_THRESHOLD_DAYS * DAY_MS);
     const recent = await prisma.notification.findFirst({
         where: { client_id: client.id, type: "CONNECTION_EXPIRED", created_at: { gte: since } },
@@ -250,14 +263,22 @@ async function notifyConnectionExpired(client: Client, connection: PlatformConne
 
     const platformLabel = PLATFORM_META[connection.platform].label;
     const link = "/dashboard/account";
+    // Concrete language, resolved once for both the notification and the email below. The cron has no
+    // request to detect from, which is why Client.locale is always a real language.
+    const locale = isLocale(client.locale) ? client.locale : DEFAULT_LOCALE;
 
     try {
+        // Localized at write time, not read time — matching the batch notification in
+        // lib/report/send-batch.ts. These columns are plain strings, so the language is baked in when
+        // the row is created; a client who later switches language keeps old notices as they were.
+        const t = await getTranslations({ locale, namespace: "notifications.connectionExpired" });
+
         await prisma.notification.create({
             data: {
                 client_id: client.id,
                 type: "CONNECTION_EXPIRED",
-                title: `Reconnect your ${platformLabel} account`,
-                body: `Your ${platformLabel} connection was lost, so new report data has paused. Reconnect to resume.`,
+                title: t("title", { platform: platformLabel }),
+                body: t("body", { platform: platformLabel }),
                 link,
             },
         });
@@ -268,7 +289,7 @@ async function notifyConnectionExpired(client: Client, connection: PlatformConne
     try {
         const base = process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "";
         const reconnectUrl = base ? `${base}${link}` : link;
-        const email = renderConnectionExpiredEmail({ clientName: client.name, platformLabel, reconnectUrl });
+        const email = await renderConnectionExpiredEmail({ clientName: client.name, platformLabel, reconnectUrl, locale });
 
         // Lazy import so a missing/invalid RESEND_API_KEY can't crash snapshot collection.
         const { resend } = await import("@/lib/resend");

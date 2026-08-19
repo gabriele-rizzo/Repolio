@@ -1,11 +1,19 @@
+import { isProduction } from "@/lib/env";
 import { Ratelimit } from "@upstash/ratelimit";
 import { Redis } from "@upstash/redis";
 
 // Rate limiting backed by Upstash Redis — serverless-native (HTTP), works in edge middleware and
-// server actions, sliding-window. It is DISABLED until UPSTASH_REDIS_REST_URL and
-// UPSTASH_REDIS_REST_TOKEN are set: when either is missing the limiters are null and every check
-// passes (fail-open), so local dev and un-provisioned previews keep working. Protection only takes
-// effect once both env vars are configured — see the deploy checklist.
+// server actions, sliding-window.
+//
+// Outside production it is DISABLED when UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN are absent:
+// the limiters are null and every check passes, so local dev and un-provisioned previews keep working.
+//
+// IN PRODUCTION that same absence is a hard failure, not a warning. Fail-open was the wrong default
+// there: the whole protection — brute-force defence on admin login, the cap on mutating server actions —
+// vanished silently behind one console.warn that nobody reads, and the deployment looked healthy. The
+// variables are declared "production" in the env manifest so a deployment missing them dies at boot
+// (see instrumentation.ts); this throw is the backstop for the edge runtime, which does not run that
+// boot check.
 
 const url = process.env.UPSTASH_REDIS_REST_URL;
 const token = process.env.UPSTASH_REDIS_REST_TOKEN;
@@ -13,7 +21,9 @@ const token = process.env.UPSTASH_REDIS_REST_TOKEN;
 const redis = url && token ? new Redis({ url, token }) : null;
 
 if (!redis) {
-    console.warn("[rate-limit] UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — rate limiting is DISABLED.");
+    const message = "UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN not set — rate limiting is DISABLED.";
+    if (isProduction()) throw new Error(`[rate-limit] ${message} Refusing to serve production traffic unprotected.`);
+    console.warn(`[rate-limit] ${message}`);
 }
 
 function makeLimiter(tokens: number, window: Parameters<typeof Ratelimit.slidingWindow>[1], prefix: string) {
@@ -42,7 +52,10 @@ export interface LimitOutcome {
     retryAfterSeconds: number;
 }
 
-/** Runs `limiter` for `identifier`. A null limiter (Upstash not configured) always passes. */
+/**
+ * Runs `limiter` for `identifier`. A null limiter (Upstash not configured) passes — which can only
+ * happen outside production, since a null limiter throws at module load there.
+ */
 export async function checkLimit(limiter: Ratelimit | null, identifier: string): Promise<LimitOutcome> {
     if (!limiter) return { success: true, retryAfterSeconds: 0 };
     const { success, reset } = await limiter.limit(identifier);

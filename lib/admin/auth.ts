@@ -1,6 +1,6 @@
 import { createHash, createHmac, timingSafeEqual } from "crypto";
 import { cookies } from "next/headers";
-import { checkEnv } from "../env";
+import { checkEnv, MIN_ADMIN_PASSWORD_LENGTH } from "../env";
 
 export const ADMIN_COOKIE_NAME = "admin_session";
 export const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 hours
@@ -24,7 +24,9 @@ export const ADMIN_SESSION_TTL_SECONDS = 60 * 60 * 8; // 8 hours
  * email them, and it never rotates — so a guessable value is refused outright rather than warned about.
  * Generate one with `openssl rand -base64 24`.
  */
-export const MIN_ADMIN_PASSWORD_LENGTH = 16;
+// Defined with the rest of env policy in lib/env.ts, which is checked at boot; re-exported here
+// because this module is where callers expect it (and where its test imports it from).
+export { MIN_ADMIN_PASSWORD_LENGTH } from "../env";
 
 function sign(payload: string) {
     const secret = checkEnv("SESSION_SECRET");

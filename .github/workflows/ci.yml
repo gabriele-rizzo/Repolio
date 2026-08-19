@@ -1,0 +1,61 @@
+name: CI
+
+# Runs the three checks that already pass locally, so they keep passing. Until now nothing enforced
+# them: typecheck, lint and 250 tests were green by habit, not by gate.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push to the same branch makes the in-flight run obsolete.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      # prisma.config.ts calls checkEnv("DIRECT_URL") at module load, so EVERY prisma CLI command
+      # needs it present — including `generate` and `validate`, neither of which opens a connection.
+      # These are deliberately unreachable dummies: CI must never hold a credential for the
+      # production database, and no step here talks to one.
+      DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+      DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/ci
+
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned rather than read from a `packageManager` field: adding that field would also pin the
+      # version Vercel builds with, which is a deploy-behaviour change this workflow shouldn't make.
+      # Keep in step with the pnpm used locally.
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.21.0
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # Schema sanity before anything depends on it. Does not connect to a database.
+      - name: Validate Prisma schema
+        run: pnpm exec prisma validate
+
+      # generated/prisma is gitignored, so this must run before typecheck — tsc resolves the client
+      # types from it. Codegen only; no database access.
+      - name: Generate Prisma client
+        run: pnpm db:generate
+
+      - name: Typecheck
+        run: pnpm typecheck
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test

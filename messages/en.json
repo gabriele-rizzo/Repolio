@@ -1,4 +1,17 @@
 {
+    "error": {
+        "title": "Something went wrong",
+        "description": "We hit an unexpected problem while loading this page. Nothing was lost — trying again usually clears it.",
+        "retry": "Try again",
+        "backToOverview": "Back to Overview",
+        "reference": "Reference {digest}"
+    },
+    "notFound": {
+        "title": "Page not found",
+        "description": "The page you are looking for does not exist or has been moved.",
+        "home": "Go to Repolio",
+        "backToOverview": "Back to Overview"
+    },
     "account": {
         "sections": {
             "preferences": "Preferences",
@@ -202,6 +215,10 @@
         "reportBatch": {
             "title": "{count, plural, one {New report ready} other {# new reports ready}}",
             "body": "{count, plural, one {Your latest performance report is ready to view.} other {Your latest performance reports are ready to view.}}"
+        },
+        "connectionExpired": {
+            "title": "Reconnect your {platform} account",
+            "body": "Your {platform} connection was lost, so new report data has paused. Reconnect to resume."
         }
     },
     "email": {
@@ -217,6 +234,16 @@
             "flagged": "{count, plural, one {# recommendation} other {# recommendations}} · {urgent, plural, =0 {none immediate} other {# immediate}}",
             "attachedAs": "attached as {file}",
             "openDashboard": "Open dashboard"
+        },
+        "connectionExpired": {
+            "subject": "Action needed: reconnect your {platform} account",
+            "eyebrow": "Connection expired",
+            "heading": "Reconnect your {platform} account",
+            "intro": "Hi {name}, we couldn't automatically refresh your {platform} connection, so we've paused collecting new performance data. Reconnect to resume your reports — it only takes a moment.",
+            "introNoName": "Hi, we couldn't automatically refresh your {platform} connection, so we've paused collecting new performance data. Reconnect to resume your reports — it only takes a moment.",
+            "cta": "Reconnect {platform}",
+            "linkFallback": "If the button doesn't work, paste this link into your browser:",
+            "footer": "Sent by Repolio"
         }
     }
 }
