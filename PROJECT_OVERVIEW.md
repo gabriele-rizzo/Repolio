@@ -283,6 +283,7 @@ template is plain text with `{{ .variable }}` placeholders plus a handful of lin
 | Email | `lib/email/**`, `lib/resend.ts`, `components/email/report-email.tsx`, `components/email/batch-email.tsx`, `lib/email/report-pdf.tsx` |
 | Report templates | `lib/report/template/**`, `app/dashboard/template/`, `app/admin/templates/`, `components/report/template-editor.tsx` |
 | Dashboard UI | `app/dashboard/**`, `components/report/**`, `components/sidebar/**`, `components/account/**` |
+| Site metadata & link previews | `lib/site.ts` (the titles and descriptions, plus `metadataBase`), `lib/og/social-card.tsx` (the 1200x630 card), `app/opengraph-image.tsx`, `app/twitter-image.tsx`, `app/layout.tsx` |
 
 **Query shape:** list pages resolve their per-row data in one grouped query, never one query per row — `HomeOverview` (the client's landing page) and `/admin/schedule`'s roster table both use a `$queryRaw` GROUP BY for "newest report per account/client", which Prisma can't express as a max over a relation. Keep that shape when adding columns to either.
 | Legal | `app/(legal)/**`, `app/data-deletion/page.tsx` |

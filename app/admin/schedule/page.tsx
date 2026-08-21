@@ -12,7 +12,7 @@ import { CalendarClock, UsersRound } from "lucide-react";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Schedule | Repolio",
+    title: "Schedule",
 };
 
 // Where a client's report schedule is set: the cadence in days, plus the anchor day that decides which

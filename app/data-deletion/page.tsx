@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Data deletion | Repolio",
+    title: "Data deletion",
 };
 
 export default async function DataDeletionPage({ searchParams }: { searchParams: Promise<{ code?: string }> }) {

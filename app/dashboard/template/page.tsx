@@ -12,7 +12,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-    title: "Report template | Repolio",
+    title: "Report template",
 };
 
 // Where a client shapes their report document. The template drives the DELIVERABLE — the PDF attached

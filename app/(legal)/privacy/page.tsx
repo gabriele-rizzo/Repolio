@@ -1,11 +1,12 @@
+import { LEGAL_CONTACT } from "@/lib/legal";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Privacy Policy — Repolio",
+    title: "Privacy Policy",
     description: "How Repolio collects, uses, and protects your data.",
 };
 
-const LAST_UPDATED = "May 19, 2026";
+const LAST_UPDATED = "August 21, 2026";
 
 export default function PrivacyPage() {
     return (
@@ -21,6 +22,14 @@ export default function PrivacyPage() {
                         This Privacy Policy describes how Repolio (&ldquo;Repolio&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;)
                         collects, uses, and shares information when you use our reporting platform for marketing agencies
                         (the &ldquo;Service&rdquo;). By using the Service, you agree to the practices described below.
+                    </p>
+                    <p className="mt-3">
+                        The Service is operated by {LEGAL_CONTACT.name}, who is responsible for the personal
+                        information described in this policy and can be reached at{" "}
+                        <a className="underline underline-offset-4" href={`mailto:${LEGAL_CONTACT.privacyEmail}`}>
+                            {LEGAL_CONTACT.privacyEmail}
+                        </a>
+                        .
                     </p>
                 </section>
 
@@ -161,9 +170,10 @@ export default function PrivacyPage() {
                 <section>
                     <h2 className="mb-3 text-2xl font-semibold tracking-tight">10. Contact us</h2>
                     <p>
-                        If you have questions about this Privacy Policy or how we handle your data, contact us at{" "}
-                        <a className="underline underline-offset-4" href="mailto:privacy@repolio.com">
-                            privacy@repolio.com
+                        If you have questions about this Privacy Policy or how we handle your data, or want to
+                        exercise any of the rights above, contact {LEGAL_CONTACT.name} at{" "}
+                        <a className="underline underline-offset-4" href={`mailto:${LEGAL_CONTACT.privacyEmail}`}>
+                            {LEGAL_CONTACT.privacyEmail}
                         </a>
                         .
                     </p>

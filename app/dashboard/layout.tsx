@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import { cookies } from "next/headers";
 
 export const metadata: Metadata = {
-    title: "Dashboard | Repolio",
+    title: "Dashboard",
 };
 
 export default async function DashboardLayout({ children }: React.PropsWithChildren) {

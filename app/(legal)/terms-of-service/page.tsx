@@ -1,11 +1,12 @@
+import { LEGAL_CONTACT } from "@/lib/legal";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Terms of Service — Repolio",
+    title: "Terms of Service",
     description: "The terms that govern your use of Repolio.",
 };
 
-const LAST_UPDATED = "May 21, 2026";
+const LAST_UPDATED = "August 21, 2026";
 
 export default function TermsOfServicePage() {
     return (
@@ -22,6 +23,14 @@ export default function TermsOfServicePage() {
                         (&ldquo;Repolio&rdquo;, &ldquo;we&rdquo;, &ldquo;us&rdquo;), a reporting platform for marketing
                         agencies (the &ldquo;Service&rdquo;). By creating an account or using the Service, you agree to
                         be bound by these Terms. If you do not agree, do not use the Service.
+                    </p>
+                    <p className="mt-3">
+                        These Terms are an agreement between you and {LEGAL_CONTACT.name}, who operates the Service
+                        and can be reached at{" "}
+                        <a className="underline underline-offset-4" href={`mailto:${LEGAL_CONTACT.termsEmail}`}>
+                            {LEGAL_CONTACT.termsEmail}
+                        </a>
+                        .
                     </p>
                 </section>
 
@@ -208,9 +217,9 @@ export default function TermsOfServicePage() {
                 <section>
                     <h2 className="mb-3 text-2xl font-semibold tracking-tight">15. Contact us</h2>
                     <p>
-                        If you have questions about these Terms, contact us at{" "}
-                        <a className="underline underline-offset-4" href="mailto:legal@repolio.com">
-                            legal@repolio.com
+                        If you have questions about these Terms, contact {LEGAL_CONTACT.name} at{" "}
+                        <a className="underline underline-offset-4" href={`mailto:${LEGAL_CONTACT.termsEmail}`}>
+                            {LEGAL_CONTACT.termsEmail}
                         </a>
                         .
                     </p>

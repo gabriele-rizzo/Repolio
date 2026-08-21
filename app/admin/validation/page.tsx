@@ -12,7 +12,7 @@ import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
-    title: "Validation | Repolio",
+    title: "Validation",
 };
 
 // Nothing is delivered to a client until it passes through here. The cron generates each client's

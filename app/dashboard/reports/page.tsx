@@ -7,7 +7,7 @@ import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 
 export const metadata: Metadata = {
-    title: "Reports | Repolio",
+    title: "Reports",
 };
 
 // The account-level URL is a resolver: it sends you to the account's latest report,

@@ -11,7 +11,7 @@ import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
-    title: "Health | Repolio",
+    title: "Health",
 };
 
 // The pipeline is best-effort everywhere: one failed client never aborts the others, and a failed AI

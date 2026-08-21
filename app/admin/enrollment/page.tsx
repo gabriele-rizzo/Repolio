@@ -8,7 +8,7 @@ import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
 export const metadata: Metadata = {
-    title: "Enrollment | Repolio",
+    title: "Enrollment",
 };
 
 // Laid out like the rest of the admin section: page heading, then the work, then a list of what's

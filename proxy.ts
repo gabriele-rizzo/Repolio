@@ -55,8 +55,14 @@ export const config = {
          * - favicon.ico (favicon file)
          * - admin (admin pages, handled by their own layout)
          * - manifest.(json|webmanifest), robots.txt, sitemap.xml (public metadata files)
+         * - opengraph-image, twitter-image (the generated social card)
          * Feel free to modify this pattern to include more paths.
+         *
+         * The social card HAS to be excluded, not merely allowed through: it is not under /auth, so
+         * `updateSession` saw an anonymous request and 307'd every crawler to /auth/login, which is a
+         * link preview with no image. Skipping the middleware also spares each scrape a Supabase claims
+         * lookup and a NEXT_LOCALE cookie that no crawler will ever send back.
          */
-        "/((?!_next/static|_next/image|favicon.ico|admin|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+        "/((?!_next/static|_next/image|favicon.ico|admin|manifest\\.(?:json|webmanifest)|robots\\.txt|sitemap\\.xml|opengraph-image|twitter-image|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
     ],
 };

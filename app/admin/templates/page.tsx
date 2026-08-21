@@ -13,7 +13,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-    title: "Templates | Repolio",
+    title: "Templates",
 };
 
 // Admin-side report template management. Same editor and same presets the client sees on

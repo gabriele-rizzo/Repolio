@@ -5,7 +5,7 @@ import { HomeOverview } from "@/components/dashboard/home-overview";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-    title: "Home | Repolio",
+    title: "Home",
 };
 
 export default async function DashboardPage({

@@ -15,7 +15,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-    title: "Simulation | Repolio",
+    title: "Simulation",
 };
 
 interface SelectedClient {

@@ -10,7 +10,7 @@ import { getLocale } from "next-intl/server";
 import { notFound } from "next/navigation";
 
 export const metadata: Metadata = {
-    title: "Report | Repolio",
+    title: "Report",
 };
 
 export default async function DashboardReportPage({ params }: PageProps<"/dashboard/reports/[id]">) {

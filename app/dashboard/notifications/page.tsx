@@ -13,7 +13,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-    title: "Notifications | Repolio",
+    title: "Notifications",
 };
 
 const NOTIFICATION_ICON: Record<NotificationType, LucideIcon> = {
