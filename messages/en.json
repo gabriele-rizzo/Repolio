@@ -245,5 +245,32 @@
             "linkFallback": "If the button doesn't work, paste this link into your browser:",
             "footer": "Sent by Repolio"
         }
+    },
+    "landing": {
+        "signIn": "Log in",
+        "heroTitle": "AI ad performance reports for marketing agencies",
+        "heroBody": "Connect a client's ad accounts once. Repolio pulls the numbers every day, writes the report on the cadence you set, and holds it for review before your client ever sees it.",
+        "heroSteps": "See how it works",
+        "stepsTitle": "How it works",
+        "stepsBody": "Four stages. Once the accounts are connected, they run on their own.",
+        "step1Title": "Connect",
+        "step1Body": "Link a client's ad accounts through the platform's own OAuth flow. Repolio stores a reference, never a platform password.",
+        "step2Title": "Collect",
+        "step2Body": "One snapshot per ad account per complete day, every day. Nothing is overwritten, so any period can still be reported on later.",
+        "step3Title": "Write",
+        "step3Body": "On the cadence you choose, the figures and a written narrative are produced together for the period being reported.",
+        "step4Title": "Validate",
+        "step4Body": "Finished reports collect in a batch for an admin to read. Releasing the batch is what sends the client their email.",
+        "featuresTitle": "Built around the report",
+        "feature1Title": "Figures computed live",
+        "feature1Body": "Only the raw daily rows and the narrative are stored. Every metric, comparison and score is recalculated on request, so nothing on screen can be out of date.",
+        "feature2Title": "Your own template",
+        "feature2Body": "Author the deliverable as HTML with placeholders for the figures. One template drives the page your client opens, their email and the attached PDF.",
+        "feature3Title": "Nothing ships unread",
+        "feature3Body": "A report stays invisible to its client until an admin releases it. Silence is never the thing that delivers a report.",
+        "closingTitle": "Already set up?",
+        "closingBody": "Your agency enrolls you and sends the invitation. Sign in to read your reports.",
+        "privacy": "Privacy",
+        "terms": "Terms"
     }
 }

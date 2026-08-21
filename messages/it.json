@@ -245,5 +245,32 @@
             "linkFallback": "Se il pulsante non funziona, incolla questo link nel browser:",
             "footer": "Inviato da Repolio"
         }
+    },
+    "landing": {
+        "signIn": "Accedi",
+        "heroTitle": "Report di performance con AI per agenzie di marketing",
+        "heroBody": "Collega una volta gli account pubblicitari di un cliente. Repolio raccoglie i dati ogni giorno, scrive il report con la cadenza che imposti e lo trattiene per la revisione prima che il cliente lo veda.",
+        "heroSteps": "Come funziona",
+        "stepsTitle": "Come funziona",
+        "stepsBody": "Quattro fasi. Una volta collegati gli account, procedono da sole.",
+        "step1Title": "Collega",
+        "step1Body": "Collega gli account pubblicitari di un cliente tramite il flusso OAuth della piattaforma. Repolio conserva un riferimento, mai una password della piattaforma.",
+        "step2Title": "Raccogli",
+        "step2Body": "Uno snapshot per account pubblicitario per ogni giorno completo, ogni giorno. Nulla viene sovrascritto, quindi qualsiasi periodo resta analizzabile anche dopo.",
+        "step3Title": "Scrivi",
+        "step3Body": "Con la cadenza che scegli, le metriche e un testo scritto nascono insieme per il periodo del report.",
+        "step4Title": "Valida",
+        "step4Body": "I report finiti si raccolgono in un lotto che un admin legge. È il rilascio del lotto a inviare l'email al cliente.",
+        "featuresTitle": "Tutto ruota attorno al report",
+        "feature1Title": "Numeri calcolati in tempo reale",
+        "feature1Body": "Vengono salvati solo i dati grezzi giornalieri e il testo. Ogni metrica, confronto e punteggio si ricalcola alla richiesta, quindi non può risultare obsoleto.",
+        "feature2Title": "Il tuo template",
+        "feature2Body": "Componi il documento in HTML con i segnaposto per i numeri. Un solo template guida la pagina che apre il cliente, la sua email e il PDF allegato.",
+        "feature3Title": "Nulla parte senza revisione",
+        "feature3Body": "Un report resta invisibile al cliente finché un admin non lo rilascia. Qui il silenzio non consegna mai un report.",
+        "closingTitle": "Hai già un accesso?",
+        "closingBody": "La tua agenzia ti registra e ti invia l'invito. Accedi per leggere i tuoi report.",
+        "privacy": "Privacy",
+        "terms": "Termini"
     }
 }

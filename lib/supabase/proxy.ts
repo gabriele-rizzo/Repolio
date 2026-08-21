@@ -2,10 +2,22 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { checkEnv } from "../env";
 
-const PUBLIC_PATHS = ["/auth", "/privacy", "/terms-of-service", "/admin", "/api", "/data-deletion"];
+/** Anyone may see these and everything under them. */
+const PUBLIC_PREFIXES = ["/auth", "/privacy", "/terms-of-service", "/admin", "/api", "/data-deletion"];
+
+/**
+ * Anyone may see exactly these. Separate from the prefixes because "/" — the landing page — cannot be
+ * a prefix: `startsWith("/")` is true of every path in the app, which would make the whole dashboard
+ * public.
+ */
+const PUBLIC_EXACT = ["/"];
 
 function requestNeedsAuth(request: NextRequest) {
-    return !PUBLIC_PATHS.some((p) => request.nextUrl.pathname.startsWith(p));
+    const { pathname } = request.nextUrl;
+
+    if (PUBLIC_EXACT.includes(pathname)) return false;
+
+    return !PUBLIC_PREFIXES.some((p) => pathname.startsWith(p));
 }
 
 export async function updateSession(request: NextRequest) {

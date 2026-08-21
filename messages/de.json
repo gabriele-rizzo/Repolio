@@ -245,5 +245,32 @@
             "linkFallback": "Falls der Button nicht funktioniert, füge diesen Link in deinen Browser ein:",
             "footer": "Gesendet von Repolio"
         }
+    },
+    "landing": {
+        "signIn": "Anmelden",
+        "heroTitle": "KI-Performance-Reports für Marketing-Agenturen",
+        "heroBody": "Verbinde die Werbekonten eines Kunden einmal. Repolio holt die Zahlen jeden Tag, schreibt den Report in dem Rhythmus, den du festlegst, und hält ihn zur Prüfung zurück, bevor ihn dein Kunde sieht.",
+        "heroSteps": "So funktioniert es",
+        "stepsTitle": "So funktioniert es",
+        "stepsBody": "Vier Schritte. Sind die Konten verbunden, laufen sie von allein.",
+        "step1Title": "Verbinden",
+        "step1Body": "Binde die Werbekonten eines Kunden über den OAuth-Ablauf der Plattform ein. Repolio speichert eine Referenz, nie ein Plattform-Passwort.",
+        "step2Title": "Sammeln",
+        "step2Body": "Ein Snapshot pro Werbekonto und vollständigem Tag, jeden Tag. Nichts wird überschrieben, jeder Zeitraum lässt sich also auch später noch auswerten.",
+        "step3Title": "Schreiben",
+        "step3Body": "In dem Rhythmus, den du wählst, entstehen die Kennzahlen und ein geschriebener Text gemeinsam für den berichteten Zeitraum.",
+        "step4Title": "Prüfen",
+        "step4Body": "Fertige Reports sammeln sich in einem Stapel, den ein Admin liest. Erst die Freigabe des Stapels verschickt die E-Mail an den Kunden.",
+        "featuresTitle": "Alles dreht sich um den Report",
+        "feature1Title": "Zahlen live berechnet",
+        "feature1Body": "Gespeichert werden nur die täglichen Rohdaten und der Text. Jede Kennzahl, jeder Vergleich und jeder Score wird bei Abruf neu berechnet, veraltet also nie.",
+        "feature2Title": "Deine eigene Vorlage",
+        "feature2Body": "Gestalte das Dokument als HTML mit Platzhaltern für die Zahlen. Eine Vorlage bestimmt die Seite für deinen Kunden, seine E-Mail und das angehängte PDF.",
+        "feature3Title": "Nichts geht ungelesen raus",
+        "feature3Body": "Ein Report bleibt für den Kunden unsichtbar, bis ein Admin ihn freigibt. Stillschweigen liefert hier nie einen Report aus.",
+        "closingTitle": "Schon eingerichtet?",
+        "closingBody": "Deine Agentur legt dich an und schickt die Einladung. Melde dich an, um deine Reports zu lesen.",
+        "privacy": "Datenschutz",
+        "terms": "AGB"
     }
 }
