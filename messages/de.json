@@ -170,7 +170,14 @@
         "email": "E-Mail",
         "password": "Passwort",
         "noAccount": "Noch kein Konto?",
-        "requestAccess": "Zugang anfragen"
+        "requestAccess": "Zugang anfragen",
+        "magicLinkTitle": "Mit Link anmelden",
+        "magicLinkSubtitle": "Wir schicken dir einen Link, der dich anmeldet. Kein Passwort nötig.",
+        "sendLink": "Link zusenden",
+        "useMagicLink": "Stattdessen mit E-Mail-Link anmelden",
+        "usePassword": "Stattdessen Passwort verwenden",
+        "linkSentTitle": "Schau in dein Postfach",
+        "linkSentBody": "Falls es zu dieser Adresse ein Konto gibt, ist ein Anmeldelink unterwegs. Er läuft bald ab, nutze ihn also zügig."
     },
     "home": {
         "title": "Start",

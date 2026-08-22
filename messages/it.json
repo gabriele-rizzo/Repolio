@@ -170,7 +170,14 @@
         "email": "Email",
         "password": "Password",
         "noAccount": "Non hai ancora un account?",
-        "requestAccess": "Richiedi l'accesso"
+        "requestAccess": "Richiedi l'accesso",
+        "magicLinkTitle": "Accedi con un link",
+        "magicLinkSubtitle": "Ti inviamo per email un link che ti fa accedere. Senza password.",
+        "sendLink": "Inviami un link",
+        "useMagicLink": "Accedi invece con un link via email",
+        "usePassword": "Usa invece la password",
+        "linkSentTitle": "Controlla la posta",
+        "linkSentBody": "Se a questo indirizzo corrisponde un account, il link di accesso è in arrivo. Scade a breve, quindi usalo presto."
     },
     "home": {
         "title": "Home",

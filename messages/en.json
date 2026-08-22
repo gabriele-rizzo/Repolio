@@ -170,7 +170,14 @@
         "email": "Email",
         "password": "Password",
         "noAccount": "No account yet?",
-        "requestAccess": "Request access"
+        "requestAccess": "Request access",
+        "magicLinkTitle": "Log in with a link",
+        "magicLinkSubtitle": "We email you a link that signs you in. No password needed.",
+        "sendLink": "Email me a link",
+        "useMagicLink": "Log in with an email link instead",
+        "usePassword": "Use a password instead",
+        "linkSentTitle": "Check your inbox",
+        "linkSentBody": "If that address has an account, a login link is on its way. It expires shortly, so use it soon."
     },
     "home": {
         "title": "Home",
