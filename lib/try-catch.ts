@@ -36,3 +36,28 @@ export function settle<T, E>(name: string, data: Result<T, E>[]): Result<T[], st
 
     return ok(successes);
 }
+
+/**
+ * Runs one query and hands back a Result instead of throwing.
+ *
+ * For surfaces that must render even when a table is missing. Migrations here are applied by hand
+ * against production, so code routinely deploys before its migration lands — and the pages that would
+ * break are the admin ones you open precisely to find out what is wrong. Same contract as the writers
+ * in lib/sync-error.ts and lib/cron/run-record.ts: degrade to a note, never a 500.
+ */
+export async function attempt<T>(query: Promise<T>): Promise<Result<T, string>> {
+    try {
+        return ok(await query);
+    } catch (error) {
+        return err(String(error));
+    }
+}
+
+/**
+ * Narrow on `data`, not on `error`.
+ *
+ * `error: string` includes `""`, which is falsy, so `if (result.error)` does not discriminate this
+ * union for the type checker — the falsy branch could still be the failure member. Testing
+ * `data === null` does.
+ */
+export const failed = <T,>(r: Result<T, string>): r is Failure<string> => r.data === null;

@@ -6,6 +6,7 @@ import { CRON_BUDGET_MS } from "@/lib/cron/budget";
 import { DAY_MS } from "@/lib/constants";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
+import { attempt, failed } from "@/lib/try-catch";
 import { HeartPulse } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
@@ -28,29 +29,6 @@ export const metadata: Metadata = {
 const STALE_AFTER_MS = 2 * DAY_MS;
 const RUN_LIMIT = 12;
 const ERROR_LIMIT = 40;
-
-/**
- * Both tables are observability-only, and `CronRun` may not exist yet on a deployment where its
- * migration has not been applied. Same contract as the writers in lib/sync-error.ts and
- * lib/cron/run-record.ts: degrade to a note rather than 500 the page an operator opens to find out what
- * is wrong.
- */
-async function attempt<T>(query: Promise<T>): Promise<{ data: T; error: null } | { data: null; error: string }> {
-    try {
-        return { data: await query, error: null };
-    } catch (error) {
-        return { data: null, error: String(error) };
-    }
-}
-
-/**
- * Narrow on `data`, not on `error`.
- *
- * `error: string` includes `""`, which is falsy, so `if (result.error)` does not discriminate this union
- * for the type checker — the falsy branch could still be the failure member. Testing `data === null` does.
- */
-const failed = <T,>(r: { data: T; error: null } | { data: null; error: string }): r is { data: null; error: string } =>
-    r.data === null;
 
 export default async function HealthPage() {
     const [locale, tDate] = await Promise.all([getLocale(), getTranslations("date")]);

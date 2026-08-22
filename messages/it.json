@@ -168,7 +168,9 @@
         "subtitle": "Accedi al tuo account per continuare",
         "login": "Accedi",
         "email": "Email",
-        "password": "Password"
+        "password": "Password",
+        "noAccount": "Non hai ancora un account?",
+        "requestAccess": "Richiedi l'accesso"
     },
     "home": {
         "title": "Home",
@@ -248,6 +250,7 @@
     },
     "landing": {
         "signIn": "Accedi",
+        "dashboard": "Apri la dashboard",
         "heroTitle": "Report di performance con AI per agenzie di marketing",
         "heroBody": "Collega una volta gli account pubblicitari di un cliente. Repolio raccoglie i dati ogni giorno, scrive il report con la cadenza che imposti e lo trattiene per la revisione prima che il cliente lo veda.",
         "heroSteps": "Come funziona",
@@ -271,6 +274,23 @@
         "closingTitle": "Hai già un accesso?",
         "closingBody": "La tua agenzia ti registra e ti invia l'invito. Accedi per leggere i tuoi report.",
         "privacy": "Privacy",
-        "terms": "Termini"
+        "terms": "Termini",
+        "requestAccess": "Richiedi l'accesso"
+    },
+    "register": {
+        "title": "Richiedi l'accesso",
+        "subtitle": "Dicci chi sei. Esaminiamo ogni richiesta a mano e ti inviamo un invito via email.",
+        "name": "Nome completo",
+        "namePlaceholder": "Mario Rossi",
+        "email": "Email di lavoro",
+        "emailPlaceholder": "m@esempio.it",
+        "company": "Azienda (opzionale)",
+        "companyPlaceholder": "Acme S.r.l.",
+        "submit": "Richiedi l'accesso",
+        "doneTitle": "Richiesta ricevuta",
+        "doneBody": "Leggiamo ogni richiesta. Quando viene approvata ricevi un'email con il link per impostare la password.",
+        "backToLogin": "Torna all'accesso",
+        "haveAccount": "Hai già un account?",
+        "signIn": "Accedi"
     }
 }

@@ -37,15 +37,31 @@ type CardFont = { name: string; data: Buffer; weight: 400 | 600; style: "normal"
  * bundles Geist Regular for its own default, but nothing heavier — without SemiBold here the headline
  * would silently render at book weight.
  *
+ * THE FILES ARE DE-KERNED ON PURPOSE — that is what the `-nokern` in their names means, and putting the
+ * kerning back visibly breaks the card. satori measures text one grapheme at a time, where no kern pair
+ * can ever apply, but draws whole words through opentype.js with `kerning: true`. So every word was laid
+ * out at its unkerned width and then drawn narrower, and the slack piled up in the following space: the
+ * headline read "performance⎵⎵reports" and "marketing⎵⎵agencies" with gaps ~45% wider than the ones
+ * around short words. The excess after each word matched that word's own kerning to within half a pixel
+ * (performance -210 units, marketing -196, reports -136, "ad" -6), which is what identified it.
+ *
+ * Dropping the kern data makes the drawing agree with the measurement satori had already committed to.
+ * Regenerate with fontTools if the upstream files are ever refreshed — advances are untouched, only the
+ * positioning table goes:
+ *
+ *   python -c "from fontTools.ttLib import TTFont; f=TTFont('geist-regular.woff'); del f['GPOS']; \
+ *              f.flavor='woff'; f.save('geist-regular-nokern.woff')"
+ *
  * `readFile`, not the `fetch(new URL(...))` the Next docs show: Turbopack resolves `import.meta.url` to a
  * `file:` URL and Node's fetch cannot read those. The `new URL` form is still what makes the bundler
  * trace the files, so they are emitted into the build. Both routes prerender, so this runs at build time
- * and a deployed request only ever serves the finished PNG. Licence in GEIST-OFL.txt.
+ * and a deployed request only ever serves the finished PNG. Licence in GEIST-OFL.txt — Geist declares no
+ * Reserved Font Name, so a modified copy may keep the name.
  */
 async function geist(): Promise<CardFont[]> {
     const [regular, semibold] = await Promise.all([
-        readFile(new URL("./geist-regular.woff", import.meta.url)),
-        readFile(new URL("./geist-semibold.woff", import.meta.url)),
+        readFile(new URL("./geist-regular-nokern.woff", import.meta.url)),
+        readFile(new URL("./geist-semibold-nokern.woff", import.meta.url)),
     ]);
 
     return [

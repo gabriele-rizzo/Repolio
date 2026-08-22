@@ -168,7 +168,9 @@
         "subtitle": "Log in to your account to continue",
         "login": "Login",
         "email": "Email",
-        "password": "Password"
+        "password": "Password",
+        "noAccount": "No account yet?",
+        "requestAccess": "Request access"
     },
     "home": {
         "title": "Home",
@@ -248,6 +250,7 @@
     },
     "landing": {
         "signIn": "Log in",
+        "dashboard": "Open dashboard",
         "heroTitle": "AI ad performance reports for marketing agencies",
         "heroBody": "Connect a client's ad accounts once. Repolio pulls the numbers every day, writes the report on the cadence you set, and holds it for review before your client ever sees it.",
         "heroSteps": "See how it works",
@@ -271,6 +274,23 @@
         "closingTitle": "Already set up?",
         "closingBody": "Your agency enrolls you and sends the invitation. Sign in to read your reports.",
         "privacy": "Privacy",
-        "terms": "Terms"
+        "terms": "Terms",
+        "requestAccess": "Request access"
+    },
+    "register": {
+        "title": "Request access",
+        "subtitle": "Tell us who you are. We review every request by hand and email you an invitation.",
+        "name": "Full name",
+        "namePlaceholder": "John Doe",
+        "email": "Work email",
+        "emailPlaceholder": "m@example.com",
+        "company": "Company (optional)",
+        "companyPlaceholder": "Acme Corp.",
+        "submit": "Request access",
+        "doneTitle": "Request received",
+        "doneBody": "We read every request. When it is approved you get an email with a link to set your password.",
+        "backToLogin": "Back to login",
+        "haveAccount": "Already have an account?",
+        "signIn": "Log in"
     }
 }

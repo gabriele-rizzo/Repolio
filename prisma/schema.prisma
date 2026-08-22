@@ -40,6 +40,41 @@ model Client {
     report_template ReportTemplate?
 }
 
+// A self-serve request for access, from the public /auth/register form.
+//
+// The row is NOT an account and grants nothing: it is a queue entry an admin reads on
+// /admin/enrollment and either accepts — which sends the same Supabase invite as manual enrollment,
+// and only then does an auth user (and, through the trigger on auth.users, a Client) exist — or
+// rejects. Nothing in the client-facing app reads this table.
+//
+// `email` is deliberately NOT unique. The same address may legitimately appear twice: a rejected
+// request followed by a fresh one months later is two facts worth keeping, and "one pending request
+// per address" is a partial-unique-index rule that prisma/schema.prisma cannot express, so it would
+// only exist in the migration and show up as drift in the CI check. It is enforced in
+// actions/auth/request-access.ts instead, which folds a repeat request into the pending row.
+model AccessRequest {
+    id         Int                 @id @default(autoincrement())
+    created_at DateTime            @default(now())
+    name       String
+    email      String
+    company    String?
+    // Locale detected when the form was submitted (see i18n/locales.ts). Recorded so an admin can see
+    // which language the request came in, and so a future accept path could seed Client.locale.
+    locale     String              @default("de")
+    status     AccessRequestStatus @default(PENDING)
+    // Stamped when an admin accepts or rejects; null for as long as the request is pending.
+    reviewed_at DateTime?
+
+    @@index([status, created_at])
+    @@index([email])
+}
+
+enum AccessRequestStatus {
+    PENDING
+    ACCEPTED
+    REJECTED
+}
+
 // A client-authored report layout. The body is plain text with Supabase-style `{{ .variable }}`
 // placeholders and a few line prefixes (see lib/report/template/types.ts); it is the source of the
 // DELIVERABLE — the PDF attachment and the standalone HTML render — not of the interactive dashboard

@@ -7,7 +7,6 @@ import { CalendarSync, FileText, Link2, ShieldCheck } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { getTranslations } from "next-intl/server";
 import Link from "next/link";
-import { redirect } from "next/navigation";
 
 // The public front door. Everything else at the root of the app is behind a session, so this page is
 // also the only place a visitor who has never logged in sees anything at all — see PUBLIC_EXACT in
@@ -34,19 +33,32 @@ const FEATURES = ["feature1", "feature2", "feature3"] as const;
 const CTA = "h-9 px-4 text-sm";
 
 export default async function RootPage() {
-    // A signed-in client asking for "/" wants their reports, not the pitch. This is the redirect that
-    // used to be the whole page.
-    const client = await getCurrentClient();
-    if (client) redirect("/dashboard");
+    // Rendered for everyone, session or not. It used to redirect a signed-in client straight to
+    // "/dashboard", which — together with logout landing on "/auth/login" — meant nobody holding an
+    // account could reach this page at all without a private window.
+    //
+    // The session only decides where the buttons GO: a client who already has an account wants their
+    // reports, not the login form they would be bounced through to get there.
+    const [client, t] = await Promise.all([getCurrentClient(), getTranslations("landing")]);
 
-    const t = await getTranslations("landing");
+    // Two destinations for a visitor, because they are two different people. Someone reading the hero
+    // has no account — send them to the request form. Someone reaching for the header button, or for
+    // the "Already set up?" card at the bottom, is a client coming back — send them to the login.
+    // Signed in, both collapse to the dashboard.
+    const primary = client
+        ? { href: "/dashboard" as const, label: t("dashboard") }
+        : { href: "/auth/register" as const, label: t("requestAccess") };
+
+    const returning = client
+        ? { href: "/dashboard" as const, label: t("dashboard") }
+        : { href: "/auth/login" as const, label: t("signIn") };
 
     return (
         <div className="flex min-h-dvh flex-col">
             <header className="flex flex-row items-center justify-between gap-4 px-6 py-4">
                 <Brand />
 
-                <Button size="lg" render={<Link href="/auth/login">{t("signIn")}</Link>} />
+                <Button size="lg" render={<Link href={returning.href}>{returning.label}</Link>} />
             </header>
 
             <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-12 sm:py-20 space-y-16 sm:space-y-20">
@@ -60,7 +72,7 @@ export default async function RootPage() {
                     </Typo>
 
                     <div className="flex flex-row flex-wrap items-center gap-2">
-                        <Button size="lg" className={CTA} render={<Link href="/auth/login">{t("signIn")}</Link>} />
+                        <Button size="lg" className={CTA} render={<Link href={primary.href}>{primary.label}</Link>} />
                         <Button
                             size="lg"
                             variant="outline"
@@ -141,7 +153,7 @@ export default async function RootPage() {
                             </Typo>
                         </div>
 
-                        <Button size="lg" className={CTA} render={<Link href="/auth/login">{t("signIn")}</Link>} />
+                        <Button size="lg" className={CTA} render={<Link href={returning.href}>{returning.label}</Link>} />
                     </Card>
                 </section>
             </main>

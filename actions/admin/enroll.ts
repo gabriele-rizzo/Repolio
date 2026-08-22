@@ -3,15 +3,14 @@
 import type { Client } from "@/generated/prisma/client";
 import { safeAction } from "@/lib/action";
 import { isAdminAuthenticated } from "@/lib/admin/auth";
-import { checkEnv } from "@/lib/env";
+import { inviteClient } from "@/lib/admin/invite";
 import { actionLimiter, checkLimit, clientIp } from "@/lib/rate-limit";
-import { createAdminClient } from "@/lib/supabase/admin/server";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
 
 type ClientEnrollment = Pick<Client, "email" | "name" | "company">;
 
-export async function enrollClient({ email, ...data }: ClientEnrollment) {
+export async function enrollClient({ email, name, company }: ClientEnrollment) {
     // Admin action lives under /admin (excluded from the middleware limiter), so throttle inline —
     // it sends an invite email per call, so cap per IP even though it's admin-gated below.
     const ip = clientIp((await headers()).get("x-forwarded-for"));
@@ -22,17 +21,8 @@ export async function enrollClient({ email, ...data }: ClientEnrollment) {
         // Server actions are public endpoints — gate independently of the admin layout UI.
         if (!(await isAdminAuthenticated())) throw new Error("Unauthorized.");
 
-        const supabase = await createAdminClient();
-        const baseUrl = checkEnv("NEXT_PUBLIC_SITE_URL");
-
-        const { error } = await supabase.auth.admin.inviteUserByEmail(email.trim().toLowerCase(), {
-            redirectTo: `${baseUrl}/auth/confirm`,
-            data,
-        });
-
-        // Turn Supabase's raw "already been registered" into something an admin can act on.
-        if (error?.code === "email_exists") throw new Error("A client with this email is already enrolled.");
-        if (error) throw error;
+        // The invite itself lives in lib/admin/invite.ts, shared with accepting an access request.
+        await inviteClient({ email, name, company });
 
         revalidatePath("/admin/enrollment");
     });

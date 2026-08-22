@@ -9,5 +9,9 @@ export async function logout() {
 
     if (error) throw error;
 
-    redirect("/auth/login");
+    // "/" and not "/auth/login": signing out lands on the public front door, not on a form inviting you
+    // straight back in. It also used to make the landing page unreachable to anyone with an account —
+    // signed in, "/" redirected to the dashboard; signed out, logout dropped you here — so the only way
+    // to see it was a private window.
+    redirect("/");
 }

@@ -168,7 +168,9 @@
         "subtitle": "Melde dich an, um fortzufahren",
         "login": "Anmelden",
         "email": "E-Mail",
-        "password": "Passwort"
+        "password": "Passwort",
+        "noAccount": "Noch kein Konto?",
+        "requestAccess": "Zugang anfragen"
     },
     "home": {
         "title": "Start",
@@ -248,6 +250,7 @@
     },
     "landing": {
         "signIn": "Anmelden",
+        "dashboard": "Dashboard öffnen",
         "heroTitle": "KI-Performance-Reports für Marketing-Agenturen",
         "heroBody": "Verbinde die Werbekonten eines Kunden einmal. Repolio holt die Zahlen jeden Tag, schreibt den Report in dem Rhythmus, den du festlegst, und hält ihn zur Prüfung zurück, bevor ihn dein Kunde sieht.",
         "heroSteps": "So funktioniert es",
@@ -271,6 +274,23 @@
         "closingTitle": "Schon eingerichtet?",
         "closingBody": "Deine Agentur legt dich an und schickt die Einladung. Melde dich an, um deine Reports zu lesen.",
         "privacy": "Datenschutz",
-        "terms": "AGB"
+        "terms": "AGB",
+        "requestAccess": "Zugang anfragen"
+    },
+    "register": {
+        "title": "Zugang anfragen",
+        "subtitle": "Sag uns, wer du bist. Wir prüfen jede Anfrage von Hand und schicken dir eine Einladung per E-Mail.",
+        "name": "Vollständiger Name",
+        "namePlaceholder": "Max Mustermann",
+        "email": "Geschäftliche E-Mail",
+        "emailPlaceholder": "m@beispiel.de",
+        "company": "Unternehmen (optional)",
+        "companyPlaceholder": "Acme GmbH",
+        "submit": "Zugang anfragen",
+        "doneTitle": "Anfrage erhalten",
+        "doneBody": "Wir lesen jede Anfrage. Sobald sie freigegeben ist, bekommst du eine E-Mail mit einem Link, um dein Passwort zu setzen.",
+        "backToLogin": "Zurück zur Anmeldung",
+        "haveAccount": "Schon ein Konto?",
+        "signIn": "Anmelden"
     }
 }
