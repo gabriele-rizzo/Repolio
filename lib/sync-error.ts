@@ -12,7 +12,7 @@ export interface SyncErrorEntry {
      * reports    "poll_due_clients" | "poll_backfill" | "poll_build_params" | "batch_submit" |
      *            "poll_budget_exhausted"
      * ai         "collect_retrieve_batch" | "collect_fetch_results" | "collect_apply_result" |
-     *            "collect_result_not_succeeded"
+     *            "collect_result_not_succeeded" | "ai_output_repaired"
      * delivery   "send_batch_rejected" | "send_batch_notification" | "validation_build_params" |
      *            "pdf_template_fallback"
      *

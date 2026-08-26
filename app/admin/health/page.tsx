@@ -1,3 +1,4 @@
+import { AiTextRepair } from "@/components/admin/ai-text-repair";
 import { CronRunsTable, RecentFailuresTable, StaleAccountsTable } from "@/components/admin/health-tables";
 import { Typo } from "@/components/typography";
 import { Card } from "@/components/ui/card";
@@ -24,6 +25,7 @@ export const metadata: Metadata = {
 //   1. Did the scheduled work run, and did it finish?      → CronRun
 //   2. Is any account's data quietly not advancing?        → AdAccount.last_synced_at
 //   3. What actually failed, and where?                    → SyncError
+//   4. Is a client still reading a half-derailed narrative? → AiTextRepair
 
 /** Beyond this, an active account's sync is silently failing (the daily cron runs every 24h). */
 const STALE_AFTER_MS = 2 * DAY_MS;
@@ -181,6 +183,20 @@ export default async function HealthPage() {
                 ) : (
                     <RecentFailuresTable rows={errors.data} stamp={stamp} />
                 )}
+            </section>
+
+            {/* ── 4. Is a client still reading a half-derailed narrative? ────── */}
+            <section className="space-y-3">
+                <Typo as="lead">AI text repair</Typo>
+                <Typo as="muted" className="text-sm">
+                    A model writing under a constrained response format can close the JSON structure inside a
+                    field instead of around it, then narrate its own repair — all of it inside prose the client
+                    reads. New reports are scrubbed on the way in; this finds the ones written before that and
+                    rewrites them. Released reports included: the emailed PDF can&apos;t be recalled, but the
+                    report page still renders from these rows, and so does the history the next generation reads.
+                </Typo>
+
+                <AiTextRepair />
             </section>
         </div>
     );
