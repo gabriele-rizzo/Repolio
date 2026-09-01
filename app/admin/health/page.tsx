@@ -9,6 +9,7 @@ import { Typo } from "@/components/typography";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { CRON_BUDGET_MS } from "@/lib/cron/budget";
+import { phaseCounts } from "@/lib/cron/phase-detail";
 import { DAY_MS } from "@/lib/constants";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
@@ -68,6 +69,9 @@ export default async function HealthPage() {
                     processed: true,
                     failed: true,
                     skipped: true,
+                    // The combined `daily` job's top-level counts are its SNAPSHOT phase only; the
+                    // report phase lives in here. Read, not just stored — see lib/cron/phase-detail.ts.
+                    detail: true,
                 },
             }),
         ),
@@ -141,6 +145,12 @@ export default async function HealthPage() {
                     )}
                 </div>
 
+                <Typo as="muted" className="text-sm">
+                    The <code>daily</code> job runs two phases, counted separately: snapshot collection, then
+                    report generation. A run finishing is not the same as a run working — the phases fail
+                    independently, so read both lines before calling a run healthy.
+                </Typo>
+
                 {failed(runs) ? (
                     <Card className="p-4">
                         <Typo as="muted" className="text-sm">
@@ -153,7 +163,10 @@ export default async function HealthPage() {
                         <Typo as="muted" className="text-sm">No runs recorded yet.</Typo>
                     </Card>
                 ) : (
-                    <CronRunsTable rows={runs.data} stamp={stamp} />
+                    <CronRunsTable
+                        rows={runs.data.map(({ detail, ...run }) => ({ ...run, poll: phaseCounts(detail, "poll") }))}
+                        stamp={stamp}
+                    />
                 )}
             </section>
 

@@ -1,6 +1,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import type { PhaseCounts } from "@/lib/cron/run-record";
 
 // Presentation for /admin/health. Split from the page so the page owns the queries and these own the
 // markup — and so the populated tables can be rendered with synthetic rows, which is otherwise
@@ -17,6 +18,13 @@ export interface CronRunRow {
     processed: number;
     failed: number;
     skipped: number;
+    /**
+     * The report phase of the combined `daily` job, lifted out of `CronRun.detail` by
+     * `phaseCounts` (lib/cron/phase-detail.ts). Null for the standalone `snapshots`/`poll` jobs —
+     * and for any row whose detail could not be read — where the top-level counts already describe
+     * the whole run.
+     */
+    poll?: PhaseCounts | null;
 }
 
 export interface StaleAccountRow {
@@ -56,35 +64,74 @@ export function CronRunsTable({ rows, stamp }: { rows: CronRunRow[]; stamp: (d: 
                         <TableHead>Started</TableHead>
                         <TableHead>Outcome</TableHead>
                         <TableHead className="text-right">Took</TableHead>
-                        <TableHead className="text-right">Clients</TableHead>
+                        <TableHead className="text-right">Processed</TableHead>
                     </TableRow>
                 </TableHeader>
                 <TableBody>
-                    {rows.map((run) => (
-                        <TableRow key={run.id}>
-                            <TableCell className="font-mono text-xs">{run.job}</TableCell>
-                            <TableCell className="whitespace-nowrap text-sm">{stamp(run.started_at)}</TableCell>
-                            <TableCell>
-                                {/* finished_at is stamped on a normal return. Null means the invocation never
-                                    reached the end — killed at maxDuration, or the process died. A kill throws
-                                    nothing and logs nothing, so this is its only trace. Checked FIRST because a
-                                    killed run's counts were never written and would read as a clean zero. */}
-                                {run.finished_at == null ? (
-                                    <Badge variant="destructive">never finished</Badge>
-                                ) : run.failed > 0 ? (
-                                    <Badge variant="destructive">{run.failed} failed</Badge>
-                                ) : run.skipped > 0 ? (
-                                    <Badge variant="secondary">deferred {run.skipped}</Badge>
-                                ) : (
-                                    <Badge variant="outline">ok</Badge>
-                                )}
-                            </TableCell>
-                            <TableCell className="text-right font-mono text-xs">{seconds(run.duration_ms)}</TableCell>
-                            <TableCell className="text-right font-mono text-xs">
-                                {run.processed}/{run.considered}
-                            </TableCell>
-                        </TableRow>
-                    ))}
+                    {rows.map((run) => {
+                        // A run's failures can live in either phase, and for the combined `daily` job the
+                        // top-level counts cover ONLY the snapshot one. Reading the top level alone is what
+                        // let 2026-09-01 render as "ok" while every report narrative that day came back
+                        // empty (see lib/cron/phase-detail.ts), so both are folded in here.
+                        const reports = run.poll;
+                        const reportsFailed = reports?.failed ?? 0;
+
+                        // Named per phase only when there IS a second phase to tell it apart from.
+                        const snapshotsLabel = reports
+                            ? `${run.failed} snapshot${run.failed === 1 ? "" : "s"} failed`
+                            : `${run.failed} failed`;
+
+                        return (
+                            <TableRow key={run.id}>
+                                <TableCell className="font-mono text-xs">{run.job}</TableCell>
+                                <TableCell className="whitespace-nowrap text-sm">{stamp(run.started_at)}</TableCell>
+                                <TableCell>
+                                    {/* finished_at is stamped on a normal return. Null means the invocation never
+                                        reached the end — killed at maxDuration, or the process died. A kill throws
+                                        nothing and logs nothing, so this is its only trace. Checked FIRST because a
+                                        killed run's counts were never written and would read as a clean zero. */}
+                                    {run.finished_at == null ? (
+                                        <Badge variant="destructive">never finished</Badge>
+                                    ) : run.failed > 0 || reportsFailed > 0 ? (
+                                        <div className="flex flex-wrap gap-1">
+                                            {run.failed > 0 && (
+                                                <Badge variant="destructive">{snapshotsLabel}</Badge>
+                                            )}
+                                            {reportsFailed > 0 && (
+                                                <Badge variant="destructive">
+                                                    {`${reportsFailed} report${reportsFailed === 1 ? "" : "s"} failed`}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                    ) : run.skipped > 0 ? (
+                                        <Badge variant="secondary">deferred {run.skipped}</Badge>
+                                    ) : (
+                                        <Badge variant="outline">ok</Badge>
+                                    )}
+                                </TableCell>
+                                <TableCell className="text-right font-mono text-xs">
+                                    {seconds(run.duration_ms)}
+                                </TableCell>
+                                {/* Labelled per phase rather than given a column each: for `daily` the top-level
+                                    counts are the snapshot phase, but for a standalone `poll` run they are the
+                                    report phase — one fixed header would be wrong for one of them. */}
+                                <TableCell className="text-right font-mono text-xs whitespace-nowrap">
+                                    {reports ? (
+                                        <>
+                                            <span className="block">
+                                                snapshots {run.processed}/{run.considered}
+                                            </span>
+                                            <span className="block">
+                                                reports {reports.processed}/{reports.considered}
+                                            </span>
+                                        </>
+                                    ) : (
+                                        `${run.processed}/${run.considered}`
+                                    )}
+                                </TableCell>
+                            </TableRow>
+                        );
+                    })}
                 </TableBody>
             </Table>
         </Card>
