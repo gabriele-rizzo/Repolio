@@ -11,3 +11,10 @@ export const REFRESH_THRESHOLD_DAYS = 7;
 // refuses windows longer than this — beyond it there is no data to find, so a longer range can only
 // cost query time.
 export const MAX_BACKFILL_DAYS = 730;
+
+// Ranges one recovery re-pull request may START (actions/admin/snapshot-recovery.ts). Each range is
+// its own Zernio round-trip inside a single serverless invocation, so this is a request-sized bite,
+// NOT a limit on how much an admin may heal in one click — the recovery UI chunks a larger selection
+// into this many per call. It lives here rather than in the action because a "use server" module may
+// only export async functions, so the client cannot import the number from there.
+export const RECOVERY_RANGES_PER_REQUEST = 40;

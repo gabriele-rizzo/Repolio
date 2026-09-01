@@ -1,10 +1,12 @@
 "use server";
 
 import { repullRange } from "@/actions/snapshot/repull-range";
+import type { Platform } from "@/generated/prisma/browser";
 import { Prisma } from "@/generated/prisma/client";
 import { safeAction } from "@/lib/action";
 import { isAdminAuthenticated } from "@/lib/admin/auth";
-import { DAY_MS } from "@/lib/constants";
+import { DAY_MS, RECOVERY_RANGES_PER_REQUEST } from "@/lib/constants";
+import { createBudget } from "@/lib/cron/budget";
 import { prisma } from "@/lib/prisma";
 import { actionLimiter, checkLimit, clientIp } from "@/lib/rate-limit";
 import { missingDays, padRanges, totalDays, zeroRuns, type DayRange, type HistoryDay } from "@/lib/snapshot/gaps";
@@ -48,8 +50,16 @@ const PAD_DAYS = 1;
 /** Accounts per scan. A scan runs inside one serverless request; a second pass is one more click. */
 const SCAN_ACCOUNT_LIMIT = 200;
 
-/** Ranges accepted in one re-pull click, across all accounts. Each range is one Zernio round-trip. */
-const MAX_RANGES_PER_APPLY = 40;
+/**
+ * Wall clock one re-pull request may spend STARTING ranges, and the floor it assumes each one costs.
+ *
+ * Same reasoning as lib/cron/budget.ts, which this borrows: Vercel kills a function at maxDuration
+ * without unwinding, so an overrun is a silent truncation, not an error anyone can observe. Every
+ * range that did start has already committed its rows (each upsert is autocommitted, see
+ * repull-range.ts), so stopping early is safe — the caller is simply told what was left.
+ */
+const REPULL_BUDGET_MS = Number(process.env.REPULL_BUDGET_MS) || 45_000;
+const RANGE_ESTIMATE_MS = 4_000;
 
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
 const ymd = (ms: number): string => new Date(ms).toISOString().slice(0, 10);
@@ -59,7 +69,7 @@ export interface AccountDamage {
     adAccountId: number;
     accountName: string;
     clientName: string;
-    platform: string;
+    platform: Platform;
     /** Days in the scan window with no stored row at all — a fetch that failed outright. */
     missing: DayRange[];
     /** Runs of stored all-zero days on an account that was spending before them — suspect, not proven. */
@@ -208,7 +218,27 @@ export interface RepullRequest {
     ranges: { from: string; to: string }[];
 }
 
-export type RepullReport = { error: string } | { accounts: number; ranges: number; rows: number; unresolved: number; failures: string[] };
+export type RepullReport =
+    | { error: string }
+    | {
+          /**
+           * Ad accounts this request actually wrote something for — as ids, not a count, because the
+           * caller aggregates several requests and a count would double-report an account that took
+           * more than one bite.
+           */
+          touchedAccounts: number[];
+          ranges: number;
+          rows: number;
+          unresolved: number;
+          failures: string[];
+          /**
+           * Ranges this request did not START, because it ran out of wall clock or hit the per-request
+           * bite. Returned rather than counted so the caller can re-send exactly them — the recovery UI
+           * loops until this comes back empty, which is what lets one click heal more than one
+           * request's worth of damage.
+           */
+          deferred: RepullRequest[];
+      };
 
 /**
  * Re-pulls the named ranges. Best-effort per range, like the rest of the pipeline: one dead account
@@ -218,26 +248,30 @@ export type RepullReport = { error: string } | { accounts: number; ranges: numbe
  * is re-loaded and re-authorized here, and repullRange validates and bounds every range itself. A
  * caller cannot use this to rewrite an arbitrary window of an arbitrary account without an admin
  * session.
+ *
+ * ONE REQUEST IS A BITE, NOT THE WHOLE MEAL. An over-large selection used to be rejected outright,
+ * which made the recovery screen look broken in exactly the situation it was built for: an outage
+ * wide enough to damage 56 ranges produced a click that reported an error and changed nothing, so
+ * the count sat there unchanged. Excess work is now DEFERRED and handed back instead, and the caller
+ * re-sends it. At least one range always starts (the budget is fresh on every request), so a caller
+ * that loops on `deferred` always terminates.
  */
 export async function repullSnapshotRanges(requests: RepullRequest[]): Promise<RepullReport> {
     const denied = await guard("recovery-apply");
     if (denied) return { error: denied };
 
-    let accounts = 0;
+    const touchedAccounts = new Set<number>();
     let ranges = 0;
     let rows = 0;
     let unresolved = 0;
     const failures: string[] = [];
+    const deferred: RepullRequest[] = [];
 
     const result = await safeAction(async () => {
         if (requests.length === 0) throw new Error("Nothing to re-pull.");
 
-        const total = requests.reduce((sum, r) => sum + r.ranges.length, 0);
-        if (total > MAX_RANGES_PER_APPLY) {
-            throw new Error(
-                `${total} ranges selected; the maximum per run is ${MAX_RANGES_PER_APPLY}. Deselect some and run again.`,
-            );
-        }
+        const budget = createBudget(REPULL_BUDGET_MS);
+        let started = 0;
 
         const ids = requests.map((r) => r.adAccountId);
         const found = await prisma.adAccount.findMany({
@@ -262,9 +296,20 @@ export async function repullSnapshotRanges(requests: RepullRequest[]): Promise<R
             }
 
             let touched = false;
+            const postponed: { from: string; to: string }[] = [];
+
             // Ranges are re-merged server-side: a client that sent overlapping ranges would otherwise
-            // pay for the same Zernio call twice against the per-run cap.
+            // pay for the same Zernio call twice against the per-request bite.
             for (const range of padRanges(wellFormed.map((r) => ({ ...r, days: 0 })), 0)) {
+                // Bounded by wall clock as well as by count: 40 ranges of a two-week outage is 40
+                // Zernio round-trips, which does not reliably fit in one invocation. Whatever is not
+                // started goes back to the caller instead of being cut off mid-write by the platform.
+                if (started >= RECOVERY_RANGES_PER_REQUEST || !budget.canStart(RANGE_ESTIMATE_MS)) {
+                    postponed.push({ from: range.from, to: range.to });
+                    continue;
+                }
+
+                started += 1;
                 const outcome = await repullRange(account, range.from, range.to);
                 ranges += 1;
 
@@ -278,7 +323,10 @@ export async function repullSnapshotRanges(requests: RepullRequest[]): Promise<R
                 touched = true;
             }
 
-            if (touched) accounts += 1;
+            // Deliberately not deferred for an account that was gone or inactive above: that work can
+            // never succeed, and re-queueing it would spin the caller's loop forever.
+            if (postponed.length > 0) deferred.push({ adAccountId: request.adAccountId, ranges: postponed });
+            if (touched) touchedAccounts.add(request.adAccountId);
         }
 
         // Every KPI is recomputed from snapshots on demand, so rewriting these rows changes the
@@ -288,5 +336,7 @@ export async function repullSnapshotRanges(requests: RepullRequest[]): Promise<R
         revalidatePath("/dashboard");
     });
 
-    return result?.error ? result : { accounts, ranges, rows, unresolved, failures };
+    return result?.error
+        ? result
+        : { touchedAccounts: [...touchedAccounts], ranges, rows, unresolved, failures, deferred };
 }

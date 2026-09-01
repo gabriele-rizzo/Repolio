@@ -4,12 +4,15 @@ import {
     repullSnapshotRanges,
     scanSnapshotDamage,
     type AccountDamage,
+    type RepullRequest,
 } from "@/actions/admin/snapshot-recovery";
+import { PlatformBadge } from "@/components/platform-badge";
 import { Typo } from "@/components/typography";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { RECOVERY_RANGES_PER_REQUEST } from "@/lib/constants";
 import { Check, DatabaseBackup, Circle } from "lucide-react";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
@@ -19,6 +22,25 @@ import { toast } from "sonner";
 // the exact day ranges are shown and can be deselected before anything is requested.
 
 type Scanned = { scannedAccounts: number; from: string; to: string; damaged: AccountDamage[] };
+
+/** One selected range, flattened out of its account so the queue can be sliced across accounts. */
+type Pending = { adAccountId: number; from: string; to: string };
+
+/** Re-groups a flat slice back into the per-account shape the action takes. */
+function group(pending: Pending[]): RepullRequest[] {
+    const byAccount = new Map<number, { from: string; to: string }[]>();
+
+    for (const item of pending) {
+        const bucket = byAccount.get(item.adAccountId);
+        if (bucket) bucket.push({ from: item.from, to: item.to });
+        else byAccount.set(item.adAccountId, [{ from: item.from, to: item.to }]);
+    }
+
+    return [...byAccount].map(([adAccountId, ranges]) => ({ adAccountId, ranges }));
+}
+
+const flatten = (requests: RepullRequest[]): Pending[] =>
+    requests.flatMap((request) => request.ranges.map((r) => ({ adAccountId: request.adAccountId, ...r })));
 
 /** Stable identity for one selectable range: an account plus its window. */
 const rangeKey = (adAccountId: number, from: string, to: string) => `${adAccountId}:${from}:${to}`;
@@ -73,31 +95,72 @@ export function SnapshotRecovery() {
     function onRepull() {
         if (!scan) return;
 
-        const requests = scan.damaged
-            .map((account) => ({
-                adAccountId: account.adAccountId,
-                ranges: account.repull
-                    .filter((r) => selected.has(rangeKey(account.adAccountId, r.from, r.to)))
-                    .map((r) => ({ from: r.from, to: r.to })),
-            }))
-            .filter((request) => request.ranges.length > 0);
+        const initial: Pending[] = scan.damaged.flatMap((account) =>
+            account.repull
+                .filter((r) => selected.has(rangeKey(account.adAccountId, r.from, r.to)))
+                .map((r) => ({ adAccountId: account.adAccountId, from: r.from, to: r.to })),
+        );
 
+        if (initial.length === 0) return;
+
+        // A selection wider than one request is sent as several — the server bites off what fits in
+        // its wall clock and hands the rest back, and we keep going. This loop is the whole reason
+        // the button works at all on a real outage: the previous version sent all 56 ranges in one
+        // call, the server rejected the batch for exceeding its per-run cap, and the click therefore
+        // healed nothing while the selected count sat unchanged at 56.
         startRepull(async () => {
-            const result = await repullSnapshotRanges(requests);
+            const toastId = toast.loading(`Re-pulling 0/${initial.length} ranges…`);
 
-            if ("error" in result) {
-                toast.error(result.error);
-                return;
+            const touched = new Set<number>();
+            let queue = initial;
+            let ranges = 0;
+            let rows = 0;
+            let unresolved = 0;
+            const failures: string[] = [];
+
+            while (queue.length > 0) {
+                const batch = queue.slice(0, RECOVERY_RANGES_PER_REQUEST);
+                const rest = queue.slice(RECOVERY_RANGES_PER_REQUEST);
+                const result = await repullSnapshotRanges(group(batch));
+
+                if ("error" in result) {
+                    toast.error(result.error, { id: toastId });
+                    onScan();
+                    return;
+                }
+
+                result.touchedAccounts.forEach((id) => touched.add(id));
+                ranges += result.ranges;
+                rows += result.rows;
+                unresolved += result.unresolved;
+                failures.push(...result.failures);
+
+                const back = flatten(result.deferred);
+
+                // Belt and braces. The server always starts at least one range per request, so this
+                // cannot normally trip — but a loop that re-sends the same work forever is a far worse
+                // failure than one that stops and says so.
+                if (back.length >= batch.length) {
+                    toast.error(`Stopped: ${back.length} ranges were returned unstarted.`, { id: toastId });
+                    onScan();
+                    return;
+                }
+
+                queue = [...back, ...rest];
+                toast.loading(`Re-pulling ${initial.length - queue.length}/${initial.length} ranges…`, {
+                    id: toastId,
+                });
             }
 
-            result.failures.forEach((failure) => toast.error(failure));
+            failures.forEach((failure) => toast.error(failure));
             toast.success(
-                `Re-pulled ${result.ranges} range${result.ranges === 1 ? "" : "s"} across ${result.accounts} account${result.accounts === 1 ? "" : "s"} — ${result.rows} rows written.`,
+                `Re-pulled ${ranges} range${ranges === 1 ? "" : "s"} across ${touched.size} account${touched.size === 1 ? "" : "s"} — ${rows} rows written.`,
+                { id: toastId },
             );
-            if (result.unresolved > 0) {
+            if (unresolved > 0) {
                 // Not a failure: Zernio confirming a genuine no-delivery day looks identical to Zernio
                 // still refusing to serve one, and only the operator knows which is plausible.
-                toast.info(`${result.unresolved} days still returned nothing and were left untouched.`);
+                toast.info(`${unresolved} days still returned nothing and were left untouched.`);
             }
 
             // Re-scan rather than clearing optimistically: a range Zernio still won't serve must stay
@@ -165,9 +228,7 @@ export function SnapshotRecovery() {
                                         {account.suspectZero.length === 1 ? "" : "s"}
                                     </Badge>
                                 )}
-                                <Typo as="muted" className="text-xs">
-                                    {account.platform.toLowerCase()}
-                                </Typo>
+                                <PlatformBadge platform={account.platform} />
                             </div>
                         </div>
 
