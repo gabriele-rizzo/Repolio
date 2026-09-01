@@ -9,6 +9,7 @@ export interface SyncErrorEntry {
      *
      * snapshots  "fetch_snapshot" | "upsert_snapshots" | "refresh_ad_accounts" | "health_check" |
      *            "collect_snapshots" | "snapshots_budget_exhausted"
+     * recovery   "repull_range"   (admin-triggered re-pull of a damaged window, /admin/recovery)
      * reports    "poll_due_clients" | "poll_backfill" | "poll_build_params" | "batch_submit" |
      *            "poll_budget_exhausted"
      * ai         "collect_retrieve_batch" | "collect_fetch_results" | "collect_apply_result" |
