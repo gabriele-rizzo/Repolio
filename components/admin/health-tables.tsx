@@ -27,6 +27,14 @@ export interface StaleAccountRow {
     connection: { platform: string; client: { name: string; email: string } };
 }
 
+export interface DisconnectedConnectionRow {
+    id: number;
+    platform: string;
+    updated_at: Date;
+    client: { name: string; email: string };
+    _count: { ad_accounts: number };
+}
+
 export interface FailureRow {
     id: number;
     created_at: Date;
@@ -75,6 +83,50 @@ export function CronRunsTable({ rows, stamp }: { rows: CronRunRow[]; stamp: (d: 
                             <TableCell className="text-right font-mono text-xs">
                                 {run.processed}/{run.considered}
                             </TableCell>
+                        </TableRow>
+                    ))}
+                </TableBody>
+            </Table>
+        </Card>
+    );
+}
+
+export function DisconnectedConnectionsTable({
+    rows,
+    stamp,
+}: {
+    rows: DisconnectedConnectionRow[];
+    stamp: (d: Date) => string;
+}) {
+    return (
+        <Card className="overflow-x-auto p-0">
+            <Table>
+                <TableHeader>
+                    <TableRow>
+                        <TableHead>Client</TableHead>
+                        <TableHead>Platform</TableHead>
+                        <TableHead className="text-right">Ad accounts</TableHead>
+                        <TableHead>Marked</TableHead>
+                    </TableRow>
+                </TableHeader>
+                <TableBody>
+                    {rows.map((row) => (
+                        <TableRow key={row.id}>
+                            <TableCell className="text-sm">
+                                {row.client.name}
+                                <span className="text-muted-foreground"> · {row.client.email}</span>
+                            </TableCell>
+                            <TableCell>
+                                <Badge variant="destructive" className="capitalize">
+                                    {row.platform.toLowerCase()}
+                                </Badge>
+                            </TableCell>
+                            <TableCell className="text-right font-mono text-xs">{row._count.ad_accounts}</TableCell>
+                            {/* `updated_at` is @updatedAt, so this is "last write to the row", not
+                                strictly "went dark at". Any other edit to the connection moves it. It is
+                                the closest thing to a timestamp without a dedicated column — read it as
+                                an upper bound on how long the grant has been dead. */}
+                            <TableCell className="whitespace-nowrap text-sm">{stamp(row.updated_at)}</TableCell>
                         </TableRow>
                     ))}
                 </TableBody>

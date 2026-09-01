@@ -72,10 +72,7 @@ export async function collectSnapshots(client: SnapshotClient): Promise<Result<S
     let disconnectedIds = new Set<number>();
     if (client.zernio_profile_id) {
         try {
-            disconnectedIds = await syncConnectionHealth(
-                client,
-                adAccounts.map((a) => a.connection),
-            );
+            disconnectedIds = await syncConnectionHealth(client);
         } catch (error) {
             console.error(`Connection health check failed for client ${client.id}:`, error);
             await logSyncError({ stage: "health_check", clientId: client.id, message: String(error) });
@@ -212,8 +209,16 @@ async function refreshAdAccounts(clientId: number): Promise<void> {
  * Reconciles each connection's status against Zernio's view. Returns the set of connection ids that
  * are currently disconnected (so the caller can skip pulling them). Flips PlatformConnection.status
  * in the DB and notifies the client once per disconnected connection.
+ *
+ * The connections are loaded HERE rather than derived from the caller's ad-account list, which is
+ * the bug this replaces: the caller passes `adAccounts.map(a => a.connection)`, so a grant with no
+ * ad accounts — or whose ad accounts are all inactive — was never in the list and therefore never
+ * reconciled. It sat at CONNECTED forever no matter what Zernio said. That is not a corner case: a
+ * password change kills the grant, `refreshAdAccounts` (which itself only looks at CONNECTED
+ * connections) then can't list anything under it, and a client who has since deactivated their
+ * accounts has nothing left to carry the connection into this function at all.
  */
-async function syncConnectionHealth(client: SnapshotClient, connections: PlatformConnection[]): Promise<Set<number>> {
+async function syncConnectionHealth(client: SnapshotClient): Promise<Set<number>> {
     const profileId = client.zernio_profile_id;
     const disconnectedConnectionIds = new Set<number>();
     if (!profileId) return disconnectedConnectionIds;
@@ -221,10 +226,13 @@ async function syncConnectionHealth(client: SnapshotClient, connections: Platfor
     const disconnected = await listAccounts(profileId, "disconnected");
     const disconnectedZernioIds = new Set(disconnected.map((a) => a._id));
 
-    // Many ad accounts can share one connection — dedupe so we update/notify each once.
-    const byId = new Map(connections.map((c) => [c.id, c]));
+    // Every Zernio-backed connection the client has, in either status: a DISCONNECTED one must stay
+    // in scope so it can be flipped back once the client reconnects.
+    const connections = await prisma.platformConnection.findMany({
+        where: { client_id: client.id, zernio_account_id: { not: null } },
+    });
 
-    for (const connection of byId.values()) {
+    for (const connection of connections) {
         const isDisconnected =
             connection.zernio_account_id != null && disconnectedZernioIds.has(connection.zernio_account_id);
         const nextStatus = isDisconnected ? "DISCONNECTED" : "CONNECTED";

@@ -1,5 +1,10 @@
 import { AiTextRepair } from "@/components/admin/ai-text-repair";
-import { CronRunsTable, RecentFailuresTable, StaleAccountsTable } from "@/components/admin/health-tables";
+import {
+    CronRunsTable,
+    DisconnectedConnectionsTable,
+    RecentFailuresTable,
+    StaleAccountsTable,
+} from "@/components/admin/health-tables";
 import { Typo } from "@/components/typography";
 import { Card } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -8,7 +13,7 @@ import { DAY_MS } from "@/lib/constants";
 import { dateFormatRelative } from "@/lib/date/format-relative";
 import { prisma } from "@/lib/prisma";
 import { attempt, failed } from "@/lib/try-catch";
-import { HeartPulse } from "lucide-react";
+import { HeartPulse, Link2Off } from "lucide-react";
 import type { Metadata } from "next";
 import { getLocale, getTranslations } from "next-intl/server";
 
@@ -23,9 +28,16 @@ export const metadata: Metadata = {
 //
 // Three questions, in the order you'd actually ask them:
 //   1. Did the scheduled work run, and did it finish?      → CronRun
-//   2. Is any account's data quietly not advancing?        → AdAccount.last_synced_at
-//   3. What actually failed, and where?                    → SyncError
-//   4. Is a client still reading a half-derailed narrative? → AiTextRepair
+//   2. Has a client's grant gone dead at the provider?     → PlatformConnection.status
+//   3. Is any account's data quietly not advancing?        → AdAccount.last_synced_at
+//   4. What actually failed, and where?                    → SyncError
+//   5. Is a client still reading a half-derailed narrative? → AiTextRepair
+//
+// (2) has to be its own question rather than a column on (3), because a dead grant REMOVES its
+// accounts from the stale list — that query is scoped to `connection: { status: "CONNECTED" }`, so
+// the moment the health check correctly marks a connection dead, everything under it stops being
+// reported as stale. Without this section a detected disconnect and a healthy deployment look
+// identical from here, which is the opposite of what detecting it was for.
 
 /** Beyond this, an active account's sync is silently failing (the daily cron runs every 24h). */
 const STALE_AFTER_MS = 2 * DAY_MS;
@@ -41,7 +53,7 @@ export default async function HealthPage() {
     // eslint-disable-next-line react-hooks/purity
     const staleBefore = new Date(Date.now() - STALE_AFTER_MS);
 
-    const [runs, stale, errors] = await Promise.all([
+    const [runs, disconnected, stale, errors] = await Promise.all([
         attempt(
             prisma.cronRun.findMany({
                 orderBy: { started_at: "desc" },
@@ -56,6 +68,22 @@ export default async function HealthPage() {
                     processed: true,
                     failed: true,
                     skipped: true,
+                },
+            }),
+        ),
+        // Grants Zernio reports as disconnected, newest mark first. Reconciled by syncConnectionHealth
+        // in the daily snapshot run (actions/snapshot/collect-snapshots.ts), which is the only writer.
+        attempt(
+            prisma.platformConnection.findMany({
+                where: { status: "DISCONNECTED" },
+                orderBy: [{ updated_at: "desc" }, { id: "asc" }],
+                take: 40,
+                select: {
+                    id: true,
+                    platform: true,
+                    updated_at: true,
+                    client: { select: { name: true, email: true } },
+                    _count: { select: { ad_accounts: true } },
                 },
             }),
         ),
@@ -129,7 +157,40 @@ export default async function HealthPage() {
                 )}
             </section>
 
-            {/* ── 2. Whose data stopped advancing? ───────────────────────────── */}
+            {/* ── 2. Whose grant is dead at the provider? ────────────────────── */}
+            <section className="space-y-3">
+                <Typo as="lead">Disconnected connections</Typo>
+                <Typo as="muted" className="text-sm">
+                    Grants Zernio reports as disconnected — the shape a client changing their platform
+                    password leaves behind: the OAuth token is revoked, so Zernio serves nothing and no amount
+                    of re-pulling helps until the client reconnects. They are notified automatically, at most
+                    once a week. Note these accounts are <em>excluded</em> from the stale list below, so this
+                    is the only place they appear.
+                </Typo>
+
+                {failed(disconnected) ? (
+                    <Card className="p-4">
+                        <Typo as="muted" className="text-sm">Could not read connections.</Typo>
+                    </Card>
+                ) : disconnected.data.length === 0 ? (
+                    <Empty className="border border-dashed">
+                        <EmptyHeader>
+                            <EmptyMedia variant="icon">
+                                <Link2Off />
+                            </EmptyMedia>
+                            <EmptyTitle>Every grant is live</EmptyTitle>
+                            <EmptyDescription>
+                                No connection is marked disconnected. This only reflects what the last daily run
+                                saw — a grant that died since then still reads as connected here.
+                            </EmptyDescription>
+                        </EmptyHeader>
+                    </Empty>
+                ) : (
+                    <DisconnectedConnectionsTable rows={disconnected.data} stamp={stamp} />
+                )}
+            </section>
+
+            {/* ── 3. Whose data stopped advancing? ───────────────────────────── */}
             <section className="space-y-3">
                 <Typo as="lead">Stale ad accounts</Typo>
                 <Typo as="muted" className="text-sm">
@@ -156,7 +217,7 @@ export default async function HealthPage() {
                 )}
             </section>
 
-            {/* ── 3. What failed? ────────────────────────────────────────────── */}
+            {/* ── 4. What failed? ────────────────────────────────────────────── */}
             <section className="space-y-3">
                 <Typo as="lead">Recent failures</Typo>
                 <Typo as="muted" className="text-sm">
@@ -185,7 +246,7 @@ export default async function HealthPage() {
                 )}
             </section>
 
-            {/* ── 4. Is a client still reading a half-derailed narrative? ────── */}
+            {/* ── 5. Is a client still reading a half-derailed narrative? ────── */}
             <section className="space-y-3">
                 <Typo as="lead">AI text repair</Typo>
                 <Typo as="muted" className="text-sm">
